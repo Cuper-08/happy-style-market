@@ -24,10 +24,12 @@ import {
 import { Search, Loader2, Users, Eye } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 export default function CustomersPage() {
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState('');
+  const isMobile = useIsMobile();
 
   const { data: customers, isLoading } = useAdminCustomers();
 
@@ -51,17 +53,17 @@ export default function CustomersPage() {
 
   return (
     <AdminLayout>
-      <div className="space-y-6">
+      <div className="space-y-4 sm:space-y-6">
         {/* Header */}
         <div>
-          <h1 className="text-2xl font-bold">Clientes</h1>
-          <p className="text-muted-foreground">Gerencie os clientes cadastrados</p>
+          <h1 className="text-xl sm:text-2xl font-bold">Clientes</h1>
+          <p className="text-sm text-muted-foreground">Gerencie os clientes cadastrados</p>
         </div>
 
         {/* Filters */}
         <Card>
-          <CardContent className="pt-6">
-            <div className="flex flex-col gap-4 md:flex-row md:items-center">
+          <CardContent className="pt-4 sm:pt-6">
+            <div className="flex flex-col gap-3 sm:gap-4 sm:flex-row sm:items-center">
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
@@ -75,7 +77,7 @@ export default function CustomersPage() {
                 value={typeFilter}
                 onValueChange={(v) => setTypeFilter(v)}
               >
-                <SelectTrigger className="w-[180px]">
+                <SelectTrigger className="w-full sm:w-[180px]">
                   <SelectValue placeholder="Tipo de cliente" />
                 </SelectTrigger>
                 <SelectContent>
@@ -88,10 +90,10 @@ export default function CustomersPage() {
           </CardContent>
         </Card>
 
-        {/* Customers Table */}
+        {/* Customers List */}
         <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
+          <CardHeader className="pb-3 sm:pb-6">
+            <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
               <Users className="h-5 w-5" />
               Lista de Clientes ({filteredCustomers.length})
             </CardTitle>
@@ -106,7 +108,55 @@ export default function CustomersPage() {
                 <Users className="h-12 w-12 text-muted-foreground mb-4" />
                 <p className="text-muted-foreground">Nenhum cliente encontrado</p>
               </div>
+            ) : isMobile ? (
+              /* Mobile Card View */
+              <div className="space-y-3">
+                {filteredCustomers.map((customer) => (
+                  <Link
+                    key={customer.id}
+                    to={`/admin/clientes/${customer.user_id}`}
+                    className="block p-4 rounded-lg border hover:bg-muted/50 transition-colors"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0 flex-1">
+                        <p className="font-medium truncate">
+                          {customer.full_name || 'Nome não informado'}
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          {customer.phone || 'Sem telefone'}
+                        </p>
+                        {customer.cpf && (
+                          <p className="text-xs text-muted-foreground">
+                            CPF: {customer.cpf}
+                          </p>
+                        )}
+                      </div>
+                      <Badge
+                        variant={
+                          customer.customer_type === 'wholesale'
+                            ? 'default'
+                            : 'secondary'
+                        }
+                        className="shrink-0"
+                      >
+                        {customer.customer_type === 'wholesale'
+                          ? 'Atacado'
+                          : 'Varejo'}
+                      </Badge>
+                    </div>
+                    <div className="flex items-center justify-between mt-3 pt-3 border-t text-sm">
+                      <span className="text-muted-foreground">
+                        {customer.totalOrders} pedido(s)
+                      </span>
+                      <span className="font-medium">
+                        {formatCurrency(customer.totalSpent)}
+                      </span>
+                    </div>
+                  </Link>
+                ))}
+              </div>
             ) : (
+              /* Desktop Table View */
               <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>

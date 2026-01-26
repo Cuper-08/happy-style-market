@@ -35,11 +35,12 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { Plus, Search, Loader2, Pencil, Trash2, Package } from 'lucide-react';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 export default function ProductsPage() {
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState('');
-  const [productToDelete, setProductToDelete] = useState<string | null>(null);
+  const isMobile = useIsMobile();
 
   const { products, isLoading, toggleActive, deleteProduct, isDeleting } = useAdminProducts();
   const { categories } = useAdminCategories();
@@ -67,14 +68,14 @@ export default function ProductsPage() {
 
   return (
     <AdminLayout>
-      <div className="space-y-6">
+      <div className="space-y-4 sm:space-y-6">
         {/* Header */}
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 className="text-2xl font-bold">Produtos</h1>
-            <p className="text-muted-foreground">Gerencie o catálogo de produtos</p>
+            <h1 className="text-xl sm:text-2xl font-bold">Produtos</h1>
+            <p className="text-sm text-muted-foreground">Gerencie o catálogo de produtos</p>
           </div>
-          <Button asChild>
+          <Button asChild className="w-full sm:w-auto">
             <Link to="/admin/produtos/novo">
               <Plus className="h-4 w-4 mr-2" />
               Novo Produto
@@ -84,8 +85,8 @@ export default function ProductsPage() {
 
         {/* Filters */}
         <Card>
-          <CardContent className="pt-6">
-            <div className="flex flex-col gap-4 md:flex-row md:items-center">
+          <CardContent className="pt-4 sm:pt-6">
+            <div className="flex flex-col gap-3 sm:gap-4 sm:flex-row sm:items-center">
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
@@ -99,7 +100,7 @@ export default function ProductsPage() {
                 value={categoryFilter}
                 onValueChange={(v) => setCategoryFilter(v)}
               >
-                <SelectTrigger className="w-[200px]">
+                <SelectTrigger className="w-full sm:w-[200px]">
                   <SelectValue placeholder="Filtrar por categoria" />
                 </SelectTrigger>
                 <SelectContent>
@@ -115,10 +116,10 @@ export default function ProductsPage() {
           </CardContent>
         </Card>
 
-        {/* Products Table */}
+        {/* Products List */}
         <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
+          <CardHeader className="pb-3 sm:pb-6">
+            <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
               <Package className="h-5 w-5" />
               Lista de Produtos ({filteredProducts.length})
             </CardTitle>
@@ -139,7 +140,90 @@ export default function ProductsPage() {
                   </Link>
                 </Button>
               </div>
+            ) : isMobile ? (
+              /* Mobile Card View */
+              <div className="space-y-3">
+                {filteredProducts.map((product) => (
+                  <div
+                    key={product.id}
+                    className="p-4 rounded-lg border"
+                  >
+                    <div className="flex gap-3">
+                      {product.images && product.images[0] ? (
+                        <img
+                          src={product.images[0]}
+                          alt={product.name}
+                          className="h-16 w-16 rounded-lg object-cover shrink-0"
+                        />
+                      ) : (
+                        <div className="h-16 w-16 rounded-lg bg-muted flex items-center justify-center shrink-0">
+                          <Package className="h-6 w-6 text-muted-foreground" />
+                        </div>
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <p className="font-medium truncate">{product.name}</p>
+                        <p className="text-xs text-muted-foreground">{product.category?.name || '-'}</p>
+                        <p className="text-sm font-semibold mt-1">
+                          {formatCurrency(Number(product.retail_price))}
+                        </p>
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className={`text-xs ${getTotalStock(product.variants) <= 5 ? 'text-destructive font-medium' : 'text-muted-foreground'}`}>
+                            Estoque: {getTotalStock(product.variants)}
+                          </span>
+                          {product.featured && (
+                            <Badge variant="secondary" className="text-[10px] px-1.5 py-0">Destaque</Badge>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between mt-3 pt-3 border-t">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-muted-foreground">Ativo</span>
+                        <Switch
+                          checked={product.is_active || false}
+                          onCheckedChange={(checked) =>
+                            toggleActive({ id: product.id, isActive: checked })
+                          }
+                        />
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Button variant="ghost" size="icon" asChild>
+                          <Link to={`/admin/produtos/${product.id}`}>
+                            <Pencil className="h-4 w-4" />
+                          </Link>
+                        </Button>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="ghost" size="icon" className="text-destructive">
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Excluir produto?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Esta ação não pode ser desfeita. O produto "{product.name}" será
+                                permanentemente excluído.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={() => deleteProduct(product.id)}
+                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                              >
+                                Excluir
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
             ) : (
+              /* Desktop Table View */
               <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>

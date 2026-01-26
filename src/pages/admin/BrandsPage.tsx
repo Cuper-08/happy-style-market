@@ -43,6 +43,7 @@ import {
 } from '@/components/ui/form';
 import { Plus, Loader2, Pencil, Trash2, Building2 } from 'lucide-react';
 import { Brand } from '@/types';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 const brandSchema = z.object({
   name: z.string().min(1, 'Nome é obrigatório'),
@@ -62,6 +63,7 @@ export default function BrandsPage() {
     isCreating,
     isUpdating,
   } = useAdminBrands();
+  const isMobile = useIsMobile();
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingBrand, setEditingBrand] = useState<Brand | null>(null);
@@ -124,21 +126,21 @@ export default function BrandsPage() {
 
   return (
     <AdminLayout>
-      <div className="space-y-6">
+      <div className="space-y-4 sm:space-y-6">
         {/* Header */}
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 className="text-2xl font-bold">Marcas</h1>
-            <p className="text-muted-foreground">Gerencie as marcas parceiras</p>
+            <h1 className="text-xl sm:text-2xl font-bold">Marcas</h1>
+            <p className="text-sm text-muted-foreground">Gerencie as marcas parceiras</p>
           </div>
           <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
             <DialogTrigger asChild>
-              <Button onClick={openCreateDialog}>
+              <Button onClick={openCreateDialog} className="w-full sm:w-auto">
                 <Plus className="h-4 w-4 mr-2" />
                 Nova Marca
               </Button>
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent className="max-w-[95vw] sm:max-w-lg">
               <DialogHeader>
                 <DialogTitle>
                   {editingBrand ? 'Editar Marca' : 'Nova Marca'}
@@ -189,15 +191,16 @@ export default function BrandsPage() {
                       </FormItem>
                     )}
                   />
-                  <div className="flex justify-end gap-2">
+                  <div className="flex flex-col-reverse sm:flex-row justify-end gap-2">
                     <Button
                       type="button"
                       variant="outline"
                       onClick={() => setDialogOpen(false)}
+                      className="w-full sm:w-auto"
                     >
                       Cancelar
                     </Button>
-                    <Button type="submit" disabled={isCreating || isUpdating}>
+                    <Button type="submit" disabled={isCreating || isUpdating} className="w-full sm:w-auto">
                       {(isCreating || isUpdating) && (
                         <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                       )}
@@ -210,10 +213,10 @@ export default function BrandsPage() {
           </Dialog>
         </div>
 
-        {/* Brands Table */}
+        {/* Brands List */}
         <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
+          <CardHeader className="pb-3 sm:pb-6">
+            <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
               <Building2 className="h-5 w-5" />
               Lista de Marcas ({brands.length})
             </CardTitle>
@@ -232,7 +235,70 @@ export default function BrandsPage() {
                   Criar primeira marca
                 </Button>
               </div>
+            ) : isMobile ? (
+              /* Mobile Card View */
+              <div className="space-y-3">
+                {brands.map((brand) => (
+                  <div
+                    key={brand.id}
+                    className="flex items-center justify-between p-4 rounded-lg border"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      {brand.logo_url ? (
+                        <img
+                          src={brand.logo_url}
+                          alt={brand.name}
+                          className="h-10 w-10 rounded-lg object-contain bg-muted shrink-0"
+                        />
+                      ) : (
+                        <div className="h-10 w-10 rounded-lg bg-muted flex items-center justify-center shrink-0">
+                          <Building2 className="h-5 w-5 text-muted-foreground" />
+                        </div>
+                      )}
+                      <div className="min-w-0">
+                        <p className="font-medium truncate">{brand.name}</p>
+                        <p className="text-xs text-muted-foreground">/{brand.slug}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => openEditDialog(brand)}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="ghost" size="icon" className="text-destructive">
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent className="max-w-[95vw] sm:max-w-lg">
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Excluir marca?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Esta ação não pode ser desfeita. A marca "{brand.name}"
+                              será permanentemente excluída.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+                            <AlertDialogCancel className="w-full sm:w-auto">Cancelar</AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={() => deleteBrand(brand.id)}
+                              className="w-full sm:w-auto bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            >
+                              Excluir
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </div>
+                  </div>
+                ))}
+              </div>
             ) : (
+              /* Desktop Table View */
               <Table>
                 <TableHeader>
                   <TableRow>
