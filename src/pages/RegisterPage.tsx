@@ -2,12 +2,14 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Layout } from '@/components/layout';
 import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from '@/hooks/use-toast';
-import { Eye, EyeOff, Loader2 } from 'lucide-react';
+import { Eye, EyeOff, Loader2, Chrome } from 'lucide-react';
+import { Separator } from '@/components/ui/separator';
 
 export default function RegisterPage() {
   const navigate = useNavigate();
@@ -24,6 +26,18 @@ export default function RegisterPage() {
     navigate('/minha-conta');
     return null;
   }
+
+  const handleGoogleSignUp = async () => {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: `${window.location.origin}/minha-conta`,
+      },
+    });
+    if (error) {
+      toast({ title: 'Erro ao conectar com Google', description: error.message, variant: 'destructive' });
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -70,6 +84,24 @@ export default function RegisterPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
+            {/* Google Sign Up Button */}
+            <Button 
+              type="button" 
+              variant="outline" 
+              className="w-full gap-2 h-12 mb-4 border-border hover:bg-secondary"
+              onClick={handleGoogleSignUp}
+            >
+              <Chrome className="h-5 w-5" />
+              Continuar com Google
+            </Button>
+
+            <div className="relative my-4">
+              <Separator />
+              <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-card px-2 text-xs text-muted-foreground uppercase">
+                ou
+              </span>
+            </div>
+
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="fullName">Nome Completo</Label>
