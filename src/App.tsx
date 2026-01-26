@@ -16,7 +16,11 @@ import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
 import AccountPage from "./pages/AccountPage";
 import FavoritesPage from "./pages/FavoritesPage";
+import InstallPage from "./pages/InstallPage";
 import NotFound from "./pages/NotFound";
+
+// PWA Components
+import { InstallBanner } from "./components/pwa/InstallBanner";
 
 const queryClient = new QueryClient();
 
@@ -42,9 +46,11 @@ const App = () => (
               <Route path="/minha-conta/pedidos" element={<AccountPage />} />
               <Route path="/minha-conta/enderecos" element={<AccountPage />} />
               <Route path="/minha-conta/perfil" element={<AccountPage />} />
+              <Route path="/instalar" element={<InstallPage />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>
+            <InstallBanner />
           </BrowserRouter>
         </TooltipProvider>
       </CartProvider>
