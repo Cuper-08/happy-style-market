@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback } from 'react';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
@@ -63,14 +62,6 @@ export function HeroBanner({ banners = defaultBanners, className }: HeroBannerPr
     return () => clearInterval(timer);
   }, [banners.length, current, goToSlide]);
 
-  const goToPrevious = () => {
-    goToSlide((current - 1 + banners.length) % banners.length);
-  };
-
-  const goToNext = () => {
-    goToSlide((current + 1) % banners.length);
-  };
-
   return (
     <div className={cn('relative w-full overflow-hidden rounded-2xl shadow-lg', className)}>
       <div className="aspect-[2/1] md:aspect-[3/1] relative">
@@ -97,13 +88,13 @@ export function HeroBanner({ banners = defaultBanners, className }: HeroBannerPr
               <div className="container">
                 <div 
                   className={cn(
-                    'max-w-md space-y-5 transition-all duration-700 delay-200',
+                    'max-w-md space-y-3 md:space-y-5 px-4 md:px-0 transition-all duration-700 delay-200',
                     index === current 
                       ? 'opacity-100 translate-y-0' 
                       : 'opacity-0 translate-y-4'
                   )}
                 >
-                  <h2 className="text-2xl md:text-4xl lg:text-5xl font-bold text-white leading-tight drop-shadow-lg">
+                  <h2 className="text-xl md:text-4xl lg:text-5xl font-bold text-white leading-tight drop-shadow-lg">
                     {banner.title}
                   </h2>
                   {banner.subtitle && (
@@ -114,8 +105,8 @@ export function HeroBanner({ banners = defaultBanners, className }: HeroBannerPr
                   {banner.buttonText && banner.buttonLink && (
                     <Button 
                       asChild 
-                      size="lg"
-                      className="bg-primary text-primary-foreground hover:bg-primary/90 hover:shadow-gold-md transition-all duration-300 animate-pulse-gold"
+                      size="default"
+                      className="h-9 px-4 md:h-11 md:px-6 text-sm md:text-base bg-primary text-primary-foreground hover:bg-primary/90 hover:shadow-gold-md transition-all duration-300"
                     >
                       <a href={banner.buttonLink}>{banner.buttonText}</a>
                     </Button>
@@ -126,24 +117,6 @@ export function HeroBanner({ banners = defaultBanners, className }: HeroBannerPr
           </div>
         ))}
       </div>
-
-      {/* Navigation Arrows */}
-      <Button
-        variant="ghost"
-        size="icon"
-        className="absolute left-3 md:left-4 top-1/2 -translate-y-1/2 h-10 w-10 rounded-full glass hover:bg-background/90 hover:scale-110 transition-all duration-300"
-        onClick={goToPrevious}
-      >
-        <ChevronLeft className="h-5 w-5" />
-      </Button>
-      <Button
-        variant="ghost"
-        size="icon"
-        className="absolute right-3 md:right-4 top-1/2 -translate-y-1/2 h-10 w-10 rounded-full glass hover:bg-background/90 hover:scale-110 transition-all duration-300"
-        onClick={goToNext}
-      >
-        <ChevronRight className="h-5 w-5" />
-      </Button>
 
       {/* Dots */}
       <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
