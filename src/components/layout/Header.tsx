@@ -6,6 +6,7 @@ import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { useAuth } from '@/hooks/useAuth';
 import { useCart } from '@/contexts/CartContext';
 import { useState } from 'react';
+import logo from '@/assets/logo.png';
 
 export function Header() {
   const { user } = useAuth();
@@ -16,11 +17,12 @@ export function Header() {
     <header className="sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container flex h-16 items-center justify-between gap-4">
         {/* Logo */}
-        <Link to="/" className="flex items-center gap-2">
-          <span className="text-xl font-bold tracking-tight">
-            <span className="text-primary">BRÁS</span>
-            <span className="text-foreground"> CONCEITO</span>
-          </span>
+        <Link to="/" className="flex items-center">
+          <img 
+            src={logo} 
+            alt="Brás Conceito" 
+            className="h-14 w-auto object-contain drop-shadow-[0_0_8px_rgba(201,169,98,0.4)]"
+          />
         </Link>
 
         {/* Search - Desktop */}
