@@ -15,6 +15,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
+import { ModeToggle } from '@/components/ui/mode-toggle';
 import logo from '@/assets/logo.png';
 
 interface AdminSidebarProps {
@@ -96,6 +97,9 @@ export function AdminSidebar({ collapsed, onToggle }: AdminSidebarProps) {
 
         {/* Footer */}
         <div className="border-t border-border p-2 space-y-1">
+          {/* Theme Toggle */}
+          <ModeToggle collapsed={collapsed} />
+          
           <Link
             to="/"
             className={cn(
