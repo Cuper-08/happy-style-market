@@ -11,6 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from '@/hooks/use-toast';
 import { Loader2, CreditCard, QrCode, FileText, Truck, Zap, ArrowLeft, CheckCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { supabase } from '@/integrations/supabase/client';
 
 type Step = 'shipping' | 'payment' | 'confirmation';
 
@@ -83,17 +84,97 @@ export default function CheckoutPage() {
   };
 
   const handlePaymentSubmit = async () => {
+    // Require user to be logged in
+    if (!user) {
+      toast({ 
+        title: 'Faça login para finalizar', 
+        description: 'Você precisa estar logado para concluir o pedido.',
+        variant: 'destructive' 
+      });
+      navigate('/login', { state: { from: '/checkout' } });
+      return;
+    }
+
     setIsProcessing(true);
     
-    // Simulate order processing
-    await new Promise(resolve => setTimeout(resolve, 2000));
-
-    // Clear cart and show confirmation
-    clearCart();
-    setStep('confirmation');
-    setIsProcessing(false);
-    
-    toast({ title: 'Pedido realizado com sucesso!' });
+    try {
+      // 1. Create order in database
+      const orderData = {
+        user_id: user.id,
+        status: 'pending' as const,
+        subtotal: subtotal,
+        shipping_cost: shippingCost,
+        discount: discount,
+        total: total,
+        payment_method: paymentMethod,
+        shipping_method: shippingMethod,
+        shipping_address: {
+          full_name: shippingData.fullName,
+          email: shippingData.email,
+          phone: shippingData.phone,
+          cpf: shippingData.cpf,
+          cep: shippingData.cep,
+          street: shippingData.street,
+          number: shippingData.number,
+          complement: shippingData.complement,
+          neighborhood: shippingData.neighborhood,
+          city: shippingData.city,
+          state: shippingData.state,
+        },
+      };
+      
+      const { data: order, error: orderError } = await supabase
+        .from('orders')
+        .insert(orderData)
+        .select()
+        .single();
+        
+      if (orderError) {
+        console.error('Order creation error:', orderError);
+        throw new Error('Erro ao criar pedido');
+      }
+      
+      // 2. Insert order items
+      const orderItems = items.map(item => ({
+        order_id: order.id,
+        product_id: item.product.id,
+        variant_id: item.variant?.id || null,
+        product_name: item.product.name,
+        variant_info: item.variant 
+          ? `${item.variant.color || ''} ${item.variant.size}`.trim()
+          : null,
+        quantity: item.quantity,
+        unit_price: getItemPrice(item),
+      }));
+      
+      const { error: itemsError } = await supabase
+        .from('order_items')
+        .insert(orderItems);
+        
+      if (itemsError) {
+        console.error('Order items error:', itemsError);
+        throw new Error('Erro ao salvar itens do pedido');
+      }
+      
+      // 3. Clear cart and show confirmation
+      clearCart();
+      setStep('confirmation');
+      
+      toast({ 
+        title: 'Pedido realizado com sucesso!',
+        description: `Pedido #${order.id.slice(0, 8).toUpperCase()} criado.`
+      });
+      
+    } catch (error) {
+      console.error('Checkout error:', error);
+      toast({ 
+        title: 'Erro ao finalizar pedido', 
+        description: error instanceof Error ? error.message : 'Tente novamente ou entre em contato.',
+        variant: 'destructive' 
+      });
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   if (step === 'confirmation') {
