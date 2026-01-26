@@ -25,11 +25,13 @@ import { Link } from 'react-router-dom';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { OrderStatus } from '@/types';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 export default function DashboardPage() {
   const [period, setPeriod] = useState<DashboardPeriod>('week');
   const { stats, topProducts, salesChart, recentOrders, isLoading } = useDashboard(period);
   const { profile } = useAuth();
+  const isMobile = useIsMobile();
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
@@ -63,20 +65,20 @@ export default function DashboardPage() {
   return (
     <AdminLayout>
       <AnimatedPage>
-        <div className="space-y-6">
+        <div className="space-y-4 sm:space-y-6">
           {/* Header with Greeting */}
-          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div className="flex flex-col gap-3 sm:gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <motion.h1 
-                className="text-2xl font-bold flex items-center gap-2"
+                className="text-xl sm:text-2xl font-bold flex items-center gap-2"
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
               >
                 {getGreeting()}, <span className="text-primary">{firstName}</span>!
-                <Sparkles className="h-5 w-5 text-primary" />
+                <Sparkles className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
               </motion.h1>
               <motion.p 
-                className="text-muted-foreground"
+                className="text-sm text-muted-foreground"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ delay: 0.1 }}
@@ -85,10 +87,10 @@ export default function DashboardPage() {
               </motion.p>
             </div>
             <Tabs value={period} onValueChange={(v) => setPeriod(v as DashboardPeriod)}>
-              <TabsList>
-                <TabsTrigger value="today">Hoje</TabsTrigger>
-                <TabsTrigger value="week">Semana</TabsTrigger>
-                <TabsTrigger value="month">Mês</TabsTrigger>
+              <TabsList className="w-full sm:w-auto">
+                <TabsTrigger value="today" className="flex-1 sm:flex-none text-xs sm:text-sm">Hoje</TabsTrigger>
+                <TabsTrigger value="week" className="flex-1 sm:flex-none text-xs sm:text-sm">Semana</TabsTrigger>
+                <TabsTrigger value="month" className="flex-1 sm:flex-none text-xs sm:text-sm">Mês</TabsTrigger>
               </TabsList>
             </Tabs>
           </div>
@@ -97,7 +99,7 @@ export default function DashboardPage() {
           <QuickActions />
 
           {/* Stats Cards */}
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-3 sm:gap-4 grid-cols-2 lg:grid-cols-4">
             <StatCard
               title="Faturamento"
               value={formatCurrency(stats?.totalSales || 0)}
@@ -107,7 +109,7 @@ export default function DashboardPage() {
               index={0}
             />
             <StatCard
-              title="Total de Pedidos"
+              title="Pedidos"
               value={stats?.totalOrders || 0}
               icon={ShoppingCart}
               trend={ordersTrend}
@@ -115,7 +117,7 @@ export default function DashboardPage() {
               index={1}
             />
             <StatCard
-              title="Pedidos Pendentes"
+              title="Pendentes"
               value={stats?.pendingOrders || 0}
               icon={Clock}
               description="aguardando ação"
@@ -131,7 +133,7 @@ export default function DashboardPage() {
           </div>
 
           {/* Charts Row */}
-          <div className="grid gap-6 lg:grid-cols-3">
+          <div className="grid gap-4 sm:gap-6 grid-cols-1 lg:grid-cols-3">
             <div className="lg:col-span-2">
               <SalesChart data={salesChart || []} isLoading={isLoading} />
             </div>
@@ -141,7 +143,7 @@ export default function DashboardPage() {
           </div>
 
           {/* Top Products & Recent Orders */}
-          <div className="grid gap-6 lg:grid-cols-3">
+          <div className="grid gap-4 sm:gap-6 grid-cols-1 lg:grid-cols-3">
             {/* Top Products */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
@@ -149,7 +151,7 @@ export default function DashboardPage() {
               transition={{ delay: 0.3 }}
             >
               <Card>
-                <CardHeader>
+                <CardHeader className="pb-3 sm:pb-6">
                   <CardTitle className="flex items-center gap-2 text-base">
                     <Package className="h-5 w-5 text-primary" />
                     Mais Vendidos
@@ -163,7 +165,7 @@ export default function DashboardPage() {
                       ))}
                     </div>
                   ) : topProducts && topProducts.length > 0 ? (
-                    <div className="space-y-3">
+                    <div className="space-y-2 sm:space-y-3">
                       {topProducts.map((product, index) => (
                         <motion.div
                           key={product.id}
@@ -172,19 +174,19 @@ export default function DashboardPage() {
                           transition={{ delay: 0.1 * index }}
                           className="flex items-center justify-between p-2 rounded-lg hover:bg-muted/50 transition-colors"
                         >
-                          <div className="flex items-center gap-3">
-                            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-xs font-medium text-primary">
+                          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                            <span className="flex h-5 w-5 sm:h-6 sm:w-6 items-center justify-center rounded-full bg-primary/10 text-[10px] sm:text-xs font-medium text-primary shrink-0">
                               {index + 1}
                             </span>
-                            <span className="text-sm font-medium truncate max-w-[150px]">
+                            <span className="text-xs sm:text-sm font-medium truncate">
                               {product.name}
                             </span>
                           </div>
-                          <div className="text-right">
-                            <p className="text-sm font-medium text-primary">
+                          <div className="text-right shrink-0 ml-2">
+                            <p className="text-xs sm:text-sm font-medium text-primary">
                               {formatCurrency(product.revenue)}
                             </p>
-                            <p className="text-xs text-muted-foreground">
+                            <p className="text-[10px] sm:text-xs text-muted-foreground">
                               {product.totalSold} vendidos
                             </p>
                           </div>
@@ -211,9 +213,9 @@ export default function DashboardPage() {
               className="lg:col-span-2"
             >
               <Card>
-                <CardHeader className="flex flex-row items-center justify-between">
+                <CardHeader className="flex flex-row items-center justify-between pb-3 sm:pb-6">
                   <CardTitle className="text-base">Pedidos Recentes</CardTitle>
-                  <Button variant="outline" size="sm" asChild>
+                  <Button variant="outline" size="sm" asChild className="text-xs sm:text-sm">
                     <Link to="/admin/pedidos">Ver todos</Link>
                   </Button>
                 </CardHeader>
@@ -225,7 +227,7 @@ export default function DashboardPage() {
                       ))}
                     </div>
                   ) : recentOrders && recentOrders.length > 0 ? (
-                    <div className="space-y-3">
+                    <div className="space-y-2 sm:space-y-3">
                       {recentOrders.map((order, index) => (
                         <motion.div
                           key={order.id}
@@ -235,23 +237,22 @@ export default function DashboardPage() {
                         >
                           <Link
                             to={`/admin/pedidos/${order.id}`}
-                            className="flex items-center justify-between p-3 rounded-lg border hover:bg-muted/50 transition-colors group"
+                            className="flex items-center justify-between p-2 sm:p-3 rounded-lg border hover:bg-muted/50 transition-colors group"
                           >
-                            <div className="flex items-center gap-4">
-                              <div>
-                                <p className="font-medium group-hover:text-primary transition-colors">
-                                  Pedido #{order.id.slice(0, 8).toUpperCase()}
-                                </p>
-                                <p className="text-sm text-muted-foreground">
-                                  {format(new Date(order.created_at), "dd 'de' MMM 'às' HH:mm", {
-                                    locale: ptBR,
-                                  })}
-                                </p>
-                              </div>
+                            <div className="min-w-0 flex-1">
+                              <p className="text-sm font-medium group-hover:text-primary transition-colors truncate">
+                                Pedido #{order.id.slice(0, 8).toUpperCase()}
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                {format(new Date(order.created_at), isMobile ? "dd/MM HH:mm" : "dd 'de' MMM 'às' HH:mm", {
+                                  locale: ptBR,
+                                })}
+                              </p>
                             </div>
-                            <div className="flex items-center gap-4">
-                              <OrderStatusBadge status={order.status as OrderStatus} />
-                              <span className="font-medium">{formatCurrency(Number(order.total))}</span>
+                            <div className="flex items-center gap-2 sm:gap-4 shrink-0 ml-2">
+                              <OrderStatusBadge status={order.status as OrderStatus} className="text-[10px] sm:text-xs" />
+                              <span className="font-medium text-sm hidden sm:inline">{formatCurrency(Number(order.total))}</span>
+                              <span className="font-medium text-xs sm:hidden">{formatCurrency(Number(order.total))}</span>
                             </div>
                           </Link>
                         </motion.div>

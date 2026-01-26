@@ -24,6 +24,8 @@ import logo from '@/assets/logo.png';
 interface AdminSidebarProps {
   collapsed: boolean;
   onToggle: () => void;
+  isMobile?: boolean;
+  onNavigate?: () => void;
 }
 
 const menuItems = [
@@ -37,7 +39,7 @@ const menuItems = [
   { icon: Settings, label: 'Configurações', path: '/admin/configuracoes' },
 ];
 
-export function AdminSidebar({ collapsed, onToggle }: AdminSidebarProps) {
+export function AdminSidebar({ collapsed, onToggle, isMobile, onNavigate }: AdminSidebarProps) {
   const location = useLocation();
   const { signOut } = useAuth();
 
@@ -76,6 +78,88 @@ export function AdminSidebar({ collapsed, onToggle }: AdminSidebarProps) {
     return badges[badgeKey as keyof typeof badges] || 0;
   };
 
+  const handleNavigate = () => {
+    if (onNavigate) {
+      onNavigate();
+    }
+  };
+
+  // Mobile sidebar content
+  if (isMobile) {
+    return (
+      <div className="flex h-full flex-col bg-card">
+        {/* Header */}
+        <div className="flex h-16 items-center px-4 border-b border-border">
+          <Link to="/admin" className="flex items-center gap-2" onClick={handleNavigate}>
+            <img src={logo} alt="Brás Conceito" className="h-10 w-auto" />
+          </Link>
+        </div>
+
+        {/* Navigation */}
+        <nav className="flex-1 space-y-1 p-2 overflow-y-auto">
+          {menuItems.map((item) => {
+            const Icon = item.icon;
+            const active = isActive(item.path);
+            const badgeCount = getBadgeCount(item.badgeKey);
+            
+            return (
+              <Link
+                key={item.path}
+                to={item.path}
+                onClick={handleNavigate}
+                className={cn(
+                  'flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium transition-all duration-200 relative',
+                  active
+                    ? 'bg-primary text-primary-foreground shadow-md'
+                    : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
+                )}
+              >
+                <Icon className={cn('h-5 w-5 shrink-0 transition-transform', active && 'scale-110')} />
+                <span className="flex-1">{item.label}</span>
+                {badgeCount > 0 && (
+                  <Badge 
+                    variant="secondary"
+                    className={cn(
+                      'h-5 min-w-5 px-1.5 flex items-center justify-center text-xs',
+                      active 
+                        ? 'bg-primary-foreground/20 text-primary-foreground' 
+                        : 'bg-orange-500 text-white animate-pulse'
+                    )}
+                  >
+                    {badgeCount}
+                  </Badge>
+                )}
+              </Link>
+            );
+          })}
+        </nav>
+
+        {/* Footer */}
+        <div className="border-t border-border p-2 space-y-1">
+          <ModeToggle collapsed={false} />
+          
+          <Link
+            to="/"
+            onClick={handleNavigate}
+            className="flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
+          >
+            <Store className="h-5 w-5 shrink-0" />
+            <span>Ver Loja</span>
+          </Link>
+          <Button
+            variant="ghost"
+            className="w-full justify-start gap-3 px-3 py-3 text-muted-foreground hover:text-destructive"
+            onClick={() => signOut()}
+          >
+            <LogOut className="h-5 w-5 shrink-0" />
+            <span>Sair</span>
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  // Desktop sidebar
   return (
     <aside
       className={cn(

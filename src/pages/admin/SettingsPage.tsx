@@ -137,22 +137,22 @@ export default function SettingsPage() {
   return (
     <AdminLayout>
       <AnimatedPage>
-        <div className="space-y-6">
+        <div className="space-y-4 sm:space-y-6">
           {/* Header */}
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <h1 className="text-2xl font-bold flex items-center gap-2">
-                <SettingsIcon className="h-6 w-6 text-primary" />
+              <h1 className="text-xl sm:text-2xl font-bold flex items-center gap-2">
+                <SettingsIcon className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
                 Configurações
               </h1>
-              <p className="text-muted-foreground">
+              <p className="text-sm text-muted-foreground">
                 Gerencie as configurações da sua loja
               </p>
             </div>
             <Button 
               onClick={handleSave} 
               disabled={saveMutation.isPending}
-              className="gap-2"
+              className="gap-2 w-full sm:w-auto"
             >
               {saveMutation.isPending ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -166,41 +166,41 @@ export default function SettingsPage() {
           {/* Tabs */}
           <Tabs value={activeTab} onValueChange={setActiveTab}>
             <TabsList className="grid w-full grid-cols-4">
-              <TabsTrigger value="company" className="gap-2">
-                <Building2 className="h-4 w-4" />
-                <span className="hidden sm:inline">Empresa</span>
+              <TabsTrigger value="company" className="gap-1 sm:gap-2 px-2 sm:px-3">
+                <Building2 className="h-4 w-4 shrink-0" />
+                <span className="hidden sm:inline text-sm">Empresa</span>
               </TabsTrigger>
-              <TabsTrigger value="shipping" className="gap-2">
-                <Truck className="h-4 w-4" />
-                <span className="hidden sm:inline">Frete</span>
+              <TabsTrigger value="shipping" className="gap-1 sm:gap-2 px-2 sm:px-3">
+                <Truck className="h-4 w-4 shrink-0" />
+                <span className="hidden sm:inline text-sm">Frete</span>
               </TabsTrigger>
-              <TabsTrigger value="contact" className="gap-2">
-                <MessageSquare className="h-4 w-4" />
-                <span className="hidden sm:inline">Contato</span>
+              <TabsTrigger value="contact" className="gap-1 sm:gap-2 px-2 sm:px-3">
+                <MessageSquare className="h-4 w-4 shrink-0" />
+                <span className="hidden sm:inline text-sm">Contato</span>
               </TabsTrigger>
-              <TabsTrigger value="policies" className="gap-2">
-                <FileText className="h-4 w-4" />
-                <span className="hidden sm:inline">Políticas</span>
+              <TabsTrigger value="policies" className="gap-1 sm:gap-2 px-2 sm:px-3">
+                <FileText className="h-4 w-4 shrink-0" />
+                <span className="hidden sm:inline text-sm">Políticas</span>
               </TabsTrigger>
             </TabsList>
 
             {/* Company Tab */}
-            <TabsContent value="company" className="space-y-6">
+            <TabsContent value="company" className="space-y-4 sm:space-y-6">
               <motion.div
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
               >
                 <Card>
-                  <CardHeader>
-                    <CardTitle>Dados da Empresa</CardTitle>
-                    <CardDescription>
+                  <CardHeader className="pb-3 sm:pb-6">
+                    <CardTitle className="text-base sm:text-lg">Dados da Empresa</CardTitle>
+                    <CardDescription className="text-xs sm:text-sm">
                       Informações básicas do seu negócio
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    <div className="grid gap-4 md:grid-cols-2">
+                    <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
                       <div className="space-y-2">
-                        <Label htmlFor="company_name">Nome da Empresa</Label>
+                        <Label htmlFor="company_name" className="text-sm">Nome da Empresa</Label>
                         <Input
                           id="company_name"
                           value={formData.company_name || ''}
@@ -209,7 +209,7 @@ export default function SettingsPage() {
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="cnpj">CNPJ</Label>
+                        <Label htmlFor="cnpj" className="text-sm">CNPJ</Label>
                         <Input
                           id="cnpj"
                           value={formData.cnpj || ''}

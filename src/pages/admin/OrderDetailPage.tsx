@@ -22,10 +22,12 @@ import {
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { OrderStatus } from '@/types';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 export default function OrderDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
   const { data: order, isLoading } = useAdminOrder(id || '');
   const { updateStatus, updateTracking, isUpdating } = useAdminOrders();
   const [trackingCode, setTrackingCode] = useState('');
@@ -64,53 +66,52 @@ export default function OrderDetailPage() {
 
   return (
     <AdminLayout>
-      <div className="space-y-6">
+      <div className="space-y-4 sm:space-y-6">
         {/* Header */}
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => navigate('/admin/pedidos')}>
+        <div className="flex items-start sm:items-center gap-3 sm:gap-4">
+          <Button variant="ghost" size="icon" onClick={() => navigate('/admin/pedidos')} className="shrink-0">
             <ArrowLeft className="h-4 w-4" />
           </Button>
-          <div className="flex-1">
-            <h1 className="text-2xl font-bold">
+          <div className="flex-1 min-w-0">
+            <h1 className="text-lg sm:text-2xl font-bold truncate">
               Pedido #{order.id.slice(0, 8).toUpperCase()}
             </h1>
-            <p className="text-muted-foreground">
-              Criado em{' '}
-              {format(new Date(order.created_at), "dd 'de' MMMM 'de' yyyy 'às' HH:mm", {
+            <p className="text-xs sm:text-sm text-muted-foreground">
+              {format(new Date(order.created_at), isMobile ? "dd/MM/yy HH:mm" : "dd 'de' MMMM 'de' yyyy 'às' HH:mm", {
                 locale: ptBR,
               })}
             </p>
           </div>
-          <OrderStatusBadge status={order.status as OrderStatus} className="text-base px-4 py-1" />
+          <OrderStatusBadge status={order.status as OrderStatus} className="text-xs sm:text-base px-2 sm:px-4 py-0.5 sm:py-1 shrink-0" />
         </div>
 
-        <div className="grid gap-6 lg:grid-cols-3">
+        <div className="grid gap-4 sm:gap-6 grid-cols-1 lg:grid-cols-3">
           {/* Main Content */}
-          <div className="lg:col-span-2 space-y-6">
+          <div className="lg:col-span-2 space-y-4 sm:space-y-6">
             {/* Order Items */}
             <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
+              <CardHeader className="pb-3 sm:pb-6">
+                <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
                   <Package className="h-5 w-5" />
                   Itens do Pedido
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
+                <div className="space-y-3 sm:space-y-4">
                   {order.order_items?.map((item: any) => (
                     <div
                       key={item.id}
-                      className="flex items-center justify-between py-3 border-b last:border-0"
+                      className="flex items-center justify-between py-2 sm:py-3 border-b last:border-0"
                     >
-                      <div>
-                        <p className="font-medium">{item.product_name}</p>
+                      <div className="min-w-0 flex-1">
+                        <p className="font-medium text-sm sm:text-base truncate">{item.product_name}</p>
                         {item.variant_info && (
-                          <p className="text-sm text-muted-foreground">{item.variant_info}</p>
+                          <p className="text-xs sm:text-sm text-muted-foreground">{item.variant_info}</p>
                         )}
                       </div>
-                      <div className="text-right">
-                        <p className="font-medium">{formatCurrency(Number(item.unit_price))}</p>
-                        <p className="text-sm text-muted-foreground">
+                      <div className="text-right shrink-0 ml-3">
+                        <p className="font-medium text-sm sm:text-base">{formatCurrency(Number(item.unit_price))}</p>
+                        <p className="text-xs sm:text-sm text-muted-foreground">
                           Qtd: {item.quantity}
                         </p>
                       </div>
@@ -134,7 +135,7 @@ export default function OrderDetailPage() {
                     <span>{formatCurrency(Number(order.shipping_cost || 0))}</span>
                   </div>
                   <Separator />
-                  <div className="flex justify-between font-bold text-lg">
+                  <div className="flex justify-between font-bold text-base sm:text-lg">
                     <span>Total</span>
                     <span>{formatCurrency(Number(order.total))}</span>
                   </div>
@@ -145,33 +146,33 @@ export default function OrderDetailPage() {
             {/* Shipping Address */}
             {shippingAddress && (
               <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
+                <CardHeader className="pb-3 sm:pb-6">
+                  <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
                     <MapPin className="h-5 w-5" />
                     Endereço de Entrega
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="font-medium">{shippingAddress.label || 'Endereço'}</p>
-                  <p className="text-muted-foreground">
+                  <p className="font-medium text-sm sm:text-base">{shippingAddress.label || 'Endereço'}</p>
+                  <p className="text-sm text-muted-foreground">
                     {shippingAddress.street}, {shippingAddress.number}
                     {shippingAddress.complement && ` - ${shippingAddress.complement}`}
                   </p>
-                  <p className="text-muted-foreground">
+                  <p className="text-sm text-muted-foreground">
                     {shippingAddress.neighborhood} - {shippingAddress.city}/{shippingAddress.state}
                   </p>
-                  <p className="text-muted-foreground">CEP: {shippingAddress.cep}</p>
+                  <p className="text-sm text-muted-foreground">CEP: {shippingAddress.cep}</p>
                 </CardContent>
               </Card>
             )}
           </div>
 
           {/* Sidebar */}
-          <div className="space-y-6">
+          <div className="space-y-4 sm:space-y-6">
             {/* Status Update */}
             <Card>
-              <CardHeader>
-                <CardTitle>Atualizar Status</CardTitle>
+              <CardHeader className="pb-3 sm:pb-6">
+                <CardTitle className="text-base sm:text-lg">Atualizar Status</CardTitle>
               </CardHeader>
               <CardContent>
                 <OrderStatusSelect
@@ -186,8 +187,8 @@ export default function OrderDetailPage() {
 
             {/* Tracking */}
             <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
+              <CardHeader className="pb-3 sm:pb-6">
+                <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
                   <Truck className="h-5 w-5" />
                   Rastreamento
                 </CardTitle>
@@ -195,8 +196,8 @@ export default function OrderDetailPage() {
               <CardContent className="space-y-4">
                 {order.tracking_code ? (
                   <div className="p-3 bg-muted rounded-lg">
-                    <p className="text-sm text-muted-foreground mb-1">Código de rastreio:</p>
-                    <p className="font-mono font-medium">{order.tracking_code}</p>
+                    <p className="text-xs sm:text-sm text-muted-foreground mb-1">Código de rastreio:</p>
+                    <p className="font-mono font-medium text-sm sm:text-base break-all">{order.tracking_code}</p>
                   </div>
                 ) : (
                   <div className="space-y-2">
@@ -226,27 +227,27 @@ export default function OrderDetailPage() {
             {/* Customer Info */}
             {order.profile && (
               <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
+                <CardHeader className="pb-3 sm:pb-6">
+                  <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
                     <User className="h-5 w-5" />
                     Cliente
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
                   <div>
-                    <p className="text-sm text-muted-foreground">Nome</p>
-                    <p className="font-medium">{order.profile.full_name || 'Não informado'}</p>
+                    <p className="text-xs sm:text-sm text-muted-foreground">Nome</p>
+                    <p className="font-medium text-sm sm:text-base">{order.profile.full_name || 'Não informado'}</p>
                   </div>
                   {order.profile.phone && (
                     <div className="flex items-center gap-2">
-                      <Phone className="h-4 w-4 text-muted-foreground" />
-                      <span>{order.profile.phone}</span>
+                      <Phone className="h-4 w-4 text-muted-foreground shrink-0" />
+                      <span className="text-sm">{order.profile.phone}</span>
                     </div>
                   )}
                   {order.profile.cpf && (
                     <div>
-                      <p className="text-sm text-muted-foreground">CPF</p>
-                      <p>{order.profile.cpf}</p>
+                      <p className="text-xs sm:text-sm text-muted-foreground">CPF</p>
+                      <p className="text-sm">{order.profile.cpf}</p>
                     </div>
                   )}
                 </CardContent>
@@ -255,14 +256,14 @@ export default function OrderDetailPage() {
 
             {/* Payment Info */}
             <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
+              <CardHeader className="pb-3 sm:pb-6">
+                <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
                   <CreditCard className="h-5 w-5" />
                   Pagamento
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="font-medium capitalize">
+                <p className="font-medium text-sm sm:text-base capitalize">
                   {order.payment_method === 'pix'
                     ? 'PIX'
                     : order.payment_method === 'card'

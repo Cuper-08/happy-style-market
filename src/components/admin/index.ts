@@ -1,5 +1,6 @@
 export * from './AdminSidebar';
 export * from './AdminHeader';
+export * from './AdminMobileHeader';
 export * from './StatCard';
 export * from './SalesChart';
 export * from './OrderStatusBadge';
