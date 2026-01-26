@@ -5,44 +5,61 @@ import { Input } from '@/components/ui/input';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { useAuth } from '@/hooks/useAuth';
 import { useCart } from '@/contexts/CartContext';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import logo from '@/assets/logo.png';
+import { cn } from '@/lib/utils';
 
 export function Header() {
   const { user } = useAuth();
   const { totalItems } = useCart();
   const [searchOpen, setSearchOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setScrolled(window.scrollY > 20);
+    };
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="container flex h-16 items-center justify-between gap-4">
+    <header 
+      className={cn(
+        'sticky top-0 z-50 w-full border-b transition-all duration-300',
+        scrolled 
+          ? 'border-border bg-background/95 backdrop-blur-lg shadow-lg shadow-background/50' 
+          : 'border-transparent bg-background/80 backdrop-blur-md'
+      )}
+    >
+      <div className="container flex h-18 md:h-20 items-center justify-between gap-4">
         {/* Logo */}
-        <Link to="/" className="flex items-center">
+        <Link to="/" className="flex items-center group">
           <img 
             src={logo} 
             alt="Brás Conceito" 
-            className="h-14 w-auto object-contain drop-shadow-[0_0_8px_rgba(201,169,98,0.4)]"
+            className="h-14 md:h-16 w-auto object-contain drop-shadow-[0_0_8px_rgba(201,169,98,0.4)] transition-all duration-300 group-hover:drop-shadow-[0_0_16px_rgba(201,169,98,0.6)]"
           />
         </Link>
 
         {/* Search - Desktop */}
         <div className="hidden flex-1 max-w-md md:flex">
-          <div className="relative w-full">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <div className="relative w-full group">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground transition-colors group-focus-within:text-primary" />
             <Input
               placeholder="Buscar produtos..."
-              className="w-full pl-10 bg-secondary border-none"
+              className="w-full pl-10 bg-secondary/50 border-border/50 transition-all duration-300 focus:bg-secondary focus:border-primary/50 focus:shadow-gold-sm"
             />
           </div>
         </div>
 
         {/* Actions */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1 md:gap-2">
           {/* Search - Mobile */}
           <Button
             variant="ghost"
             size="icon"
-            className="md:hidden"
+            className="md:hidden hover:bg-primary/10 hover:text-primary transition-colors"
             onClick={() => setSearchOpen(!searchOpen)}
           >
             <Search className="h-5 w-5" />
@@ -50,24 +67,24 @@ export function Header() {
 
           {/* User */}
           <Link to={user ? '/minha-conta' : '/login'}>
-            <Button variant="ghost" size="icon">
+            <Button variant="ghost" size="icon" className="hover:bg-primary/10 hover:text-primary transition-colors">
               <User className="h-5 w-5" />
             </Button>
           </Link>
 
           {/* Favorites */}
           <Link to="/minha-conta/favoritos">
-            <Button variant="ghost" size="icon">
+            <Button variant="ghost" size="icon" className="hover:bg-primary/10 hover:text-primary transition-colors">
               <Heart className="h-5 w-5" />
             </Button>
           </Link>
 
           {/* Cart */}
           <Link to="/carrinho">
-            <Button variant="ghost" size="icon" className="relative">
+            <Button variant="ghost" size="icon" className="relative hover:bg-primary/10 hover:text-primary transition-colors">
               <ShoppingBag className="h-5 w-5" />
               {totalItems > 0 && (
-                <span className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-primary text-xs font-bold text-primary-foreground flex items-center justify-center">
+                <span className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-primary text-xs font-bold text-primary-foreground flex items-center justify-center animate-scale-in">
                   {totalItems > 99 ? '99+' : totalItems}
                 </span>
               )}
@@ -77,37 +94,37 @@ export function Header() {
           {/* Mobile Menu */}
           <Sheet>
             <SheetTrigger asChild>
-              <Button variant="ghost" size="icon" className="md:hidden">
+              <Button variant="ghost" size="icon" className="md:hidden hover:bg-primary/10 hover:text-primary transition-colors">
                 <Menu className="h-5 w-5" />
               </Button>
             </SheetTrigger>
-            <SheetContent side="right" className="w-80">
+            <SheetContent side="right" className="w-80 glass-card">
               <nav className="flex flex-col gap-4 mt-8">
-                <Link to="/" className="text-lg font-medium hover:text-primary transition-colors">
+                <Link to="/" className="text-lg font-medium hover:text-primary transition-colors link-underline inline-block">
                   Início
                 </Link>
-                <Link to="/produtos" className="text-lg font-medium hover:text-primary transition-colors">
+                <Link to="/produtos" className="text-lg font-medium hover:text-primary transition-colors link-underline inline-block">
                   Todos os Produtos
                 </Link>
-                <Link to="/categoria/tenis" className="text-lg font-medium hover:text-primary transition-colors">
+                <Link to="/categoria/tenis" className="text-lg font-medium hover:text-primary transition-colors link-underline inline-block">
                   Tênis
                 </Link>
-                <Link to="/categoria/roupas" className="text-lg font-medium hover:text-primary transition-colors">
+                <Link to="/categoria/roupas" className="text-lg font-medium hover:text-primary transition-colors link-underline inline-block">
                   Roupas
                 </Link>
-                <Link to="/categoria/acessorios" className="text-lg font-medium hover:text-primary transition-colors">
+                <Link to="/categoria/acessorios" className="text-lg font-medium hover:text-primary transition-colors link-underline inline-block">
                   Acessórios
                 </Link>
                 <div className="border-t border-border pt-4 mt-4">
                   {user ? (
                     <>
-                      <Link to="/minha-conta" className="text-lg font-medium hover:text-primary transition-colors">
+                      <Link to="/minha-conta" className="text-lg font-medium hover:text-primary transition-colors link-underline inline-block">
                         Minha Conta
                       </Link>
                     </>
                   ) : (
                     <>
-                      <Link to="/login" className="text-lg font-medium hover:text-primary transition-colors">
+                      <Link to="/login" className="text-lg font-medium hover:text-primary transition-colors link-underline inline-block">
                         Entrar
                       </Link>
                     </>
@@ -121,12 +138,12 @@ export function Header() {
 
       {/* Mobile Search Bar */}
       {searchOpen && (
-        <div className="container pb-3 md:hidden animate-in">
+        <div className="container pb-4 md:hidden animate-fade-in-up">
           <div className="relative w-full">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               placeholder="Buscar produtos..."
-              className="w-full pl-10 bg-secondary border-none"
+              className="w-full pl-10 bg-secondary/50 border-border/50 focus:border-primary/50"
               autoFocus
             />
           </div>
