@@ -1,7 +1,8 @@
-import { useState, ReactNode } from 'react';
+import { useState, ReactNode, useEffect } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAdminAuth } from '@/hooks/admin/useAdminAuth';
 import { AdminSidebar } from '@/components/admin/AdminSidebar';
+import { useTheme } from '@/contexts/ThemeContext';
 import { cn } from '@/lib/utils';
 import { Loader2 } from 'lucide-react';
 
@@ -11,7 +12,14 @@ interface AdminLayoutProps {
 
 export function AdminLayout({ children }: AdminLayoutProps) {
   const { isAdminOrManager, isLoading } = useAdminAuth();
+  const { setIsAdminTheme } = useTheme();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+
+  // Set admin theme when entering admin area
+  useEffect(() => {
+    setIsAdminTheme(true);
+    return () => setIsAdminTheme(false);
+  }, [setIsAdminTheme]);
 
   if (isLoading) {
     return (

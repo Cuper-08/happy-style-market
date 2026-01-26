@@ -31,16 +31,17 @@ export function ProductCard({ product, className, index = 0 }: ProductCardProps)
   return (
     <div 
       className={cn(
-        'group relative flex flex-col bg-card rounded-xl overflow-hidden border border-border/50',
-        'hover:border-primary/30 hover:shadow-gold-sm',
-        'transition-all duration-500 hover-lift',
+        'group relative flex flex-col bg-white rounded-xl overflow-hidden',
+        'border border-gray-100 shadow-sm',
+        'hover:border-primary/30 hover:shadow-xl',
+        'transition-all duration-500 hover:-translate-y-1',
         'opacity-0 animate-fade-in-up',
         className
       )}
       style={{ animationDelay: `${animationDelay}ms`, animationFillMode: 'forwards' }}
     >
       {/* Image */}
-      <Link to={`/produto/${product.slug}`} className="relative aspect-square overflow-hidden">
+      <Link to={`/produto/${product.slug}`} className="relative aspect-square overflow-hidden bg-gray-50">
         <img
           src={product.images[0] || '/placeholder.svg'}
           alt={product.name}
@@ -48,7 +49,7 @@ export function ProductCard({ product, className, index = 0 }: ProductCardProps)
         />
         
         {/* Hover overlay */}
-        <div className="absolute inset-0 bg-gradient-to-t from-background/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
         
         {/* Badges */}
         <div className="absolute top-3 left-3 flex flex-col gap-1.5">
@@ -58,7 +59,7 @@ export function ProductCard({ product, className, index = 0 }: ProductCardProps)
             </Badge>
           )}
           {hasWholesale && (
-            <Badge variant="secondary" className="text-[10px] px-2.5 py-0.5 bg-secondary/90 backdrop-blur-sm">
+            <Badge variant="secondary" className="text-[10px] px-2.5 py-0.5 bg-gray-800 text-white">
               ATACADO
             </Badge>
           )}
@@ -70,8 +71,8 @@ export function ProductCard({ product, className, index = 0 }: ProductCardProps)
           size="icon"
           className={cn(
             'absolute top-3 right-3 h-9 w-9 rounded-full',
-            'bg-background/70 backdrop-blur-sm',
-            'hover:bg-background hover:scale-110',
+            'bg-white/90 backdrop-blur-sm shadow-md',
+            'hover:bg-white hover:scale-110',
             'transition-all duration-300',
             favorite && 'text-red-500'
           )}
@@ -86,17 +87,17 @@ export function ProductCard({ product, className, index = 0 }: ProductCardProps)
       </Link>
 
       {/* Content */}
-      <div className="flex flex-col flex-1 p-4 md:p-5">
+      <div className="flex flex-col flex-1 p-4 md:p-5 bg-white">
         {/* Brand */}
         {product.brand && (
-          <span className="text-[10px] font-medium text-primary/80 uppercase tracking-widest">
+          <span className="text-[10px] font-medium text-primary uppercase tracking-widest">
             {product.brand.name}
           </span>
         )}
 
         {/* Name */}
         <Link to={`/produto/${product.slug}`}>
-          <h3 className="font-medium text-sm mt-1.5 line-clamp-2 hover:text-primary transition-colors duration-300">
+          <h3 className="font-medium text-sm mt-1.5 line-clamp-2 text-gray-900 hover:text-primary transition-colors duration-300">
             {product.name}
           </h3>
         </Link>
@@ -105,20 +106,20 @@ export function ProductCard({ product, className, index = 0 }: ProductCardProps)
         <div className="mt-auto pt-4 space-y-1.5">
           {hasWholesale && (
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-[10px] text-muted-foreground">Atacado:</span>
+              <span className="text-[10px] text-gray-500">Atacado:</span>
               <span className="text-sm font-bold text-primary">
                 {formatPrice(product.wholesale_price!)}
               </span>
-              <span className="text-[10px] text-muted-foreground">
+              <span className="text-[10px] text-gray-500">
                 (mín. {product.wholesale_min_qty} un.)
               </span>
             </div>
           )}
           <div className="flex items-center gap-2">
-            {hasWholesale && <span className="text-[10px] text-muted-foreground">Varejo:</span>}
+            {hasWholesale && <span className="text-[10px] text-gray-500">Varejo:</span>}
             <span className={cn(
               'font-bold',
-              hasWholesale ? 'text-sm text-muted-foreground' : 'text-base text-foreground'
+              hasWholesale ? 'text-sm text-gray-600' : 'text-base text-gray-900'
             )}>
               {formatPrice(product.retail_price)}
             </span>

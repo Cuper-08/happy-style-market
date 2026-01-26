@@ -15,11 +15,11 @@ export function MobileNav() {
   const { totalItems } = useCart();
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 md:hidden">
+    <nav className="fixed bottom-0 left-0 right-0 z-50 md:hidden mobile-nav-dark">
       {/* Gradient border top */}
       <div className="h-px bg-gradient-to-r from-transparent via-primary/50 to-transparent" />
       
-      <div className="glass border-t border-border/30 backdrop-blur-xl">
+      <div className="backdrop-blur-xl border-t border-[hsl(0,0%,18%)]">
         <div className="flex items-center justify-around h-16 px-2">
           {navItems.map(({ icon: Icon, label, href, showBadge }) => {
             const isActive = location.pathname === href;
@@ -32,7 +32,7 @@ export function MobileNav() {
                   'flex flex-col items-center justify-center gap-1 px-4 py-2 rounded-xl transition-all duration-300 relative',
                   isActive 
                     ? 'text-primary' 
-                    : 'text-muted-foreground hover:text-foreground'
+                    : 'text-[hsl(0,0%,65%)] hover:text-white'
                 )}
               >
                 <div className="relative">

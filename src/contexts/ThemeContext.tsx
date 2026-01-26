@@ -6,6 +6,8 @@ interface ThemeContextType {
   theme: Theme;
   setTheme: (theme: Theme) => void;
   resolvedTheme: 'dark' | 'light';
+  isAdminTheme: boolean;
+  setIsAdminTheme: (value: boolean) => void;
 }
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
@@ -13,14 +15,16 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 const THEME_STORAGE_KEY = 'bras-conceito-theme';
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
+  // Default to light theme for customer-facing pages
   const [theme, setThemeState] = useState<Theme>(() => {
     if (typeof window !== 'undefined') {
-      return (localStorage.getItem(THEME_STORAGE_KEY) as Theme) || 'dark';
+      return (localStorage.getItem(THEME_STORAGE_KEY) as Theme) || 'light';
     }
-    return 'dark';
+    return 'light';
   });
 
-  const [resolvedTheme, setResolvedTheme] = useState<'dark' | 'light'>('dark');
+  const [resolvedTheme, setResolvedTheme] = useState<'dark' | 'light'>('light');
+  const [isAdminTheme, setIsAdminTheme] = useState(false);
 
   useEffect(() => {
     const root = window.document.documentElement;
@@ -30,7 +34,17 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     };
 
     const applyTheme = (newTheme: Theme) => {
-      const resolved = newTheme === 'system' ? getSystemTheme() : newTheme;
+      let resolved: 'dark' | 'light';
+      
+      if (isAdminTheme) {
+        // Admin area respects theme preference
+        resolved = newTheme === 'system' ? getSystemTheme() : newTheme;
+      } else {
+        // Customer area: always light theme for main content
+        // Header/footer/mobile-nav handle their own dark styling via CSS classes
+        resolved = 'light';
+      }
+      
       setResolvedTheme(resolved);
       
       root.classList.remove('light', 'dark');
@@ -49,7 +63,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
     mediaQuery.addEventListener('change', handleChange);
     return () => mediaQuery.removeEventListener('change', handleChange);
-  }, [theme]);
+  }, [theme, isAdminTheme]);
 
   const setTheme = (newTheme: Theme) => {
     localStorage.setItem(THEME_STORAGE_KEY, newTheme);
@@ -57,7 +71,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <ThemeContext.Provider value={{ theme, setTheme, resolvedTheme }}>
+    <ThemeContext.Provider value={{ theme, setTheme, resolvedTheme, isAdminTheme, setIsAdminTheme }}>
       {children}
     </ThemeContext.Provider>
   );

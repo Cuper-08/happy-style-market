@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Layout } from '@/components/layout';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
@@ -12,15 +12,26 @@ import { Eye, EyeOff, Loader2 } from 'lucide-react';
 
 export default function LoginPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { signIn, user, isLoading: authLoading } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
+  // Get the return path from location state (e.g., from checkout)
+  const from = (location.state as { from?: string })?.from;
+
   // Redirect if already logged in - check role first
   useEffect(() => {
     if (user && !authLoading) {
+      // If there's a return path (like /checkout), use it
+      if (from) {
+        navigate(from);
+        return;
+      }
+      
+      // Otherwise, check role for appropriate redirect
       supabase
         .from('user_roles')
         .select('role')
@@ -34,7 +45,7 @@ export default function LoginPage() {
           }
         });
     }
-  }, [user, authLoading, navigate]);
+  }, [user, authLoading, navigate, from]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -59,6 +70,12 @@ export default function LoginPage() {
         
         toast({ title: 'Login realizado com sucesso!' });
         
+        // If there's a return path (like /checkout), use it
+        if (from) {
+          navigate(from);
+          return;
+        }
+        
         // Redirect based on role
         if (roleData?.role === 'admin' || roleData?.role === 'manager') {
           navigate('/admin');
@@ -66,7 +83,7 @@ export default function LoginPage() {
           navigate('/minha-conta');
         }
       } else {
-        navigate('/minha-conta');
+        navigate(from || '/minha-conta');
       }
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Erro ao fazer login';
