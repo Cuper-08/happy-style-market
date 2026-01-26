@@ -89,9 +89,9 @@ export function HeroBanner({ banners = defaultBanners, className }: HeroBannerPr
               alt={banner.title}
               className="h-full w-full object-cover"
             />
-            {/* Premium gradient overlay */}
-            <div className="absolute inset-0 bg-gradient-to-r from-background/95 via-background/60 to-transparent" />
-            <div className="absolute inset-0 bg-gradient-to-t from-background/50 via-transparent to-transparent" />
+            {/* Subtle gradient overlay - less opacity for vibrant images */}
+            <div className="absolute inset-0 bg-gradient-to-r from-black/60 via-black/20 to-transparent" />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent" />
             
             <div className="absolute inset-0 flex items-center">
               <div className="container">
@@ -103,11 +103,11 @@ export function HeroBanner({ banners = defaultBanners, className }: HeroBannerPr
                       : 'opacity-0 translate-y-4'
                   )}
                 >
-                  <h2 className="text-2xl md:text-4xl lg:text-5xl font-bold text-foreground leading-tight">
+                  <h2 className="text-2xl md:text-4xl lg:text-5xl font-bold text-white leading-tight drop-shadow-lg">
                     {banner.title}
                   </h2>
                   {banner.subtitle && (
-                    <p className="text-sm md:text-lg text-muted-foreground">
+                    <p className="text-sm md:text-lg text-white/90 drop-shadow">
                       {banner.subtitle}
                     </p>
                   )}

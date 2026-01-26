@@ -3,21 +3,21 @@ import { Instagram, Facebook, MessageCircle } from 'lucide-react';
 
 export function Footer() {
   return (
-    <footer className="footer-dark border-t mt-auto pb-24 md:pb-0">
-      <div className="container py-16 md:py-20">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-10 md:gap-12">
+<footer className="footer-dark border-t mt-auto pb-24 md:pb-0">
+      <div className="container py-8 md:py-10">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-6 md:gap-8">
           {/* Brand */}
-          <div className="space-y-5">
+          <div className="space-y-3 col-span-2 md:col-span-1">
             <Link to="/" className="inline-block group">
-              <span className="text-xl font-bold tracking-tight">
+              <span className="text-lg font-bold tracking-tight">
                 <span className="text-primary transition-all duration-300 group-hover:drop-shadow-[0_0_8px_rgba(201,169,98,0.5)]">BRÁS</span>
                 <span className="text-white"> CONCEITO</span>
               </span>
             </Link>
-            <p className="text-sm text-[hsl(0,0%,65%)] leading-relaxed">
-              O melhor em tênis e moda esportiva com preços de atacado para você.
+            <p className="text-xs text-[hsl(0,0%,65%)] leading-relaxed">
+              O melhor em tênis e moda esportiva com preços de atacado.
             </p>
-            <div className="flex gap-4">
+            <div className="flex gap-3">
               <a href="#" className="text-[hsl(0,0%,65%)] hover:text-primary hover:scale-110 transition-all duration-300">
                 <Instagram className="h-5 w-5" />
               </a>
@@ -32,8 +32,8 @@ export function Footer() {
 
           {/* Links */}
           <div>
-            <h3 className="font-semibold mb-5 text-white">Categorias</h3>
-            <ul className="space-y-3">
+            <h3 className="font-semibold text-sm mb-3 text-white">Categorias</h3>
+            <ul className="space-y-2">
               <li>
                 <Link to="/categoria/tenis" className="text-sm text-[hsl(0,0%,65%)] hover:text-primary transition-colors link-underline inline-block">
                   Tênis
@@ -53,8 +53,8 @@ export function Footer() {
           </div>
 
           <div>
-            <h3 className="font-semibold mb-5 text-white">Institucional</h3>
-            <ul className="space-y-3">
+            <h3 className="font-semibold text-sm mb-3 text-white">Institucional</h3>
+            <ul className="space-y-2">
               <li>
                 <Link to="/sobre" className="text-sm text-[hsl(0,0%,65%)] hover:text-primary transition-colors link-underline inline-block">
                   Sobre Nós
@@ -74,8 +74,8 @@ export function Footer() {
           </div>
 
           <div>
-            <h3 className="font-semibold mb-5 text-white">Atendimento</h3>
-            <ul className="space-y-3">
+            <h3 className="font-semibold text-sm mb-3 text-white">Atendimento</h3>
+            <ul className="space-y-2">
               <li className="text-sm text-[hsl(0,0%,65%)]">
                 WhatsApp: (11) 99999-9999
               </li>
@@ -89,7 +89,7 @@ export function Footer() {
           </div>
         </div>
 
-        <div className="border-t border-[hsl(0,0%,18%)] mt-12 pt-8 text-center text-sm text-[hsl(0,0%,50%)]">
+        <div className="border-t border-[hsl(0,0%,18%)] mt-8 pt-6 text-center text-xs text-[hsl(0,0%,50%)]">
           <p>&copy; {new Date().getFullYear()} Brás Conceito. Todos os direitos reservados.</p>
         </div>
       </div>
