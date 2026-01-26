@@ -16,16 +16,16 @@ export function ProductSection({ title, products, viewAllLink, className }: Prod
   if (products.length === 0) return null;
 
   return (
-    <section className={cn('space-y-4', className)}>
+    <section className={cn('space-y-6', className)}>
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-bold">{title}</h2>
+        <h2 className="text-xl md:text-2xl font-bold">{title}</h2>
         {viewAllLink && (
           <Link
             to={viewAllLink}
-            className="text-sm text-primary hover:underline flex items-center gap-1"
+            className="text-sm text-primary hover:text-primary/80 flex items-center gap-1 group transition-colors"
           >
-            Ver todos
-            <ChevronRight className="h-4 w-4" />
+            <span className="link-underline">Ver todos</span>
+            <ChevronRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
           </Link>
         )}
       </div>
@@ -37,15 +37,15 @@ export function ProductSection({ title, products, viewAllLink, className }: Prod
         }}
         className="w-full"
       >
-        <CarouselContent className="-ml-2 md:-ml-4">
-          {products.map((product) => (
-            <CarouselItem key={product.id} className="pl-2 md:pl-4 basis-1/2 md:basis-1/3 lg:basis-1/4">
-              <ProductCard product={product} />
+        <CarouselContent className="-ml-3 md:-ml-4">
+          {products.map((product, index) => (
+            <CarouselItem key={product.id} className="pl-3 md:pl-4 basis-1/2 md:basis-1/3 lg:basis-1/4">
+              <ProductCard product={product} index={index} />
             </CarouselItem>
           ))}
         </CarouselContent>
-        <CarouselPrevious className="hidden md:flex -left-4" />
-        <CarouselNext className="hidden md:flex -right-4" />
+        <CarouselPrevious className="hidden md:flex -left-4 hover:scale-110 transition-transform" />
+        <CarouselNext className="hidden md:flex -right-4 hover:scale-110 transition-transform" />
       </Carousel>
     </section>
   );

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -46,32 +46,42 @@ interface HeroBannerProps {
 
 export function HeroBanner({ banners = defaultBanners, className }: HeroBannerProps) {
   const [current, setCurrent] = useState(0);
+  const [isTransitioning, setIsTransitioning] = useState(false);
+
+  const goToSlide = useCallback((index: number) => {
+    if (isTransitioning) return;
+    setIsTransitioning(true);
+    setCurrent(index);
+    setTimeout(() => setIsTransitioning(false), 700);
+  }, [isTransitioning]);
 
   useEffect(() => {
     const timer = setInterval(() => {
-      setCurrent((prev) => (prev + 1) % banners.length);
-    }, 5000);
+      goToSlide((current + 1) % banners.length);
+    }, 6000);
 
     return () => clearInterval(timer);
-  }, [banners.length]);
+  }, [banners.length, current, goToSlide]);
 
   const goToPrevious = () => {
-    setCurrent((prev) => (prev - 1 + banners.length) % banners.length);
+    goToSlide((current - 1 + banners.length) % banners.length);
   };
 
   const goToNext = () => {
-    setCurrent((prev) => (prev + 1) % banners.length);
+    goToSlide((current + 1) % banners.length);
   };
 
   return (
-    <div className={cn('relative w-full overflow-hidden rounded-lg', className)}>
+    <div className={cn('relative w-full overflow-hidden rounded-2xl shadow-lg', className)}>
       <div className="aspect-[2/1] md:aspect-[3/1] relative">
         {banners.map((banner, index) => (
           <div
             key={banner.id}
             className={cn(
-              'absolute inset-0 transition-opacity duration-500',
-              index === current ? 'opacity-100' : 'opacity-0 pointer-events-none'
+              'absolute inset-0 transition-all duration-700 ease-out',
+              index === current 
+                ? 'opacity-100 scale-100' 
+                : 'opacity-0 scale-105 pointer-events-none'
             )}
           >
             <img
@@ -79,11 +89,21 @@ export function HeroBanner({ banners = defaultBanners, className }: HeroBannerPr
               alt={banner.title}
               className="h-full w-full object-cover"
             />
-            <div className="absolute inset-0 bg-gradient-to-r from-background/90 via-background/50 to-transparent" />
+            {/* Premium gradient overlay */}
+            <div className="absolute inset-0 bg-gradient-to-r from-background/95 via-background/60 to-transparent" />
+            <div className="absolute inset-0 bg-gradient-to-t from-background/50 via-transparent to-transparent" />
+            
             <div className="absolute inset-0 flex items-center">
               <div className="container">
-                <div className="max-w-md space-y-4">
-                  <h2 className="text-2xl md:text-4xl font-bold text-foreground">
+                <div 
+                  className={cn(
+                    'max-w-md space-y-5 transition-all duration-700 delay-200',
+                    index === current 
+                      ? 'opacity-100 translate-y-0' 
+                      : 'opacity-0 translate-y-4'
+                  )}
+                >
+                  <h2 className="text-2xl md:text-4xl lg:text-5xl font-bold text-foreground leading-tight">
                     {banner.title}
                   </h2>
                   {banner.subtitle && (
@@ -92,7 +112,11 @@ export function HeroBanner({ banners = defaultBanners, className }: HeroBannerPr
                     </p>
                   )}
                   {banner.buttonText && banner.buttonLink && (
-                    <Button asChild className="bg-primary text-primary-foreground hover:bg-primary/90">
+                    <Button 
+                      asChild 
+                      size="lg"
+                      className="bg-primary text-primary-foreground hover:bg-primary/90 hover:shadow-gold-md transition-all duration-300 animate-pulse-gold"
+                    >
                       <a href={banner.buttonLink}>{banner.buttonText}</a>
                     </Button>
                   )}
@@ -107,30 +131,32 @@ export function HeroBanner({ banners = defaultBanners, className }: HeroBannerPr
       <Button
         variant="ghost"
         size="icon"
-        className="absolute left-2 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full bg-background/50 backdrop-blur-sm hover:bg-background/80"
+        className="absolute left-3 md:left-4 top-1/2 -translate-y-1/2 h-10 w-10 rounded-full glass hover:bg-background/90 hover:scale-110 transition-all duration-300"
         onClick={goToPrevious}
       >
-        <ChevronLeft className="h-4 w-4" />
+        <ChevronLeft className="h-5 w-5" />
       </Button>
       <Button
         variant="ghost"
         size="icon"
-        className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full bg-background/50 backdrop-blur-sm hover:bg-background/80"
+        className="absolute right-3 md:right-4 top-1/2 -translate-y-1/2 h-10 w-10 rounded-full glass hover:bg-background/90 hover:scale-110 transition-all duration-300"
         onClick={goToNext}
       >
-        <ChevronRight className="h-4 w-4" />
+        <ChevronRight className="h-5 w-5" />
       </Button>
 
       {/* Dots */}
-      <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-2">
+      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
         {banners.map((_, index) => (
           <button
             key={index}
             className={cn(
-              'h-2 rounded-full transition-all',
-              index === current ? 'w-6 bg-primary' : 'w-2 bg-foreground/30'
+              'h-2 rounded-full transition-all duration-500',
+              index === current 
+                ? 'w-8 bg-primary shadow-gold-sm' 
+                : 'w-2 bg-foreground/30 hover:bg-foreground/50'
             )}
-            onClick={() => setCurrent(index)}
+            onClick={() => goToSlide(index)}
           />
         ))}
       </div>

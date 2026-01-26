@@ -11,39 +11,37 @@ export default function HomePage() {
 
   return (
     <Layout>
-      <div className="container py-4 space-y-8">
+      <div className="container py-6 md:py-10 space-y-10 md:space-y-14">
         {/* Hero Banner */}
-        <HeroBanner />
+        <HeroBanner className="animate-fade-in" />
 
         {/* Categories */}
-        <section>
-          <h2 className="text-xl font-bold mb-4">Categorias</h2>
+        <section className="space-y-5 opacity-0 animate-fade-in-up delay-100" style={{ animationFillMode: 'forwards' }}>
+          <h2 className="text-xl md:text-2xl font-bold">Categorias</h2>
           {loadingCategories ? (
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-3 gap-4">
               {[1, 2, 3].map((i) => (
-                <Skeleton key={i} className="h-24 rounded-lg" />
+                <Skeleton key={i} className="h-28 rounded-xl" />
               ))}
             </div>
           ) : categories.length > 0 ? (
             <CategoryGrid categories={categories} />
           ) : (
-            <div className="grid grid-cols-3 gap-3">
-              <CategoryGrid categories={[
-                { id: '1', name: 'Tênis', slug: 'tenis' },
-                { id: '2', name: 'Roupas', slug: 'roupas' },
-                { id: '3', name: 'Acessórios', slug: 'acessorios' },
-              ]} />
-            </div>
+            <CategoryGrid categories={[
+              { id: '1', name: 'Tênis', slug: 'tenis' },
+              { id: '2', name: 'Roupas', slug: 'roupas' },
+              { id: '3', name: 'Acessórios', slug: 'acessorios' },
+            ]} />
           )}
         </section>
 
         {/* Featured Products */}
         {loadingFeatured ? (
-          <section className="space-y-4">
+          <section className="space-y-5">
             <Skeleton className="h-8 w-48" />
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               {[1, 2, 3, 4].map((i) => (
-                <Skeleton key={i} className="aspect-square rounded-lg" />
+                <Skeleton key={i} className="aspect-square rounded-xl" />
               ))}
             </div>
           </section>
@@ -57,11 +55,11 @@ export default function HomePage() {
 
         {/* New Arrivals */}
         {loadingNew ? (
-          <section className="space-y-4">
+          <section className="space-y-5">
             <Skeleton className="h-8 w-48" />
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               {[1, 2, 3, 4].map((i) => (
-                <Skeleton key={i} className="aspect-square rounded-lg" />
+                <Skeleton key={i} className="aspect-square rounded-xl" />
               ))}
             </div>
           </section>
@@ -75,11 +73,11 @@ export default function HomePage() {
 
         {/* All Products */}
         {loadingAll ? (
-          <section className="space-y-4">
+          <section className="space-y-5">
             <Skeleton className="h-8 w-48" />
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               {[1, 2, 3, 4].map((i) => (
-                <Skeleton key={i} className="aspect-square rounded-lg" />
+                <Skeleton key={i} className="aspect-square rounded-xl" />
               ))}
             </div>
           </section>
@@ -90,18 +88,21 @@ export default function HomePage() {
             viewAllLink="/produtos"
           />
         ) : (
-          <section className="text-center py-12 bg-card rounded-lg">
-            <h2 className="text-xl font-bold mb-2">Bem-vindo à Brás Conceito!</h2>
-            <p className="text-muted-foreground mb-4">
+          <section className="text-center py-16 bg-card rounded-2xl border border-border/50">
+            <h2 className="text-xl font-bold mb-3">Bem-vindo à Brás Conceito!</h2>
+            <p className="text-muted-foreground">
               Em breve novos produtos estarão disponíveis.
             </p>
           </section>
         )}
 
         {/* Wholesale Info */}
-        <section className="bg-gradient-to-r from-primary/20 via-primary/10 to-primary/20 rounded-lg p-6 text-center space-y-2">
-          <h2 className="text-xl font-bold">Preços Especiais de Atacado</h2>
-          <p className="text-muted-foreground">
+        <section className="relative overflow-hidden bg-gradient-to-r from-primary/20 via-primary/10 to-primary/20 rounded-2xl p-8 md:p-10 text-center space-y-3 border border-primary/20">
+          {/* Shimmer effect */}
+          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-primary/5 to-transparent animate-shimmer" />
+          
+          <h2 className="text-xl md:text-2xl font-bold relative">Preços Especiais de Atacado</h2>
+          <p className="text-muted-foreground relative max-w-lg mx-auto">
             Compre a partir de 6 unidades do mesmo produto e ganhe desconto automático!
           </p>
         </section>
