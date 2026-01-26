@@ -1,4 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import {
   LayoutDashboard,
   ShoppingBag,
@@ -13,9 +14,11 @@ import {
   Store,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
 import { ModeToggle } from '@/components/ui/mode-toggle';
+import { supabase } from '@/integrations/supabase/client';
 import logo from '@/assets/logo.png';
 
 interface AdminSidebarProps {
@@ -25,8 +28,8 @@ interface AdminSidebarProps {
 
 const menuItems = [
   { icon: LayoutDashboard, label: 'Dashboard', path: '/admin' },
-  { icon: ShoppingBag, label: 'Pedidos', path: '/admin/pedidos' },
-  { icon: Package, label: 'Produtos', path: '/admin/produtos' },
+  { icon: ShoppingBag, label: 'Pedidos', path: '/admin/pedidos', badgeKey: 'pendingOrders' },
+  { icon: Package, label: 'Produtos', path: '/admin/produtos', badgeKey: 'lowStock' },
   { icon: Tags, label: 'Categorias', path: '/admin/categorias' },
   { icon: Building2, label: 'Marcas', path: '/admin/marcas' },
   { icon: Users, label: 'Clientes', path: '/admin/clientes' },
@@ -38,11 +41,39 @@ export function AdminSidebar({ collapsed, onToggle }: AdminSidebarProps) {
   const location = useLocation();
   const { signOut } = useAuth();
 
+  // Fetch badge counts
+  const { data: badges } = useQuery({
+    queryKey: ['admin-sidebar-badges'],
+    queryFn: async () => {
+      const [pendingResult, lowStockResult] = await Promise.all([
+        supabase
+          .from('orders')
+          .select('*', { count: 'exact', head: true })
+          .eq('status', 'pending'),
+        supabase
+          .from('product_variants')
+          .select('*', { count: 'exact', head: true })
+          .lt('stock_quantity', 5),
+      ]);
+
+      return {
+        pendingOrders: pendingResult.count || 0,
+        lowStock: lowStockResult.count || 0,
+      };
+    },
+    refetchInterval: 60000, // Refetch every minute
+  });
+
   const isActive = (path: string) => {
     if (path === '/admin') {
       return location.pathname === '/admin';
     }
     return location.pathname.startsWith(path);
+  };
+
+  const getBadgeCount = (badgeKey?: string) => {
+    if (!badgeKey || !badges) return 0;
+    return badges[badgeKey as keyof typeof badges] || 0;
   };
 
   return (
@@ -75,21 +106,44 @@ export function AdminSidebar({ collapsed, onToggle }: AdminSidebarProps) {
           {menuItems.map((item) => {
             const Icon = item.icon;
             const active = isActive(item.path);
+            const badgeCount = getBadgeCount(item.badgeKey);
             
             return (
               <Link
                 key={item.path}
                 to={item.path}
                 className={cn(
-                  'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
+                  'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200 relative group',
                   active
-                    ? 'bg-primary text-primary-foreground'
+                    ? 'bg-primary text-primary-foreground shadow-md'
                     : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
                   collapsed && 'justify-center px-2'
                 )}
               >
-                <Icon className="h-5 w-5 shrink-0" />
-                {!collapsed && <span>{item.label}</span>}
+                <Icon className={cn('h-5 w-5 shrink-0 transition-transform', active && 'scale-110')} />
+                {!collapsed && (
+                  <>
+                    <span className="flex-1">{item.label}</span>
+                    {badgeCount > 0 && (
+                      <Badge 
+                        variant="secondary"
+                        className={cn(
+                          'h-5 min-w-5 px-1.5 flex items-center justify-center text-xs',
+                          active 
+                            ? 'bg-primary-foreground/20 text-primary-foreground' 
+                            : 'bg-orange-500 text-white animate-pulse'
+                        )}
+                      >
+                        {badgeCount}
+                      </Badge>
+                    )}
+                  </>
+                )}
+                {collapsed && badgeCount > 0 && (
+                  <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-orange-500 text-white text-[10px] flex items-center justify-center animate-pulse">
+                    {badgeCount > 9 ? '9+' : badgeCount}
+                  </span>
+                )}
               </Link>
             );
           })}
