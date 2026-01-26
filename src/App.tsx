@@ -19,6 +19,20 @@ import FavoritesPage from "./pages/FavoritesPage";
 import InstallPage from "./pages/InstallPage";
 import NotFound from "./pages/NotFound";
 
+// Admin Pages
+import {
+  DashboardPage,
+  OrdersPage,
+  OrderDetailPage,
+  ProductsPage as AdminProductsPage,
+  ProductFormPage,
+  CategoriesPage,
+  BrandsPage,
+  CustomersPage,
+  SettingsPage,
+  ReportsPage,
+} from "./pages/admin";
+
 // PWA Components
 import { InstallBanner } from "./components/pwa/InstallBanner";
 
@@ -33,6 +47,7 @@ const App = () => (
           <Sonner />
           <BrowserRouter>
             <Routes>
+              {/* Store Routes */}
               <Route path="/" element={<HomePage />} />
               <Route path="/produtos" element={<ProductsPage />} />
               <Route path="/categoria/:categorySlug" element={<ProductsPage />} />
@@ -47,6 +62,20 @@ const App = () => (
               <Route path="/minha-conta/enderecos" element={<AccountPage />} />
               <Route path="/minha-conta/perfil" element={<AccountPage />} />
               <Route path="/instalar" element={<InstallPage />} />
+              
+              {/* Admin Routes */}
+              <Route path="/admin" element={<DashboardPage />} />
+              <Route path="/admin/pedidos" element={<OrdersPage />} />
+              <Route path="/admin/pedidos/:id" element={<OrderDetailPage />} />
+              <Route path="/admin/produtos" element={<AdminProductsPage />} />
+              <Route path="/admin/produtos/novo" element={<ProductFormPage />} />
+              <Route path="/admin/produtos/:id" element={<ProductFormPage />} />
+              <Route path="/admin/categorias" element={<CategoriesPage />} />
+              <Route path="/admin/marcas" element={<BrandsPage />} />
+              <Route path="/admin/clientes" element={<CustomersPage />} />
+              <Route path="/admin/configuracoes" element={<SettingsPage />} />
+              <Route path="/admin/relatorios" element={<ReportsPage />} />
+              
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>
