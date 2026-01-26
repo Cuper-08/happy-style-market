@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Layout } from '@/components/layout';
 import { useCart } from '@/contexts/CartContext';
@@ -12,13 +12,14 @@ import { toast } from '@/hooks/use-toast';
 import { Loader2, CreditCard, QrCode, FileText, Truck, Zap, ArrowLeft, CheckCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
+import { Skeleton } from '@/components/ui/skeleton';
 
 type Step = 'shipping' | 'payment' | 'confirmation';
 
 export default function CheckoutPage() {
   const navigate = useNavigate();
   const { items, subtotal, clearCart, getItemPrice } = useCart();
-  const { user, profile } = useAuth();
+  const { user, profile, isLoading: authLoading } = useAuth();
 
   const [step, setStep] = useState<Step>('shipping');
   const [isProcessing, setIsProcessing] = useState(false);
@@ -63,9 +64,42 @@ export default function CheckoutPage() {
   const discount = subtotal * paymentOptions[paymentMethod].discount;
   const total = subtotal + shippingCost - discount;
 
+  // Require login BEFORE filling checkout form
+  useEffect(() => {
+    if (!authLoading && !user && step !== 'confirmation') {
+      toast({ 
+        title: 'Faça login para continuar',
+        description: 'Você precisa estar logado para finalizar a compra.'
+      });
+      navigate('/login', { state: { from: '/checkout' } });
+    }
+  }, [user, authLoading, navigate, step]);
+
   // Redirect if cart is empty
   if (items.length === 0 && step !== 'confirmation') {
     navigate('/carrinho');
+    return null;
+  }
+
+  // Show loading while checking auth
+  if (authLoading) {
+    return (
+      <Layout>
+        <div className="container py-8">
+          <div className="grid lg:grid-cols-3 gap-8">
+            <div className="lg:col-span-2 space-y-6">
+              <Skeleton className="h-64 rounded-xl" />
+              <Skeleton className="h-80 rounded-xl" />
+            </div>
+            <Skeleton className="h-72 rounded-xl" />
+          </div>
+        </div>
+      </Layout>
+    );
+  }
+
+  // Don't render form if not logged in
+  if (!user && step !== 'confirmation') {
     return null;
   }
 
