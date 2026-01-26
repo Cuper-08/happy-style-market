@@ -110,6 +110,51 @@ export type Database = {
         }
         Relationships: []
       }
+      coupons: {
+        Row: {
+          code: string
+          created_at: string | null
+          discount_type: string
+          discount_value: number
+          id: string
+          is_active: boolean | null
+          max_discount: number | null
+          max_uses: number | null
+          min_order_value: number | null
+          uses_count: number | null
+          valid_from: string | null
+          valid_until: string | null
+        }
+        Insert: {
+          code: string
+          created_at?: string | null
+          discount_type: string
+          discount_value: number
+          id?: string
+          is_active?: boolean | null
+          max_discount?: number | null
+          max_uses?: number | null
+          min_order_value?: number | null
+          uses_count?: number | null
+          valid_from?: string | null
+          valid_until?: string | null
+        }
+        Update: {
+          code?: string
+          created_at?: string | null
+          discount_type?: string
+          discount_value?: number
+          id?: string
+          is_active?: boolean | null
+          max_discount?: number | null
+          max_uses?: number | null
+          min_order_value?: number | null
+          uses_count?: number | null
+          valid_from?: string | null
+          valid_until?: string | null
+        }
+        Relationships: []
+      }
       favorites: {
         Row: {
           created_at: string
@@ -366,6 +411,7 @@ export type Database = {
         Row: {
           cpf: string | null
           created_at: string
+          customer_type: string | null
           full_name: string | null
           id: string
           phone: string | null
@@ -375,6 +421,7 @@ export type Database = {
         Insert: {
           cpf?: string | null
           created_at?: string
+          customer_type?: string | null
           full_name?: string | null
           id?: string
           phone?: string | null
@@ -384,10 +431,86 @@ export type Database = {
         Update: {
           cpf?: string | null
           created_at?: string
+          customer_type?: string | null
           full_name?: string | null
           id?: string
           phone?: string | null
           updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      store_settings: {
+        Row: {
+          address: Json | null
+          banner_url: string | null
+          cnpj: string | null
+          company_name: string | null
+          created_at: string | null
+          email: string | null
+          exchange_policy: string | null
+          id: string
+          logo_url: string | null
+          phone: string | null
+          privacy_policy: string | null
+          shipping_config: Json | null
+          terms_of_service: string | null
+          updated_at: string | null
+          whatsapp: string | null
+        }
+        Insert: {
+          address?: Json | null
+          banner_url?: string | null
+          cnpj?: string | null
+          company_name?: string | null
+          created_at?: string | null
+          email?: string | null
+          exchange_policy?: string | null
+          id?: string
+          logo_url?: string | null
+          phone?: string | null
+          privacy_policy?: string | null
+          shipping_config?: Json | null
+          terms_of_service?: string | null
+          updated_at?: string | null
+          whatsapp?: string | null
+        }
+        Update: {
+          address?: Json | null
+          banner_url?: string | null
+          cnpj?: string | null
+          company_name?: string | null
+          created_at?: string | null
+          email?: string | null
+          exchange_policy?: string | null
+          id?: string
+          logo_url?: string | null
+          phone?: string | null
+          privacy_policy?: string | null
+          shipping_config?: Json | null
+          terms_of_service?: string | null
+          updated_at?: string | null
+          whatsapp?: string | null
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          created_at: string | null
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
           user_id?: string
         }
         Relationships: []
@@ -397,9 +520,17 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
+      is_admin_or_manager: { Args: { _user_id: string }; Returns: boolean }
     }
     Enums: {
+      app_role: "admin" | "manager" | "user"
       order_status:
         | "pending"
         | "paid"
@@ -536,6 +667,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      app_role: ["admin", "manager", "user"],
       order_status: [
         "pending",
         "paid",

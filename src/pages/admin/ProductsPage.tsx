@@ -1,0 +1,254 @@
+import { useState } from 'react';
+import { Link } from 'react-router-dom';
+import { AdminLayout } from './AdminLayout';
+import { useAdminProducts } from '@/hooks/admin/useAdminProducts';
+import { useAdminCategories } from '@/hooks/admin/useAdminCategories';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
+import { Plus, Search, Loader2, Pencil, Trash2, Package } from 'lucide-react';
+
+export default function ProductsPage() {
+  const [categoryFilter, setCategoryFilter] = useState<string>('all');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [productToDelete, setProductToDelete] = useState<string | null>(null);
+
+  const { products, isLoading, toggleActive, deleteProduct, isDeleting } = useAdminProducts();
+  const { categories } = useAdminCategories();
+
+  const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat('pt-BR', {
+      style: 'currency',
+      currency: 'BRL',
+    }).format(value);
+  };
+
+  const filteredProducts = products.filter((product) => {
+    const matchesCategory =
+      categoryFilter === 'all' || product.category_id === categoryFilter;
+    const matchesSearch =
+      !searchTerm ||
+      product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      product.slug.toLowerCase().includes(searchTerm.toLowerCase());
+    return matchesCategory && matchesSearch;
+  });
+
+  const getTotalStock = (variants: any[]) => {
+    return variants?.reduce((sum, v) => sum + (v.stock_quantity || 0), 0) || 0;
+  };
+
+  return (
+    <AdminLayout>
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div>
+            <h1 className="text-2xl font-bold">Produtos</h1>
+            <p className="text-muted-foreground">Gerencie o catálogo de produtos</p>
+          </div>
+          <Button asChild>
+            <Link to="/admin/produtos/novo">
+              <Plus className="h-4 w-4 mr-2" />
+              Novo Produto
+            </Link>
+          </Button>
+        </div>
+
+        {/* Filters */}
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex flex-col gap-4 md:flex-row md:items-center">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  placeholder="Buscar por nome ou slug..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+              <Select
+                value={categoryFilter}
+                onValueChange={(v) => setCategoryFilter(v)}
+              >
+                <SelectTrigger className="w-[200px]">
+                  <SelectValue placeholder="Filtrar por categoria" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todas as categorias</SelectItem>
+                  {categories.map((cat) => (
+                    <SelectItem key={cat.id} value={cat.id}>
+                      {cat.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Products Table */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Package className="h-5 w-5" />
+              Lista de Produtos ({filteredProducts.length})
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {isLoading ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+              </div>
+            ) : filteredProducts.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-12 text-center">
+                <Package className="h-12 w-12 text-muted-foreground mb-4" />
+                <p className="text-muted-foreground mb-4">Nenhum produto encontrado</p>
+                <Button asChild>
+                  <Link to="/admin/produtos/novo">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Criar primeiro produto
+                  </Link>
+                </Button>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Produto</TableHead>
+                      <TableHead>Categoria</TableHead>
+                      <TableHead>Preço Varejo</TableHead>
+                      <TableHead>Preço Atacado</TableHead>
+                      <TableHead>Estoque</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Ativo</TableHead>
+                      <TableHead className="text-right">Ações</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredProducts.map((product) => (
+                      <TableRow key={product.id}>
+                        <TableCell>
+                          <div className="flex items-center gap-3">
+                            {product.images && product.images[0] ? (
+                              <img
+                                src={product.images[0]}
+                                alt={product.name}
+                                className="h-10 w-10 rounded-lg object-cover"
+                              />
+                            ) : (
+                              <div className="h-10 w-10 rounded-lg bg-muted flex items-center justify-center">
+                                <Package className="h-5 w-5 text-muted-foreground" />
+                              </div>
+                            )}
+                            <div>
+                              <p className="font-medium">{product.name}</p>
+                              <p className="text-xs text-muted-foreground">/{product.slug}</p>
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell>{product.category?.name || '-'}</TableCell>
+                        <TableCell>{formatCurrency(Number(product.retail_price))}</TableCell>
+                        <TableCell>
+                          {product.wholesale_price
+                            ? formatCurrency(Number(product.wholesale_price))
+                            : '-'}
+                        </TableCell>
+                        <TableCell>
+                          <span className={getTotalStock(product.variants) <= 5 ? 'text-destructive font-medium' : ''}>
+                            {getTotalStock(product.variants)}
+                          </span>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex gap-1">
+                            {product.featured && (
+                              <Badge variant="secondary" className="text-xs">Destaque</Badge>
+                            )}
+                            {product.is_new && (
+                              <Badge variant="secondary" className="text-xs">Novo</Badge>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Switch
+                            checked={product.is_active || false}
+                            onCheckedChange={(checked) =>
+                              toggleActive({ id: product.id, isActive: checked })
+                            }
+                          />
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            <Button variant="ghost" size="icon" asChild>
+                              <Link to={`/admin/produtos/${product.id}`}>
+                                <Pencil className="h-4 w-4" />
+                              </Link>
+                            </Button>
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button variant="ghost" size="icon" className="text-destructive">
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Excluir produto?</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    Esta ação não pode ser desfeita. O produto "{product.name}" será
+                                    permanentemente excluído.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                  <AlertDialogAction
+                                    onClick={() => deleteProduct(product.id)}
+                                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                  >
+                                    Excluir
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    </AdminLayout>
+  );
+}
