@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Layout } from '@/components/layout';
 import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -11,17 +12,29 @@ import { Eye, EyeOff, Loader2 } from 'lucide-react';
 
 export default function LoginPage() {
   const navigate = useNavigate();
-  const { signIn, user } = useAuth();
+  const { signIn, user, isLoading: authLoading } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Redirect if already logged in
-  if (user) {
-    navigate('/minha-conta');
-    return null;
-  }
+  // Redirect if already logged in - check role first
+  useEffect(() => {
+    if (user && !authLoading) {
+      supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', user.id)
+        .maybeSingle()
+        .then(({ data }) => {
+          if (data?.role === 'admin' || data?.role === 'manager') {
+            navigate('/admin');
+          } else {
+            navigate('/minha-conta');
+          }
+        });
+    }
+  }, [user, authLoading, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -34,8 +47,27 @@ export default function LoginPage() {
     setIsLoading(true);
     try {
       await signIn(email, password);
-      toast({ title: 'Login realizado com sucesso!' });
-      navigate('/minha-conta');
+      
+      // Check user role after login
+      const { data: session } = await supabase.auth.getSession();
+      if (session?.session?.user) {
+        const { data: roleData } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', session.session.user.id)
+          .maybeSingle();
+        
+        toast({ title: 'Login realizado com sucesso!' });
+        
+        // Redirect based on role
+        if (roleData?.role === 'admin' || roleData?.role === 'manager') {
+          navigate('/admin');
+        } else {
+          navigate('/minha-conta');
+        }
+      } else {
+        navigate('/minha-conta');
+      }
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Erro ao fazer login';
       toast({ title: 'Erro no login', description: message, variant: 'destructive' });

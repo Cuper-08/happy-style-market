@@ -1,14 +1,16 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { Layout } from '@/components/layout';
 import { useAuth } from '@/hooks/useAuth';
+import { useAdminAuth } from '@/hooks/admin/useAdminAuth';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Package, Heart, MapPin, User, LogOut, ChevronRight } from 'lucide-react';
+import { Package, Heart, MapPin, User, LogOut, ChevronRight, Settings } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 
 export default function AccountPage() {
   const navigate = useNavigate();
   const { user, profile, signOut, isLoading } = useAuth();
+  const { isAdminOrManager } = useAdminAuth();
 
   // Redirect if not logged in
   if (!isLoading && !user) {
@@ -44,6 +46,23 @@ export default function AccountPage() {
         </div>
 
         <div className="grid gap-4">
+          {/* Admin Panel Link - Only visible for admin/manager */}
+          {isAdminOrManager && (
+            <Link to="/admin">
+              <Card className="border-primary/50 bg-primary/5 hover:bg-primary/10 transition-colors">
+                <CardContent className="flex items-center justify-between p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 rounded-full bg-primary/20 flex items-center justify-center">
+                      <Settings className="h-5 w-5 text-primary" />
+                    </div>
+                    <span className="font-medium text-primary">Painel Administrativo</span>
+                  </div>
+                  <ChevronRight className="h-5 w-5 text-primary" />
+                </CardContent>
+              </Card>
+            </Link>
+          )}
+
           {menuItems.map((item) => (
             <Link key={item.href} to={item.href}>
               <Card className="hover:border-primary/50 transition-colors">
