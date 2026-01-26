@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Layout } from '@/components/layout';
 import { useCart } from '@/contexts/CartContext';
@@ -9,10 +9,35 @@ import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from '@/hooks/use-toast';
-import { Loader2, CreditCard, QrCode, FileText, Truck, Zap, ArrowLeft, CheckCircle } from 'lucide-react';
+import { Loader2, CreditCard, QrCode, FileText, Truck, Zap, ArrowLeft, CheckCircle, Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { Skeleton } from '@/components/ui/skeleton';
+
+// Máscaras de formatação
+const formatCPF = (value: string) => {
+  return value
+    .replace(/\D/g, '')
+    .replace(/(\d{3})(\d)/, '$1.$2')
+    .replace(/(\d{3})(\d)/, '$1.$2')
+    .replace(/(\d{3})(\d{1,2})/, '$1-$2')
+    .slice(0, 14);
+};
+
+const formatPhone = (value: string) => {
+  return value
+    .replace(/\D/g, '')
+    .replace(/(\d{2})(\d)/, '($1) $2')
+    .replace(/(\d{5})(\d)/, '$1-$2')
+    .slice(0, 15);
+};
+
+const formatCEP = (value: string) => {
+  return value
+    .replace(/\D/g, '')
+    .replace(/(\d{5})(\d)/, '$1-$2')
+    .slice(0, 9);
+};
 
 type Step = 'shipping' | 'payment' | 'confirmation';
 
@@ -75,6 +100,31 @@ export default function CheckoutPage() {
     }
   }, [user, authLoading, navigate, step]);
 
+  // Busca automática de CEP via ViaCEP
+  const handleCepSearch = useCallback(async (cep: string) => {
+    const cleanCep = cep.replace(/\D/g, '');
+    if (cleanCep.length !== 8) return;
+    
+    try {
+      const response = await fetch(`https://viacep.com.br/ws/${cleanCep}/json/`);
+      const data = await response.json();
+      if (!data.erro) {
+        setShippingData(prev => ({
+          ...prev,
+          street: data.logradouro || '',
+          neighborhood: data.bairro || '',
+          city: data.localidade || '',
+          state: data.uf || '',
+        }));
+        toast({ title: 'Endereço encontrado!' });
+      } else {
+        toast({ title: 'CEP não encontrado', variant: 'destructive' });
+      }
+    } catch (error) {
+      console.error('Erro ao buscar CEP:', error);
+    }
+  }, []);
+
   // Redirect if cart is empty
   if (items.length === 0 && step !== 'confirmation') {
     navigate('/carrinho');
@@ -98,9 +148,16 @@ export default function CheckoutPage() {
     );
   }
 
-  // Don't render form if not logged in
+  // Show redirect message if not logged in
   if (!user && step !== 'confirmation') {
-    return null;
+    return (
+      <Layout>
+        <div className="container py-12 text-center">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-primary" />
+          <p className="text-muted-foreground">Redirecionando para login...</p>
+        </div>
+      </Layout>
+    );
   }
 
   const handleShippingSubmit = (e: React.FormEvent) => {
@@ -301,7 +358,7 @@ export default function CheckoutPage() {
                         <Label>Telefone *</Label>
                         <Input
                           value={shippingData.phone}
-                          onChange={(e) => setShippingData({ ...shippingData, phone: e.target.value })}
+                          onChange={(e) => setShippingData({ ...shippingData, phone: formatPhone(e.target.value) })}
                           placeholder="(11) 99999-9999"
                         />
                       </div>
@@ -309,7 +366,7 @@ export default function CheckoutPage() {
                         <Label>CPF *</Label>
                         <Input
                           value={shippingData.cpf}
-                          onChange={(e) => setShippingData({ ...shippingData, cpf: e.target.value })}
+                          onChange={(e) => setShippingData({ ...shippingData, cpf: formatCPF(e.target.value) })}
                           placeholder="000.000.000-00"
                         />
                       </div>
@@ -325,11 +382,20 @@ export default function CheckoutPage() {
                     <div className="grid sm:grid-cols-3 gap-4">
                       <div className="space-y-2">
                         <Label>CEP *</Label>
-                        <Input
-                          value={shippingData.cep}
-                          onChange={(e) => setShippingData({ ...shippingData, cep: e.target.value })}
-                          placeholder="00000-000"
-                        />
+                        <div className="relative">
+                          <Input
+                            value={shippingData.cep}
+                            onChange={(e) => {
+                              const formatted = formatCEP(e.target.value);
+                              setShippingData({ ...shippingData, cep: formatted });
+                              if (formatted.replace(/\D/g, '').length === 8) {
+                                handleCepSearch(formatted);
+                              }
+                            }}
+                            placeholder="00000-000"
+                          />
+                          <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        </div>
                       </div>
                     </div>
                     <div className="grid sm:grid-cols-3 gap-4">

@@ -276,8 +276,8 @@ export default function ProductDetailPage() {
               Total: <span className="font-bold text-primary">{formatPrice(totalPrice)}</span>
             </div>
 
-            {/* Actions */}
-            <div className="flex gap-3">
+            {/* Actions - Desktop */}
+            <div className="hidden md:flex gap-3">
               <Button
                 size="lg"
                 className="flex-1"
@@ -314,6 +314,31 @@ export default function ProductDetailPage() {
             viewAllLink={`/categoria/${product.category?.slug}`}
           />
         )}
+        
+        {/* Spacer for mobile fixed button */}
+        <div className="h-20 md:hidden" />
+      </div>
+
+      {/* Fixed Bottom Action Bar - Mobile Only */}
+      <div className="fixed bottom-16 left-0 right-0 p-4 bg-background/95 backdrop-blur-lg border-t border-border md:hidden z-40 animate-fade-in-up">
+        <div className="flex gap-3">
+          <Button 
+            className="flex-1 h-12"
+            onClick={handleAddToCart}
+            disabled={product.variants && product.variants.length > 0 && !selectedVariant}
+          >
+            <ShoppingBag className="h-5 w-5 mr-2" />
+            {formatPrice(totalPrice)}
+          </Button>
+          <Button
+            variant="outline"
+            size="icon"
+            className={cn('h-12 w-12', isFavorite(product.id) && 'text-red-500 border-red-500')}
+            onClick={() => toggleFavorite(product.id)}
+          >
+            <Heart className={cn('h-5 w-5', isFavorite(product.id) && 'fill-current')} />
+          </Button>
+        </div>
       </div>
     </Layout>
   );

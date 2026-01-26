@@ -14,6 +14,8 @@ export function Header() {
   const { totalItems } = useCart();
   const [searchOpen, setSearchOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const [cartBounce, setCartBounce] = useState(false);
+  const [prevTotalItems, setPrevTotalItems] = useState(totalItems);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -22,6 +24,16 @@ export function Header() {
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+
+  // Cart bounce animation when items are added
+  useEffect(() => {
+    if (totalItems > prevTotalItems) {
+      setCartBounce(true);
+      const timer = setTimeout(() => setCartBounce(false), 600);
+      return () => clearTimeout(timer);
+    }
+    setPrevTotalItems(totalItems);
+  }, [totalItems, prevTotalItems]);
 
   return (
     <header 
@@ -82,9 +94,12 @@ export function Header() {
           {/* Cart */}
           <Link to="/carrinho">
             <Button variant="ghost" size="icon" className="relative text-[hsl(0,0%,85%)] hover:bg-[hsl(0,0%,15%)] hover:text-primary transition-colors">
-              <ShoppingBag className="h-5 w-5" />
+              <ShoppingBag className={cn('h-5 w-5 transition-transform', cartBounce && 'animate-bounce')} />
               {totalItems > 0 && (
-                <span className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-primary text-xs font-bold text-primary-foreground flex items-center justify-center animate-scale-in">
+                <span className={cn(
+                  "absolute -top-1 -right-1 h-5 w-5 rounded-full bg-primary text-xs font-bold text-primary-foreground flex items-center justify-center",
+                  cartBounce ? 'animate-pulse scale-125' : 'animate-scale-in'
+                )}>
                   {totalItems > 99 ? '99+' : totalItems}
                 </span>
               )}
