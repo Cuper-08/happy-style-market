@@ -97,27 +97,33 @@ export function parseCSV(
   const catMap = new Map(categories.map(c => [c.name.toLowerCase(), c.id]));
   const brandMap = new Map(brands.map(b => [b.name.toLowerCase(), b.id]));
 
-  const grouped = new Map<string, { rows: string[][]; }>();
+  const grouped = new Map<string, { rows: string[][] }>();
 
   for (let i = 1; i < lines.length; i++) {
     const row = lines[i].split(separator);
     const name = col(row, 'nome');
     if (!name) continue;
 
-    let slug = col(row, 'slug') || generateSlug(name);
-    if (!grouped.has(slug)) {
-      grouped.set(slug, { rows: [] });
+    if (!grouped.has(name)) {
+      grouped.set(name, { rows: [] });
     }
-    grouped.get(slug)!.rows.push(row);
+    grouped.get(name)!.rows.push(row);
   }
 
   const products: ParsedProduct[] = [];
+  const usedSlugs = new Set<string>();
 
-  for (const [slug, { rows }] of grouped) {
+  for (const [name, { rows }] of grouped) {
     const first = rows[0];
     const errors: string[] = [];
 
-    const name = col(first, 'nome');
+    let slug = generateSlug(name);
+    if (usedSlugs.has(slug)) {
+      let counter = 2;
+      while (usedSlugs.has(`${slug}-${counter}`)) counter++;
+      slug = `${slug}-${counter}`;
+    }
+    usedSlugs.add(slug);
     const categoryName = col(first, 'categoria');
     const brandName = col(first, 'marca');
     const retailPrice = parseNumber(col(first, 'preco_varejo'));
