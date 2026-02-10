@@ -21,7 +21,8 @@ export function useProducts(options?: {
           variants:product_variants(*)
         `)
         .eq('is_active', true)
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .range(0, 4999);
 
       if (options?.featured) {
         query = query.eq('featured', true);
