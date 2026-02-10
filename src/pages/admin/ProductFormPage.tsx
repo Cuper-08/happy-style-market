@@ -165,7 +165,7 @@ export default function ProductFormPage() {
         color: v.color,
         color_hex: v.color_hex,
         stock_quantity: v.stock_quantity || 0,
-        sku: v.sku,
+        sku: v.sku?.trim() || null,
       }));
 
     if (isEditing) {
