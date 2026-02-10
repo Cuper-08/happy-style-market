@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Search, User, Heart, ShoppingBag, Menu } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,7 +12,9 @@ import { cn } from '@/lib/utils';
 export function Header() {
   const { user } = useAuth();
   const { totalItems } = useCart();
+  const navigate = useNavigate();
   const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const [scrolled, setScrolled] = useState(false);
   const [cartBounce, setCartBounce] = useState(false);
   const [prevTotalItems, setPrevTotalItems] = useState(totalItems);
@@ -55,15 +57,17 @@ export function Header() {
         </Link>
 
         {/* Search - Desktop */}
-        <div className="hidden flex-1 max-w-md md:flex">
+        <form onSubmit={(e) => { e.preventDefault(); if (searchQuery.trim()) { navigate(`/produtos?q=${encodeURIComponent(searchQuery.trim())}`); setSearchQuery(''); } }} className="hidden flex-1 max-w-md md:flex">
           <div className="relative w-full group">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[hsl(0,0%,65%)] transition-colors group-focus-within:text-primary" />
             <Input
               placeholder="Buscar produtos..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-10 bg-[hsl(0,0%,12%)] border-[hsl(0,0%,18%)] text-white placeholder:text-[hsl(0,0%,50%)] transition-all duration-300 focus:bg-[hsl(0,0%,15%)] focus:border-primary/50 focus:shadow-gold-sm"
             />
           </div>
-        </div>
+        </form>
 
         {/* Actions */}
         <div className="flex items-center gap-1 md:gap-2">
@@ -153,16 +157,18 @@ export function Header() {
 
       {/* Mobile Search Bar */}
       {searchOpen && (
-        <div className="container pb-4 md:hidden animate-fade-in-up">
+        <form onSubmit={(e) => { e.preventDefault(); if (searchQuery.trim()) { navigate(`/produtos?q=${encodeURIComponent(searchQuery.trim())}`); setSearchQuery(''); setSearchOpen(false); } }} className="container pb-4 md:hidden animate-fade-in-up">
           <div className="relative w-full">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[hsl(0,0%,65%)]" />
             <Input
               placeholder="Buscar produtos..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-10 bg-[hsl(0,0%,12%)] border-[hsl(0,0%,18%)] text-white placeholder:text-[hsl(0,0%,50%)] focus:border-primary/50"
               autoFocus
             />
           </div>
-        </div>
+        </form>
       )}
     </header>
   );
