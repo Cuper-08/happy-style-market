@@ -1,38 +1,63 @@
 
 
-## Plano: Corrigir Agrupamento do Parser CSV
+## Plano: Corrigir Filtros do App (Busca + Filtros de Produto)
 
-### Problema
-O parser CSV agrupa linhas pelo campo `slug` para identificar variantes de um mesmo produto. No arquivo do usuario, todos os produtos tem o mesmo slug (`/tenis`), fazendo com que todas as 264 linhas sejam tratadas como variantes de um unico produto.
+### Problemas Identificados
+
+1. **Barra de busca no header**: O campo de pesquisa nao tem nenhuma logica conectada - e apenas visual, sem onChange, sem navegacao, sem filtragem.
+
+2. **Filtros laterais (marca/preco)**: O componente `FilterContent` esta definido como uma funcao de componente DENTRO do render do `ProductsPage`. Isso faz o React tratar cada re-render como um componente novo, causando unmount/remount a cada clique de checkbox, o que torna a interacao instavel.
+
+3. **Supabase default limit**: A query do Supabase retorna no maximo 1000 registros por padrao. Com 265 produtos atualmente funciona, mas nao escala para 500+.
 
 ### Solucao
-Alterar a logica de agrupamento para usar o **nome do produto** como chave principal, e auto-gerar o slug a partir do nome quando o slug nao for unico ou estiver vazio.
 
-### Alteracoes
+#### 1. Barra de Busca Funcional (`src/components/layout/Header.tsx`)
+- Adicionar estado `searchQuery` e handler `onSubmit`
+- Ao pressionar Enter ou clicar no icone, navegar para `/produtos?q=termo`
+- Funciona tanto no desktop quanto no mobile
 
-**Arquivo**: `src/components/admin/csvTemplate.ts`
+#### 2. Filtro por busca no ProductsPage (`src/pages/ProductsPage.tsx`)
+- Ler parametro `q` dos searchParams
+- Filtrar produtos por nome (case-insensitive) usando `product.name.includes(query)`
+- Exibir o termo buscado no titulo da pagina
 
-1. Mudar o agrupamento de `slug` para `nome` (campo que realmente identifica cada produto)
-2. Auto-gerar o slug a partir do nome usando a funcao `generateSlug()` ja existente
-3. Ignorar o valor da coluna `slug` do CSV se ele for generico (igual para todos) -- cada produto recebe seu proprio slug gerado do nome
-4. Garantir que slugs duplicados (produtos com mesmo nome) recebam sufixo numerico para evitar conflitos no banco
+#### 3. Corrigir FilterContent (`src/pages/ProductsPage.tsx`)
+- Transformar `FilterContent` de componente interno para JSX inline ou extrair como componente separado fora do render
+- Abordagem: extrair para um componente externo que recebe props (selectedBrands, priceRange, handlers, brands)
+- Isso evita o bug de remount do React
 
-Logica simplificada da mudanca:
+#### 4. Paginacao no Supabase (`src/hooks/useProducts.ts`)
+- Remover o limite padrao de 1000 adicionando `.range(0, 9999)` ou buscar em paginas para suportar 500+ produtos
 
-```text
-ANTES:  agrupamento por slug  ->  "/tenis" = 1 grupo = 1 produto
-DEPOIS: agrupamento por nome  ->  cada nome unico = 1 produto com slug auto-gerado
-```
+### Arquivos a Modificar
+
+| Arquivo | Alteracao |
+|---------|-----------|
+| `src/components/layout/Header.tsx` | Adicionar logica de busca com navegacao para `/produtos?q=...` |
+| `src/pages/ProductsPage.tsx` | Extrair FilterContent para fora do render; adicionar filtro por `q` (busca textual) |
+| `src/hooks/useProducts.ts` | Garantir que todos os produtos sejam retornados (sem limite de 1000) |
 
 ### Detalhes Tecnicos
 
-Na funcao `parseCSV`:
-- Trocar a chave do `Map` de `slug` para `nome`
-- Gerar o slug automaticamente com `generateSlug(nome)`
-- Adicionar deduplicacao de slugs (ex: "adizero-adios-pro-4" e "adizero-adios-pro-4-2" se houver nomes iguais)
-- Manter a logica de variantes: linhas com mesmo nome continuam sendo agrupadas como variantes
+**Header.tsx:**
+- Usar `useNavigate()` do react-router-dom
+- Estado local `searchQuery`
+- No submit do form (Enter): `navigate(\`/produtos?q=\${encodeURIComponent(searchQuery)}\`)`
+- Limpar campo apos navegar
 
-### Arquivo modificado
-| Arquivo | Acao |
-|---------|------|
-| `src/components/admin/csvTemplate.ts` | Modificar - Alterar agrupamento de slug para nome |
+**ProductsPage.tsx:**
+- Extrair `FilterContent` como componente separado (fora do ProductsPage) recebendo props:
+  - `priceRange`, `setPriceRange`, `selectedBrands`, `toggleBrand`, `brands`, `hasActiveFilters`, `clearFilters`
+- Adicionar filtro por texto no useMemo:
+  ```
+  const searchQuery = searchParams.get('q')?.toLowerCase();
+  if (searchQuery) {
+    result = result.filter(p => p.name.toLowerCase().includes(searchQuery));
+  }
+  ```
+- Atualizar titulo para mostrar "Resultados para 'termo'" quando houver busca
+
+**useProducts.ts:**
+- Adicionar `.range(0, 4999)` na query para suportar ate 5000 produtos sem corte silencioso
+
