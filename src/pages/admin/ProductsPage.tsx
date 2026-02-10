@@ -34,7 +34,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { Plus, Search, Loader2, Pencil, Trash2, Package, Upload, Download } from 'lucide-react';
+import { Plus, Search, Loader2, Pencil, Trash2, Package, Upload, Download, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { BulkImportModal } from '@/components/admin/BulkImportModal';
 import { downloadCSVTemplate } from '@/components/admin/csvTemplate';
@@ -43,6 +43,8 @@ export default function ProductsPage() {
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [importOpen, setImportOpen] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 20;
   const isMobile = useIsMobile();
 
   const { products, isLoading, toggleActive, deleteProduct, isDeleting } = useAdminProducts();
@@ -64,6 +66,22 @@ export default function ProductsPage() {
       product.slug.toLowerCase().includes(searchTerm.toLowerCase());
     return matchesCategory && matchesSearch;
   });
+
+  const totalPages = Math.ceil(filteredProducts.length / pageSize);
+  const paginatedProducts = filteredProducts.slice(
+    (currentPage - 1) * pageSize,
+    currentPage * pageSize
+  );
+
+  // Reset page when filters change
+  const handleSearch = (value: string) => {
+    setSearchTerm(value);
+    setCurrentPage(1);
+  };
+  const handleCategoryFilter = (value: string) => {
+    setCategoryFilter(value);
+    setCurrentPage(1);
+  };
 
   const getTotalStock = (variants: any[]) => {
     return variants?.reduce((sum, v) => sum + (v.stock_quantity || 0), 0) || 0;
@@ -105,13 +123,13 @@ export default function ProductsPage() {
                 <Input
                   placeholder="Buscar por nome ou slug..."
                   value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
+                  onChange={(e) => handleSearch(e.target.value)}
                   className="pl-10"
                 />
               </div>
               <Select
                 value={categoryFilter}
-                onValueChange={(v) => setCategoryFilter(v)}
+                onValueChange={handleCategoryFilter}
               >
                 <SelectTrigger className="w-full sm:w-[200px]">
                   <SelectValue placeholder="Filtrar por categoria" />
@@ -156,7 +174,7 @@ export default function ProductsPage() {
             ) : isMobile ? (
               /* Mobile Card View */
               <div className="space-y-3">
-                {filteredProducts.map((product) => (
+                {paginatedProducts.map((product) => (
                   <div
                     key={product.id}
                     className="p-4 rounded-lg border"
@@ -252,7 +270,7 @@ export default function ProductsPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredProducts.map((product) => (
+                    {paginatedProducts.map((product) => (
                       <TableRow key={product.id}>
                         <TableCell>
                           <div className="flex items-center gap-3">
@@ -341,6 +359,59 @@ export default function ProductsPage() {
                     ))}
                   </TableBody>
                 </Table>
+              </div>
+            )}
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between pt-4 border-t mt-4">
+                <p className="text-sm text-muted-foreground">
+                  {(currentPage - 1) * pageSize + 1}–{Math.min(currentPage * pageSize, filteredProducts.length)} de {filteredProducts.length}
+                </p>
+                <div className="flex items-center gap-1">
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
+                    let page: number;
+                    if (totalPages <= 5) {
+                      page = i + 1;
+                    } else if (currentPage <= 3) {
+                      page = i + 1;
+                    } else if (currentPage >= totalPages - 2) {
+                      page = totalPages - 4 + i;
+                    } else {
+                      page = currentPage - 2 + i;
+                    }
+                    return (
+                      <Button
+                        key={page}
+                        variant={currentPage === page ? 'default' : 'outline'}
+                        size="icon"
+                        onClick={() => setCurrentPage(page)}
+                        className="hidden sm:inline-flex"
+                      >
+                        {page}
+                      </Button>
+                    );
+                  })}
+                  <span className="text-sm text-muted-foreground sm:hidden px-2">
+                    {currentPage}/{totalPages}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                    disabled={currentPage === totalPages}
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
             )}
           </CardContent>
