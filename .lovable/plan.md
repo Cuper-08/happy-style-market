@@ -1,29 +1,94 @@
 
 
-## Plano: Desativar Confirmacao de E-mail
+## Plano: Salvar Dados do Usuario no Checkout
 
-A solucao e simples e nao requer alteracao de codigo. Basta ajustar uma configuracao no painel do Supabase.
+### Problema
+O checkout salva endereco e dados pessoais apenas no JSON do pedido (`shipping_address`), mas nao atualiza o perfil nem a tabela de enderecos. Por isso, a area "Minha Conta" aparece sem telefone, CPF e enderecos.
 
----
+### Solucao
+Ao finalizar o pedido, alem de criar o pedido, tambem:
+1. Atualizar o perfil do usuario (nome, telefone, CPF)
+2. Salvar o endereco na tabela `addresses`
 
-### Passo Unico: Desativar no Supabase Dashboard
+### Alteracoes
 
-1. Acesse o [Supabase Dashboard - Auth Settings](https://supabase.com/dashboard/project/zcoixlvbkssvuxamzwvs/auth/providers)
-2. Na secao **Email**, encontre a opcao **"Confirm email"**
-3. **Desative** o toggle (desmarque)
-4. Clique em **Save**
+**Arquivo**: `src/pages/CheckoutPage.tsx`
 
----
+Na funcao `handlePaymentSubmit`, apos criar o pedido com sucesso, adicionar:
 
-### O que acontece apos desativar
+1. **Atualizar perfil** - Salvar `full_name`, `phone` e `cpf` na tabela `profiles`:
+```typescript
+await supabase
+  .from('profiles')
+  .update({
+    full_name: shippingData.fullName,
+    phone: shippingData.phone,
+    cpf: shippingData.cpf,
+  })
+  .eq('user_id', user.id);
+```
 
-- Novos usuarios terao acesso imediato apos o cadastro, sem precisar confirmar o e-mail
-- O usuario `cuper.nascimento@gmail.com` ja esta confirmado e pode fazer login normalmente
-- Outros usuarios que cadastraram mas nao confirmaram (como `sdadapdsapn@gmail.com`) precisarao cadastrar novamente ou voce pode confirma-los manualmente no painel de [Usuarios do Supabase](https://supabase.com/dashboard/project/zcoixlvbkssvuxamzwvs/auth/users)
+2. **Salvar endereco** - Inserir na tabela `addresses` (verificando se ja nao existe um com mesmo CEP+numero):
+```typescript
+const { data: existingAddr } = await supabase
+  .from('addresses')
+  .select('id')
+  .eq('user_id', user.id)
+  .eq('cep', shippingData.cep)
+  .eq('number', shippingData.number)
+  .maybeSingle();
 
----
+if (!existingAddr) {
+  await supabase.from('addresses').insert({
+    user_id: user.id,
+    label: 'Casa',
+    cep: shippingData.cep,
+    street: shippingData.street,
+    number: shippingData.number,
+    complement: shippingData.complement || null,
+    neighborhood: shippingData.neighborhood,
+    city: shippingData.city,
+    state: shippingData.state,
+    is_default: true,
+  });
+}
+```
 
-### Importante
+3. **Pre-carregar dados do perfil** - Ao abrir o checkout, preencher o formulario com dados ja salvos no perfil e ultimo endereco:
+```typescript
+// Carregar endereco padrao do usuario
+useEffect(() => {
+  if (user) {
+    supabase.from('addresses')
+      .select('*')
+      .eq('user_id', user.id)
+      .eq('is_default', true)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data) {
+          setShippingData(prev => ({
+            ...prev,
+            cep: data.cep,
+            street: data.street,
+            number: data.number,
+            complement: data.complement || '',
+            neighborhood: data.neighborhood,
+            city: data.city,
+            state: data.state,
+          }));
+        }
+      });
+  }
+}, [user]);
+```
 
-Nenhuma alteracao de codigo e necessaria. Apenas a configuracao no painel do Supabase.
+### Resultado
+- Apos a primeira compra, os dados pessoais e endereco ficam salvos
+- Em compras futuras, os campos ja virao preenchidos automaticamente
+- A area "Minha Conta" mostrara telefone, CPF e enderecos corretamente
+
+### Arquivo modificado
+| Arquivo | Acao |
+|---------|------|
+| `src/pages/CheckoutPage.tsx` | Modificar |
 
