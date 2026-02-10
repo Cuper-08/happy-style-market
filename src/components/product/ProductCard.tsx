@@ -24,6 +24,8 @@ export function ProductCard({ product, className, index = 0 }: ProductCardProps)
   };
 
   const hasWholesale = product.wholesale_price && product.wholesale_price < product.retail_price;
+  const totalStock = product.variants?.reduce((sum, v) => sum + (v.stock_quantity || 0), 0) ?? 0;
+  const isOutOfStock = product.variants && product.variants.length > 0 && totalStock === 0;
 
   // Staggered animation delay based on index
   const animationDelay = Math.min(index * 75, 500);
@@ -45,7 +47,10 @@ export function ProductCard({ product, className, index = 0 }: ProductCardProps)
         <img
           src={product.images[0] || '/placeholder.svg'}
           alt={product.name}
-          className="h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-110"
+          className={cn(
+            "h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-110",
+            isOutOfStock && "opacity-50 grayscale"
+          )}
         />
         
         {/* Hover overlay */}
@@ -61,6 +66,11 @@ export function ProductCard({ product, className, index = 0 }: ProductCardProps)
           {hasWholesale && (
             <Badge variant="secondary" className="text-[10px] px-2.5 py-0.5 bg-gray-800 text-white">
               ATACADO
+            </Badge>
+          )}
+          {isOutOfStock && (
+            <Badge variant="destructive" className="text-[10px] px-2.5 py-0.5">
+              ESGOTADO
             </Badge>
           )}
         </div>
