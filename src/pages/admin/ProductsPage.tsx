@@ -34,12 +34,15 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { Plus, Search, Loader2, Pencil, Trash2, Package } from 'lucide-react';
+import { Plus, Search, Loader2, Pencil, Trash2, Package, Upload, Download } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { BulkImportModal } from '@/components/admin/BulkImportModal';
+import { downloadCSVTemplate } from '@/components/admin/csvTemplate';
 
 export default function ProductsPage() {
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState('');
+  const [importOpen, setImportOpen] = useState(false);
   const isMobile = useIsMobile();
 
   const { products, isLoading, toggleActive, deleteProduct, isDeleting } = useAdminProducts();
@@ -75,12 +78,22 @@ export default function ProductsPage() {
             <h1 className="text-xl sm:text-2xl font-bold">Produtos</h1>
             <p className="text-sm text-muted-foreground">Gerencie o catálogo de produtos</p>
           </div>
-          <Button asChild className="w-full sm:w-auto">
-            <Link to="/admin/produtos/novo">
-              <Plus className="h-4 w-4 mr-2" />
-              Novo Produto
-            </Link>
-          </Button>
+          <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+            <Button variant="outline" size="sm" onClick={downloadCSVTemplate}>
+              <Download className="h-4 w-4 mr-2" />
+              Baixar Modelo
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => setImportOpen(true)}>
+              <Upload className="h-4 w-4 mr-2" />
+              Importar CSV
+            </Button>
+            <Button asChild className="w-full sm:w-auto">
+              <Link to="/admin/produtos/novo">
+                <Plus className="h-4 w-4 mr-2" />
+                Novo Produto
+              </Link>
+            </Button>
+          </div>
         </div>
 
         {/* Filters */}
@@ -333,6 +346,8 @@ export default function ProductsPage() {
           </CardContent>
         </Card>
       </div>
+
+      <BulkImportModal open={importOpen} onOpenChange={setImportOpen} />
     </AdminLayout>
   );
 }

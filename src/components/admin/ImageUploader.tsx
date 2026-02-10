@@ -11,7 +11,7 @@ interface ImageUploaderProps {
   maxImages?: number;
 }
 
-export function ImageUploader({ images, onChange, maxImages = 5 }: ImageUploaderProps) {
+export function ImageUploader({ images, onChange, maxImages = 10 }: ImageUploaderProps) {
   const [uploading, setUploading] = useState(false);
   const uploadImage = useUploadProductImage();
 
