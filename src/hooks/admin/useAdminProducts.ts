@@ -75,6 +75,7 @@ export function useAdminProducts() {
         const variantsWithProductId = variants.map(v => ({
           ...v,
           product_id: newProduct.id,
+          sku: v.sku?.trim() || null,
         }));
 
         const { error: variantsError } = await supabase
@@ -126,6 +127,7 @@ export function useAdminProducts() {
           const variantsWithProductId = variants.map(v => ({
             ...v,
             product_id: id,
+            sku: v.sku?.trim() || null,
           }));
 
           const { error: variantsError } = await supabase

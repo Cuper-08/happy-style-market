@@ -44,7 +44,7 @@ export function useBulkCreateProducts() {
           color: v.color || null,
           color_hex: v.color_hex || null,
           stock_quantity: v.stock_quantity,
-          sku: v.sku || null,
+          sku: v.sku?.trim() || null,
         }));
       });
 
