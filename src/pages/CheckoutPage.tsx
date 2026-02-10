@@ -100,6 +100,47 @@ export default function CheckoutPage() {
     }
   }, [user, authLoading, navigate, step]);
 
+  // Pre-load profile and default address
+  useEffect(() => {
+    if (!user) return;
+    
+    const loadUserData = async () => {
+      // Load profile data
+      const { data: profileData } = await supabase
+        .from('profiles')
+        .select('full_name, phone, cpf')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      // Load default address
+      const { data: addressData } = await supabase
+        .from('addresses')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('is_default', true)
+        .maybeSingle();
+
+      setShippingData(prev => ({
+        ...prev,
+        fullName: profileData?.full_name || prev.fullName || '',
+        phone: profileData?.phone || prev.phone || '',
+        cpf: profileData?.cpf || prev.cpf || '',
+        email: user.email || prev.email || '',
+        ...(addressData ? {
+          cep: addressData.cep,
+          street: addressData.street,
+          number: addressData.number,
+          complement: addressData.complement || '',
+          neighborhood: addressData.neighborhood,
+          city: addressData.city,
+          state: addressData.state,
+        } : {}),
+      }));
+    };
+
+    loadUserData();
+  }, [user]);
+
   // Busca automática de CEP via ViaCEP
   const handleCepSearch = useCallback(async (cep: string) => {
     const cleanCep = cep.replace(/\D/g, '');
@@ -247,7 +288,41 @@ export default function CheckoutPage() {
         throw new Error('Erro ao salvar itens do pedido');
       }
       
-      // 3. Clear cart and show confirmation
+      // 3. Save profile data (name, phone, cpf)
+      await supabase
+        .from('profiles')
+        .update({
+          full_name: shippingData.fullName,
+          phone: shippingData.phone,
+          cpf: shippingData.cpf,
+        })
+        .eq('user_id', user.id);
+
+      // 4. Save address if not already exists
+      const { data: existingAddr } = await supabase
+        .from('addresses')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('cep', shippingData.cep.replace(/\D/g, ''))
+        .eq('number', shippingData.number)
+        .maybeSingle();
+
+      if (!existingAddr) {
+        await supabase.from('addresses').insert({
+          user_id: user.id,
+          label: 'Casa',
+          cep: shippingData.cep,
+          street: shippingData.street,
+          number: shippingData.number,
+          complement: shippingData.complement || null,
+          neighborhood: shippingData.neighborhood,
+          city: shippingData.city,
+          state: shippingData.state,
+          is_default: true,
+        });
+      }
+
+      // 5. Clear cart and show confirmation
       clearCart();
       setStep('confirmation');
       
