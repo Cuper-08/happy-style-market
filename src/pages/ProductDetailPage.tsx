@@ -87,11 +87,25 @@ export default function ProductDetailPage() {
     return acc;
   }, [] as ProductVariant[]) || [];
 
+  // Calculate total stock across all variants
+  const totalStock = product.variants?.reduce((sum, v) => sum + (v.stock_quantity || 0), 0) ?? 0;
+  const selectedStock = selectedVariant?.stock_quantity ?? totalStock;
+  const isOutOfStock = product.variants && product.variants.length > 0 && totalStock === 0;
+
   const handleAddToCart = () => {
     if (product.variants && product.variants.length > 0 && !selectedVariant) {
       toast({
         title: 'Selecione uma opção',
         description: 'Por favor, selecione tamanho e cor antes de adicionar ao carrinho.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (selectedVariant && (selectedVariant.stock_quantity || 0) < quantity) {
+      toast({
+        title: 'Estoque insuficiente',
+        description: `Apenas ${selectedVariant.stock_quantity} unidades disponíveis.`,
         variant: 'destructive',
       });
       return;
@@ -252,11 +266,17 @@ export default function ProductDetailPage() {
                   <Button
                     variant="ghost"
                     size="icon"
-                    onClick={() => setQuantity(quantity + 1)}
+                    onClick={() => setQuantity(Math.min(quantity + 1, selectedStock || 9999))}
+                    disabled={selectedVariant ? quantity >= (selectedVariant.stock_quantity || 0) : false}
                   >
                     <Plus className="h-4 w-4" />
                   </Button>
                 </div>
+                {selectedVariant && (selectedVariant.stock_quantity || 0) <= 5 && (selectedVariant.stock_quantity || 0) > 0 && (
+                  <span className="text-sm text-orange-500 font-medium">
+                    Apenas {selectedVariant.stock_quantity} em estoque!
+                  </span>
+                )}
                 {hasWholesale && (
                   <span className={cn(
                     'text-sm',
@@ -282,9 +302,10 @@ export default function ProductDetailPage() {
                 size="lg"
                 className="flex-1"
                 onClick={handleAddToCart}
+                disabled={isOutOfStock || (selectedVariant?.stock_quantity === 0)}
               >
                 <ShoppingBag className="h-5 w-5 mr-2" />
-                Adicionar ao Carrinho
+                {isOutOfStock ? 'Produto Esgotado' : 'Adicionar ao Carrinho'}
               </Button>
               <Button
                 size="lg"
@@ -325,10 +346,10 @@ export default function ProductDetailPage() {
           <Button 
             className="flex-1 h-12"
             onClick={handleAddToCart}
-            disabled={product.variants && product.variants.length > 0 && !selectedVariant}
+            disabled={(product.variants && product.variants.length > 0 && !selectedVariant) || isOutOfStock || (selectedVariant?.stock_quantity === 0)}
           >
             <ShoppingBag className="h-5 w-5 mr-2" />
-            {formatPrice(totalPrice)}
+            {isOutOfStock ? 'Esgotado' : formatPrice(totalPrice)}
           </Button>
           <Button
             variant="outline"

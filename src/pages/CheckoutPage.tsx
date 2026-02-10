@@ -287,6 +287,26 @@ export default function CheckoutPage() {
         console.error('Order items error:', itemsError);
         throw new Error('Erro ao salvar itens do pedido');
       }
+
+      // 3. Decrement stock atomically
+      const stockItems = items
+        .filter(item => item.variant?.id)
+        .map(item => ({
+          variant_id: item.variant!.id,
+          quantity: item.quantity,
+        }));
+
+      if (stockItems.length > 0) {
+        const { data: stockOk, error: stockError } = await supabase
+          .rpc('decrement_stock', { p_items: stockItems });
+
+        if (stockError) {
+          console.error('Stock decrement error:', stockError);
+        }
+        if (stockOk === false) {
+          throw new Error('Estoque insuficiente para um ou mais itens. Por favor, revise seu carrinho.');
+        }
+      }
       
       // 3. Save profile data (name, phone, cpf)
       await supabase
