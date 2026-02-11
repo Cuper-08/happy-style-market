@@ -80,6 +80,7 @@ export function ImageUploader({ images, onChange, maxImages = 10 }: ImageUploade
               <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
                 {index > 0 && (
                   <Button
+                    type="button"
                     size="sm"
                     variant="secondary"
                     onClick={() => moveImage(index, index - 1)}
@@ -88,6 +89,7 @@ export function ImageUploader({ images, onChange, maxImages = 10 }: ImageUploade
                   </Button>
                 )}
                 <Button
+                  type="button"
                   size="sm"
                   variant="destructive"
                   onClick={() => removeImage(index)}
@@ -96,6 +98,7 @@ export function ImageUploader({ images, onChange, maxImages = 10 }: ImageUploade
                 </Button>
                 {index < images.length - 1 && (
                   <Button
+                    type="button"
                     size="sm"
                     variant="secondary"
                     onClick={() => moveImage(index, index + 1)}
