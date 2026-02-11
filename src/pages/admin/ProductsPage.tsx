@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import { AdminLayout } from './AdminLayout';
 import { useAdminProducts } from '@/hooks/admin/useAdminProducts';
 import { useAdminCategories } from '@/hooks/admin/useAdminCategories';
@@ -43,7 +43,11 @@ export default function ProductsPage() {
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [importOpen, setImportOpen] = useState(false);
-  const [currentPage, setCurrentPage] = useState(1);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [currentPage, setCurrentPage] = useState(() => {
+    const page = parseInt(searchParams.get('page') || '1', 10);
+    return page > 0 ? page : 1;
+  });
   const pageSize = 20;
   const isMobile = useIsMobile();
 
@@ -72,6 +76,13 @@ export default function ProductsPage() {
     (currentPage - 1) * pageSize,
     currentPage * pageSize
   );
+
+  // Sync currentPage to URL
+  useEffect(() => {
+    const params: Record<string, string> = {};
+    if (currentPage > 1) params.page = String(currentPage);
+    setSearchParams(params, { replace: true });
+  }, [currentPage, setSearchParams]);
 
   // Reset page when filters change
   const handleSearch = (value: string) => {
@@ -106,7 +117,7 @@ export default function ProductsPage() {
               Importar CSV
             </Button>
             <Button asChild className="w-full sm:w-auto">
-              <Link to="/admin/produtos/novo">
+              <Link to={`/admin/produtos/novo${currentPage > 1 ? `?page=${currentPage}` : ''}`}>
                 <Plus className="h-4 w-4 mr-2" />
                 Novo Produto
               </Link>
@@ -219,7 +230,7 @@ export default function ProductsPage() {
                       </div>
                       <div className="flex items-center gap-1">
                         <Button variant="ghost" size="icon" asChild>
-                          <Link to={`/admin/produtos/${product.id}`}>
+                          <Link to={`/admin/produtos/${product.id}${currentPage > 1 ? `?page=${currentPage}` : ''}`}>
                             <Pencil className="h-4 w-4" />
                           </Link>
                         </Button>
@@ -324,7 +335,7 @@ export default function ProductsPage() {
                         <TableCell className="text-right">
                           <div className="flex items-center justify-end gap-2">
                             <Button variant="ghost" size="icon" asChild>
-                              <Link to={`/admin/produtos/${product.id}`}>
+                              <Link to={`/admin/produtos/${product.id}${currentPage > 1 ? `?page=${currentPage}` : ''}`}>
                                 <Pencil className="h-4 w-4" />
                               </Link>
                             </Button>
