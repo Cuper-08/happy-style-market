@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -61,6 +61,9 @@ type ProductFormData = z.infer<typeof productSchema>;
 export default function ProductFormPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const returnPage = searchParams.get('page');
+  const returnUrl = returnPage ? `/admin/produtos?page=${returnPage}` : '/admin/produtos';
   const isEditing = !!id && id !== 'novo';
 
   const { data: existingProduct, isLoading: isLoadingProduct } = useAdminProduct(
@@ -172,14 +175,14 @@ export default function ProductFormPage() {
       updateProduct(
         { id, product: productData, variants: validVariants },
         {
-          onSuccess: () => navigate('/admin/produtos'),
+          onSuccess: () => navigate(returnUrl),
         }
       );
     } else {
       createProduct(
         { product: productData, variants: validVariants },
         {
-          onSuccess: () => navigate('/admin/produtos'),
+          onSuccess: () => navigate(returnUrl),
         }
       );
     }
@@ -205,7 +208,7 @@ export default function ProductFormPage() {
               type="button"
               variant="ghost"
               size="icon"
-              onClick={() => navigate('/admin/produtos')}
+              onClick={() => navigate(returnUrl)}
             >
               <ArrowLeft className="h-4 w-4" />
             </Button>
