@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ProductSection } from '@/components/home';
-import { Heart, Minus, Plus, ShoppingBag, Check } from 'lucide-react';
+import { Heart, Minus, Plus, ShoppingBag, Check, Tag } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from '@/hooks/use-toast';
 import { ProductVariant } from '@/types';
@@ -64,9 +64,12 @@ export default function ProductDetailPage() {
     }).format(price);
   };
 
-  const hasWholesale = product.wholesale_price && product.wholesale_price < product.retail_price;
-  const isWholesaleQty = quantity >= product.wholesale_min_qty;
+  const hasWholesale = product.wholesale_price != null && product.wholesale_price > 0;
+  const wholesaleMinQty = product.wholesale_min_qty || 6;
+  const isWholesaleQty = quantity >= wholesaleMinQty;
   const currentPrice = hasWholesale && isWholesaleQty ? product.wholesale_price! : product.retail_price;
+  const savingsPerUnit = hasWholesale ? product.retail_price - product.wholesale_price! : 0;
+  const unitsNeeded = hasWholesale ? Math.max(0, wholesaleMinQty - quantity) : 0;
   const totalPrice = currentPrice * quantity;
 
   // Group variants by color
@@ -194,6 +197,27 @@ export default function ProductDetailPage() {
               </div>
             </div>
 
+            {/* Wholesale Banner */}
+            {hasWholesale && (
+              <div className="rounded-lg border-2 border-green-500/30 bg-green-50 dark:bg-green-950/40 p-4 space-y-1">
+                <div className="flex items-center gap-2">
+                  <Tag className="h-5 w-5 text-green-600 dark:text-green-400" />
+                  <span className="font-bold text-green-700 dark:text-green-300">
+                    Desconto de Atacado!
+                  </span>
+                </div>
+                <p className="text-sm text-green-700 dark:text-green-300">
+                  Compre a partir de <strong>{wholesaleMinQty} unidades</strong> por apenas{' '}
+                  <strong>{formatPrice(product.wholesale_price!)}</strong> cada!
+                </p>
+                {savingsPerUnit > 0 && (
+                  <p className="text-xs text-green-600 dark:text-green-400">
+                    Economize {formatPrice(savingsPerUnit)} por unidade
+                  </p>
+                )}
+              </div>
+            )}
+
             {/* Color Selection */}
             {colors.length > 0 && (
               <div>
@@ -279,12 +303,14 @@ export default function ProductDetailPage() {
                 )}
                 {hasWholesale && (
                   <span className={cn(
-                    'text-sm',
-                    isWholesaleQty ? 'text-primary font-medium' : 'text-muted-foreground'
+                    'text-sm font-medium px-3 py-1 rounded-full',
+                    isWholesaleQty 
+                      ? 'bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-300' 
+                      : 'bg-orange-100 text-orange-700 dark:bg-orange-900/50 dark:text-orange-300'
                   )}>
                     {isWholesaleQty 
                       ? '✓ Preço de atacado aplicado!' 
-                      : `Adicione mais ${product.wholesale_min_qty - quantity} para preço de atacado`
+                      : `Faltam ${unitsNeeded} un. para preço de atacado`
                     }
                   </span>
                 )}
