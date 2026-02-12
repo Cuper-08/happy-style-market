@@ -1,26 +1,27 @@
-## Corrigir Banners no Mobile — Remover Barras Pretas
+
+## Corrigir Zoom Excessivo nos Banners Mobile
 
 ### Problema
 
-O `object-contain` esta criando barras pretas acima e abaixo da imagem no mobile. O usuario quer a imagem expandida preenchendo todo o espaco, sem barras.
+O `aspect-[4/3]` no mobile cria um container muito alto para imagens que sao panoramicas (proporcao ~2:1). Com `object-cover`, a imagem precisa dar um zoom enorme para preencher esse espaco vertical, cortando muito conteudo nas laterais.
 
 ### Solucao
 
-Voltar para `object-cover` (que preenche todo o espaco sem barras), mas manter o aspect ratio mais alto (`aspect-[4/3]`) no mobile. Isso garante que a imagem preencha o banner inteiro, e como o banner agora e mais alto no mobile, muito menos conteudo sera cortado comparado ao formato original `aspect-[2/1]`.
+Usar `aspect-[16/9]` no mobile em vez de `aspect-[4/3]`. O 16:9 e um meio-termo ideal:
+- Mais alto que o 2:1 original (mostra mais da imagem verticalmente)
+- Menos alto que o 4:3 (evita zoom excessivo)
+- Proporcao natural para imagens panoramicas
 
-### Mudanca no arquivo `src/components/home/HeroBanner.tsx`
+### Mudancas no arquivo `src/components/home/HeroBanner.tsx`
 
-Apenas 1 alteracao:
+| Local | De | Para |
+|-------|-----|------|
+| Skeleton (linha 76) | `aspect-[4/3] sm:aspect-[2/1] md:aspect-[3/1]` | `aspect-[16/9] sm:aspect-[2/1] md:aspect-[3/1]` |
+| Container (linha 81) | `aspect-[4/3] sm:aspect-[2/1] md:aspect-[3/1]` | `aspect-[16/9] sm:aspect-[2/1] md:aspect-[3/1]` |
 
-
-| Linha | De                               | Para           |
-| ----- | -------------------------------- | -------------- |
-| 92    | `object-contain md:object-cover` | `object-cover` |
-
-
-Manter tudo o resto como esta (aspect-[4/3] no mobile, bg-[#0D0D0D], etc).
+Manter `object-cover` na imagem (sem barras pretas) e todo o resto inalterado.
 
 ### Resultado esperado
 
-- **Mobile**: Imagem preenche todo o banner sem barras pretas, com proporcao 4:3 (mais alta que antes), mostrando toda a imagem com qualidade e sem cortes.
-- **Desktop**: Sem alteracao
+- **Mobile**: Imagem preenche o banner com zoom moderado, mostrando muito mais conteudo que o 4:3
+- **Tablet/Desktop**: Sem alteracao
