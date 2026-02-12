@@ -20,7 +20,7 @@ import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
 import { ModeToggle } from '@/components/ui/mode-toggle';
 import { supabase } from '@/integrations/supabase/client';
-import logo from '@/assets/logo.png';
+import logo from '@/assets/logo.webp';
 
 interface AdminSidebarProps {
   collapsed: boolean;
