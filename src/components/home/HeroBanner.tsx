@@ -89,7 +89,7 @@ export function HeroBanner({ className }: HeroBannerProps) {
                 : 'opacity-0 scale-105 pointer-events-none'
             )}
           >
-            <img src={getImage(banner)} alt={banner.title} className="h-full w-full object-contain md:object-cover" />
+            <img src={getImage(banner)} alt={banner.title} className="h-full w-full object-cover" />
             <div className="absolute inset-0 bg-gradient-to-r from-black/60 via-black/20 to-transparent" />
             <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent" />
             <div className="absolute inset-0 flex items-center">
