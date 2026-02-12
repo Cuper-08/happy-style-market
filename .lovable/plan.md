@@ -1,69 +1,47 @@
-## Corrigir Fundo dos Icones PWA para Preto
+
+
+## Corrigir Banners Cortados no Mobile
 
 ### Problema
 
-A imagem da aguia tem fundo transparente/branco. O iOS (e Android em alguns casos) exibe o fundo branco no icone do app na tela inicial. O `background_color` do manifest so afeta a splash screen, nao o icone em si.
+O banner usa `aspect-[2/1]` no mobile (proporcao 2:1 — muito largo e baixo). Combinado com `object-cover`, a imagem e cortada significativamente no topo e na base, perdendo conteudo importante (como o tenis no screenshot).
 
 ### Solucao
 
-Como nao temos ferramentas de processamento de imagem no ambiente, a abordagem sera:
+Ajustar o aspect ratio para ser mais alto no mobile, mostrando mais da imagem. Tambem mudar o `object-fit` para `object-contain` no mobile para garantir que a imagem inteira apareca sem corte.
 
-**1. Usar a imagem com fundo preto fornecida pelo usuario**
+### Mudancas no arquivo `src/components/home/HeroBanner.tsx`
 
-O usuario precisa fornecer uma versao da logo da aguia com fundo preto (ou podemos criar um SVG com fundo preto que referencia a aguia). Como alternativa pratica:
+**1. Aspect ratio responsivo (mais alto no mobile)**
 
-**2. Criar um SVG com fundo preto e a aguia como icone base**
+Trocar:
+- Mobile: `aspect-[2/1]` -> `aspect-[4/3]` (mostra muito mais da imagem)
+- Tablet: adicionar `sm:aspect-[2/1]` (transicao suave)  
+- Desktop: manter `md:aspect-[3/1]`
 
-Atualizar `public/mask-icon.svg` para ter fundo preto, e usar esse SVG como referencia visual.
+Isso se aplica em 2 lugares: o skeleton loader (linha 76) e o container principal (linha 81).
 
-**3. Abordagem mais eficaz: apple-touch-icon com fundo preto via HTML**
+**2. Object-fit responsivo na imagem**
 
-Na verdade, a melhor solucao possivel dentro do ambiente e:
+Trocar `object-cover` por `object-contain` no mobile e manter `object-cover` no desktop:
+- `object-contain md:object-cover` na tag `<img>` (linha 92)
 
-- Atualizar o `apple-touch-icon.png` e todos os `icon-*.png` copiando a nova imagem que o usuario forneceu (`logo_bras_conceito-2.webp`) — porem o problema permanece pois essa imagem tambem tem fundo branco/transparente.
+**3. Fundo preto atras da imagem**
 
-### Solucao recomendada
+Adicionar `bg-black` ou `bg-[#0D0D0D]` no container da imagem para que, quando `object-contain` deixar espacos vazios no mobile, o fundo seja preto (combinando com a estetica do app).
 
-Solicitar ao usuario uma versao da logo com fundo preto (#0D0D0D) ja embutido na imagem, OU criar os icones programaticamente:
+### Resumo das alteracoes
 
-**Opcao A — Pedir imagem pronta (mais simples)**
+| Linha | De | Para |
+|-------|-----|------|
+| 76 | `aspect-[2/1] md:aspect-[3/1]` | `aspect-[4/3] sm:aspect-[2/1] md:aspect-[3/1]` |
+| 81 | `aspect-[2/1] md:aspect-[3/1]` | `aspect-[4/3] sm:aspect-[2/1] md:aspect-[3/1]` |
+| 80 | (sem bg) | Adicionar `bg-[#0D0D0D]` |
+| 92 | `object-cover` | `object-contain md:object-cover` |
 
-Pedir ao usuario que forneca a logo da aguia ja com fundo preto em formato PNG.
+### Resultado esperado
 
-**Opcao B — Criar via SVG e usar como icone (possivel no ambiente)**
+- **Mobile**: Imagem completa visivel com proporcao 4:3, sem corte, fundo preto nas laterais se necessario
+- **Tablet**: Proporcao 2:1, transicao suave
+- **Desktop**: Mantido como esta (3:1 com object-cover)
 
-Criar um SVG com retangulo preto de fundo + imagem da aguia centralizada, e usar como base para os icones. Limitacao: SVG com imagem embutida em base64 pode ser grande, mas funciona para `mask-icon.svg` e `favicon`.
-
-**Opcao C — Usar CSS/manifest (limitado)**
-
-O `background_color` no manifest ja esta como `#0D0D0D`. Para iOS especificamente, nao ha como definir cor de fundo do icone via manifest — precisa estar na propria imagem.
-
-### Plano de implementacao (Opcao B — viavel agora)
-
-1. **Copiar a nova imagem** `user-uploads://logo_bras_conceito-2.webp` para `public/logo_bras_conceito.webp` (substituindo a atual)
-2. **Copiar a mesma imagem** para `src/assets/logo.webp`
-3. **Sobrescrever todos os icones PWA** com a nova imagem (mesmo processo anterior)
-4. **Atualizar `index.html**` para adicionar `<meta name="apple-mobile-web-app-capable">` e garantir que o `background_color` meta tag esta correto
-
-### Limitacao importante
-
-Mesmo com essas mudancas, o fundo do icone no iOS continuara branco/transparente porque a **imagem em si** tem fundo transparente. Para ter fundo preto no icone do iOS, e necessario que a imagem PNG/WebP tenha o fundo preto pintado na propria imagem.
-
-**Recomendacao**: Faca a logo da aguia com fundo preto em qualquer editor de imagem (Canva, Photoshop, etc.) e envie aqui. Assim posso atualizar todos os icones com o fundo correto. Isso e a unica forma garantida de funcionar no iOS.
-
-Enquanto isso, posso atualizar a nova imagem da aguia fornecida e ajustar o `mask-icon.svg` para ter fundo preto.
-
-### Arquivos a alterar
-
-
-| Arquivo                          | Acao                        |
-| -------------------------------- | --------------------------- |
-| `public/logo_bras_conceito.webp` | Substituir pela nova imagem |
-| `src/assets/logo.webp`           | Substituir pela nova imagem |
-| `public/apple-touch-icon.png`    | Substituir pela nova imagem |
-| `public/icon-*.png` (8 arquivos) | Substituir pela nova imagem |
-| `public/favicon.ico`             | Substituir pela nova imagem |
-| `public/mask-icon.svg`           | Atualizar com fundo preto   |
-
-
-**Nota**: Para resultado perfeito no iOS, envie uma versao da logo com fundo preto ja embutido na imagem.
