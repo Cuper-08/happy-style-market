@@ -1,51 +1,81 @@
 
 
-## Correcao da Deteccao Automatica de Cores + Guia de Tamanhos no CSV
+## Gerenciamento de Banners no Painel Admin
 
-### Problema Atual
+### O que sera criado
 
-A deteccao de cores pelo nome do produto existe no codigo, mas **so funciona quando a coluna `tamanho` esta preenchida**. Se voce importa um produto sem preencher tamanho, nenhuma variante e criada, e portanto a cor tambem nao e gerada. Alem disso, o fluxo de **atualizacao via CSV** nao aplica deteccao de cores para produtos que ainda nao tem variantes.
+Uma nova secao "Banners" no painel administrativo para cadastrar, editar, reordenar e excluir os banners do carrossel da home page. Atualmente os banners sao fixos no codigo (hardcoded). Com essa mudanca, eles virao do banco de dados e serao editaveis pelo admin.
 
-### Como cadastrar tamanhos na planilha
+### Estrutura
 
-Cada **linha** do CSV representa uma variante. Para um tenis com tamanhos 41, 42 e 43, voce precisa de **3 linhas** com o mesmo nome:
+**1. Nova tabela `banners` no Supabase**
 
-```text
-nome;slug;...;tamanho;cor;cor_hex;estoque;sku
-Adizero Pro VERMELHO;adizero-pro-vermelho;...;41;;;50;
-Adizero Pro VERMELHO;adizero-pro-vermelho;...;42;;;30;
-Adizero Pro VERMELHO;adizero-pro-vermelho;...;43;;;20;
-```
+Colunas:
+- `id` (uuid, PK)
+- `title` (text, obrigatorio) - titulo exibido sobre o banner
+- `subtitle` (text, opcional) - subtitulo
+- `image_url` (text, obrigatorio) - URL da imagem
+- `button_text` (text, opcional) - texto do botao CTA
+- `button_link` (text, opcional) - link do botao
+- `sort_order` (integer, default 0) - ordem de exibicao
+- `is_active` (boolean, default true) - ativar/desativar sem excluir
+- `created_at` (timestamptz)
 
-Nao precisa separar por virgula. O sistema agrupa as linhas pelo nome e cria uma variante por linha. A cor sera detectada automaticamente do nome ("VERMELHO") e aplicada a todas as 3 variantes.
+RLS: leitura publica para banners ativos, CRUD completo para admins/managers.
 
-### O que sera corrigido
+**2. Bucket de storage `banners`**
 
-**1. Importacao de novos produtos (`parseCSV` em `csvTemplate.ts`)**
-- Se um produto nao tem nenhuma variante no CSV (nenhuma linha com `tamanho`), mas o nome contem uma cor detectavel, criar automaticamente uma variante com `size = "Unico"` e a cor extraida do nome
-- Se as variantes existem mas nao tem cor preenchida, aplicar a cor detectada (isso ja funciona)
+Para upload das imagens dos banners (reutilizando o padrao do ImageUploader existente).
 
-**2. Atualizacao via CSV (`parseUpdateCSV` em `csvTemplate.ts`)**
-- Ao processar produtos no fluxo de atualizacao, se o produto nao tem variantes no banco E nao tem linhas de variante no CSV, mas o nome contem cor, criar nova variante com `size = "Unico"` e cor detectada
-- Isso permite que produtos ja cadastrados sem variantes ganhem a cor automaticamente ao reimportar
+**3. Nova pagina `/admin/banners` (`src/pages/admin/BannersPage.tsx`)**
 
-**3. Importacao em massa (`useBulkImport.ts`)**
-- Garantir que variantes com `size = "Unico"` sejam inseridas corretamente (ja funciona, sem alteracao necessaria)
+Funcionalidades:
+- Lista de banners em cards com preview da imagem
+- Botao "Novo Banner" abre dialog/formulario
+- Campos: imagem (upload via drag-and-drop), titulo, subtitulo, texto do botao, link do botao, ativo (switch)
+- Editar banner existente
+- Excluir banner com confirmacao
+- Reordenar (setas cima/baixo ou drag)
+- Toggle ativar/desativar
 
-### Detalhes Tecnicos
+**4. Hook `src/hooks/admin/useAdminBanners.ts`**
 
-**Arquivo: `src/components/admin/csvTemplate.ts`**
+- `useBanners()` - listar banners ordenados
+- `useCreateBanner()` - criar
+- `useUpdateBanner()` - editar
+- `useDeleteBanner()` - excluir
+- `useUploadBannerImage()` - upload de imagem para o bucket
 
-Na funcao `parseCSV` (importacao de novos):
-- Apos montar o array `variants`, verificar se esta vazio
-- Se vazio e `extractColorFromName(name)` retorna resultado, criar uma variante: `{ size: 'Unico', color, color_hex, stock_quantity: 0 }`
+**5. Atualizar sidebar (`src/components/admin/AdminSidebar.tsx`)**
 
-Na funcao `parseUpdateCSV` (atualizacao):
-- Apos processar todas as linhas de um produto, se `newVariants` esta vazio e `variantDiffs` esta vazio e o produto no banco nao tem variantes
-- Executar `extractColorFromName(current.name)` e, se encontrar cor, adicionar em `newVariants`
+- Adicionar item "Banners" com icone `ImageIcon` entre "Marcas" e "Clientes"
 
-**Arquivo: `src/components/admin/BulkUpdateModal.tsx`**
-- No resumo de revisao, exibir novas variantes criadas por deteccao automatica com um indicador visual (ex: badge "Auto" ou "Detectada do nome")
+**6. Atualizar rotas (`src/App.tsx`)**
 
-Alteracoes em 2 arquivos, sem mudanca de banco de dados.
+- Nova rota `/admin/banners` apontando para `BannersPage`
+
+**7. Atualizar HeroBanner (`src/components/home/HeroBanner.tsx`)**
+
+- Buscar banners ativos do banco de dados ordenados por `sort_order`
+- Fallback para banners padrao caso nao haja banners no banco
+- Exibir skeleton/loading durante carregamento
+
+**8. Atualizar exports**
+
+- `src/pages/admin/index.ts` - exportar BannersPage
+- `src/hooks/admin/index.ts` - exportar hooks de banners
+
+### Resumo de arquivos
+
+| Arquivo | Acao |
+|---------|------|
+| Migration SQL (banners table + storage bucket) | Criar |
+| `src/pages/admin/BannersPage.tsx` | Criar |
+| `src/hooks/admin/useAdminBanners.ts` | Criar |
+| `src/components/admin/AdminSidebar.tsx` | Editar (novo item menu) |
+| `src/App.tsx` | Editar (nova rota) |
+| `src/components/home/HeroBanner.tsx` | Editar (fetch do banco) |
+| `src/pages/admin/index.ts` | Editar (export) |
+| `src/hooks/admin/index.ts` | Editar (export) |
+| `src/components/admin/index.ts` | Sem alteracao |
 
