@@ -73,12 +73,12 @@ export function HeroBanner({ className }: HeroBannerProps) {
   }, [banners.length, current, goToSlide]);
 
   if (isLoading) {
-    return <Skeleton className={cn('w-full aspect-[4/3] sm:aspect-[2/1] md:aspect-[3/1] rounded-2xl', className)} />;
+    return <Skeleton className={cn('w-full aspect-[16/9] sm:aspect-[2/1] md:aspect-[3/1] rounded-2xl', className)} />;
   }
 
   return (
     <div className={cn('relative w-full overflow-hidden rounded-2xl shadow-lg bg-[#0D0D0D]', className)}>
-      <div className="aspect-[4/3] sm:aspect-[2/1] md:aspect-[3/1] relative">
+      <div className="aspect-[16/9] sm:aspect-[2/1] md:aspect-[3/1] relative">
         {banners.map((banner, index) => (
           <div
             key={banner.id}
