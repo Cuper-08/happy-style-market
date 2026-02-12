@@ -1,27 +1,36 @@
 
-## Corrigir Zoom Excessivo nos Banners Mobile
+## Adicionar Dica de Dimensoes Ideais na Sessao de Upload de Banner
 
-### Problema
+### Dimensoes Recomendadas
 
-O `aspect-[4/3]` no mobile cria um container muito alto para imagens que sao panoramicas (proporcao ~2:1). Com `object-cover`, a imagem precisa dar um zoom enorme para preencher esse espaco vertical, cortando muito conteudo nas laterais.
+Com base nos aspect ratios configurados no HeroBanner:
+- **Desktop (3:1)**: 1920 x 640px
+- **Tablet (2:1)**: 1200 x 600px  
+- **Mobile (16:9)**: 720 x 405px
 
-### Solucao
+A dimensao ideal para cobrir todos os dispositivos e **1920 x 640px** (3:1), pois o `object-cover` adapta automaticamente para os outros formatos.
 
-Usar `aspect-[16/9]` no mobile em vez de `aspect-[4/3]`. O 16:9 e um meio-termo ideal:
-- Mais alto que o 2:1 original (mostra mais da imagem verticalmente)
-- Menos alto que o 4:3 (evita zoom excessivo)
-- Proporcao natural para imagens panoramicas
+### Mudanca no arquivo `src/pages/admin/BannersPage.tsx`
 
-### Mudancas no arquivo `src/components/home/HeroBanner.tsx`
+Adicionar um texto informativo abaixo do label "Imagem *" e dentro da area de dropzone, orientando o usuario sobre as dimensoes ideais.
 
-| Local | De | Para |
-|-------|-----|------|
-| Skeleton (linha 76) | `aspect-[4/3] sm:aspect-[2/1] md:aspect-[3/1]` | `aspect-[16/9] sm:aspect-[2/1] md:aspect-[3/1]` |
-| Container (linha 81) | `aspect-[4/3] sm:aspect-[2/1] md:aspect-[3/1]` | `aspect-[16/9] sm:aspect-[2/1] md:aspect-[3/1]` |
+**1. Texto de ajuda abaixo do label (linha ~230)**
 
-Manter `object-cover` na imagem (sem barras pretas) e todo o resto inalterado.
+Adicionar apos o `<Label>Imagem *</Label>`:
+```
+<p className="text-xs text-muted-foreground">
+  Dimensao ideal: 1920 x 640px (proporcao 3:1). Formatos: PNG, JPG ou WebP.
+</p>
+```
+
+**2. Texto dentro do dropzone (linha ~260)**
+
+Substituir o texto "Arraste ou clique para enviar" por incluir tambem a dica:
+```
+<p className="text-sm text-muted-foreground">Arraste ou clique para enviar</p>
+<p className="text-xs text-muted-foreground/70">Recomendado: 1920 x 640px (3:1)</p>
+```
 
 ### Resultado esperado
 
-- **Mobile**: Imagem preenche o banner com zoom moderado, mostrando muito mais conteudo que o 4:3
-- **Tablet/Desktop**: Sem alteracao
+O administrador vera as dimensoes recomendadas tanto ao lado do label quanto dentro da area de upload, facilitando o envio de imagens no tamanho correto.
