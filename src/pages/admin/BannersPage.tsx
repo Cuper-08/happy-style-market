@@ -228,6 +228,9 @@ export default function BannersPage() {
               {/* Image Upload */}
               <div className="space-y-2">
                 <Label>Imagem *</Label>
+                <p className="text-xs text-muted-foreground">
+                  Dimensão ideal: 1920 x 640px (proporção 3:1). Formatos: PNG, JPG ou WebP.
+                </p>
                 {form.image_url ? (
                   <div className="relative">
                     <img src={form.image_url} alt="Preview" className="w-full aspect-[3/1] object-cover rounded-lg border border-border" />
@@ -258,6 +261,7 @@ export default function BannersPage() {
                         <>
                           <Upload className="h-8 w-8 text-muted-foreground" />
                           <p className="text-sm text-muted-foreground">Arraste ou clique para enviar</p>
+                          <p className="text-xs text-muted-foreground/70">Recomendado: 1920 x 640px (3:1)</p>
                         </>
                       )}
                     </div>
