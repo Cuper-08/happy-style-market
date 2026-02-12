@@ -8,4 +8,5 @@ export { default as BrandsPage } from './BrandsPage';
 export { default as CustomersPage } from './CustomersPage';
 export { default as SettingsPage } from './SettingsPage';
 export { default as ReportsPage } from './ReportsPage';
+export { default as BannersPage } from './BannersPage';
 export { AdminLayout } from './AdminLayout';
