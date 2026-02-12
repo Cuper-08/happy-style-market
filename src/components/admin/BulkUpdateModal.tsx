@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
-import { Upload, Loader2, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { Upload, Loader2, AlertCircle, CheckCircle2, Plus } from 'lucide-react';
 import { parseUpdateCSV, type ProductDiff } from '@/components/admin/csvTemplate';
 import { useBulkUpdateProducts, type ProductChange } from '@/hooks/admin/useBulkUpdate';
 import type { Product } from '@/types';
@@ -25,6 +25,11 @@ const fieldLabels: Record<string, string> = {
   featured: 'Destaque',
   is_new: 'Novo',
   is_active: 'Ativo',
+  size: 'Tamanho',
+  color: 'Cor',
+  color_hex: 'Hex Cor',
+  stock_quantity: 'Estoque',
+  sku: 'SKU',
 };
 
 export function BulkUpdateModal({ open, onOpenChange, products }: BulkUpdateModalProps) {
@@ -64,6 +69,11 @@ export function BulkUpdateModal({ open, onOpenChange, products }: BulkUpdateModa
     const changes: ProductChange[] = diffs.map(d => ({
       id: d.id,
       changes: d.changes,
+      variantChanges: d.variantDiffs.map(vd => ({
+        variant_id: vd.variant_id,
+        changes: vd.changes,
+      })),
+      newVariants: d.newVariants,
     }));
     bulkUpdate.mutate(changes, {
       onSuccess: () => handleClose(false),
@@ -76,6 +86,11 @@ export function BulkUpdateModal({ open, onOpenChange, products }: BulkUpdateModa
     return String(val);
   };
 
+  const totalChanges = diffs.reduce(
+    (acc, d) => acc + Object.keys(d.changes).length + d.variantDiffs.length + d.newVariants.length,
+    0
+  );
+
   return (
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="max-w-lg">
@@ -84,7 +99,7 @@ export function BulkUpdateModal({ open, onOpenChange, products }: BulkUpdateModa
           <DialogDescription>
             {step === 'upload'
               ? 'Envie o CSV exportado com as alterações desejadas.'
-              : `${diffs.length} produto(s) serão atualizados.`}
+              : `${diffs.length} produto(s) com ${totalChanges} alteração(ões).`}
           </DialogDescription>
         </DialogHeader>
 
@@ -102,7 +117,7 @@ export function BulkUpdateModal({ open, onOpenChange, products }: BulkUpdateModa
             </div>
             <p className="text-xs text-muted-foreground">
               Use o arquivo gerado por "Exportar Produtos". Edite os campos desejados e envie de volta.
-              Apenas os campos alterados serão atualizados.
+              Apenas os campos alterados serão atualizados. Agora inclui tamanhos, cores e estoque.
             </p>
           </div>
         )}
@@ -132,15 +147,49 @@ export function BulkUpdateModal({ open, onOpenChange, products }: BulkUpdateModa
               <ScrollArea className="max-h-[300px]">
                 <div className="space-y-3">
                   {diffs.map((diff) => (
-                    <div key={diff.id} className="rounded-md border p-3 space-y-1">
+                    <div key={diff.id} className="rounded-md border p-3 space-y-2">
                       <p className="font-medium text-sm">{diff.name}</p>
-                      <div className="flex flex-wrap gap-1">
-                        {Object.entries(diff.changes).map(([key, newVal]) => (
-                          <Badge key={key} variant="outline" className="text-xs">
-                            {fieldLabels[key] || key}: {formatValue(key, diff.oldValues[key])} → {formatValue(key, newVal)}
-                          </Badge>
-                        ))}
-                      </div>
+
+                      {/* Product-level changes */}
+                      {Object.keys(diff.changes).length > 0 && (
+                        <div className="flex flex-wrap gap-1">
+                          {Object.entries(diff.changes).map(([key, newVal]) => (
+                            <Badge key={key} variant="outline" className="text-xs">
+                              {fieldLabels[key] || key}: {formatValue(key, diff.oldValues[key])} → {formatValue(key, newVal)}
+                            </Badge>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Variant changes */}
+                      {diff.variantDiffs.length > 0 && (
+                        <div className="space-y-1">
+                          {diff.variantDiffs.map((vd, i) => (
+                            <div key={i} className="flex flex-wrap items-center gap-1">
+                              <span className="text-xs text-muted-foreground">{vd.label}:</span>
+                              {Object.entries(vd.changes).map(([key, newVal]) => (
+                                <Badge key={key} variant="secondary" className="text-xs">
+                                  {fieldLabels[key] || key}: {String(vd.oldValues[key])} → {String(newVal)}
+                                </Badge>
+                              ))}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* New variants */}
+                      {diff.newVariants.length > 0 && (
+                        <div className="space-y-1">
+                          {diff.newVariants.map((nv, i) => (
+                            <div key={i} className="flex items-center gap-1">
+                              <Plus className="h-3 w-3 text-primary" />
+                              <Badge variant="secondary" className="text-xs bg-accent">
+                                Nova variante: Tam {nv.size}{nv.color ? ` / ${nv.color}` : ''}{nv.stock_quantity ? ` (${nv.stock_quantity} un)` : ''}
+                              </Badge>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -150,7 +199,7 @@ export function BulkUpdateModal({ open, onOpenChange, products }: BulkUpdateModa
         )}
 
         <DialogFooter>
-          {step === 'review' && diffs.length > 0 && (
+          {step === 'review' && (diffs.length > 0) && (
             <Button onClick={handleConfirm} disabled={bulkUpdate.isPending}>
               {bulkUpdate.isPending ? (
                 <>
@@ -160,7 +209,7 @@ export function BulkUpdateModal({ open, onOpenChange, products }: BulkUpdateModa
               ) : (
                 <>
                   <Upload className="h-4 w-4 mr-2" />
-                  Confirmar {diffs.length} alteração(ões)
+                  Confirmar {totalChanges} alteração(ões)
                 </>
               )}
             </Button>
