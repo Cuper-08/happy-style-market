@@ -1,67 +1,42 @@
 
 
-## Edicao em Massa via Exportacao/Importacao de Planilha
+## Destaque de Desconto Atacado na Pagina do Produto
 
-### Por que a abordagem de planilha e melhor
+### Problema
 
-Entre as duas opcoes que voce mencionou, a **exportacao + reimportacao de planilha** e a mais adequada para o seu caso:
+Na pagina de detalhes do produto, nao ha nenhum aviso claro sobre o desconto de atacado. O preco de atacado so aparece quando `wholesale_price < retail_price`, e mesmo assim sem destaque visual. O usuario quer um banner chamativo informando que a partir de X unidades, o preco unitario cai para o preco de atacado, e que o desconto seja aplicado automaticamente ao atingir a quantidade.
 
-- Voce tem 255+ produtos e precisa editar muitos de uma vez
-- O Excel/Google Sheets oferece filtros, busca e edicao muito mais rapidos que qualquer interface web
-- Funciona para qualquer campo futuro (numeracao, categorias, etc.) sem precisar alterar a tela
-- So atualiza no banco o que realmente mudou no arquivo
+### Solucao
 
-### Como vai funcionar
+**Arquivo: `src/pages/ProductDetailPage.tsx`**
 
-1. Voce clica em **"Exportar Produtos"** na tela de produtos
-2. Um arquivo CSV e baixado com todos os produtos (id, nome, preco varejo, preco atacado, etc.)
-3. Voce abre no Excel, filtra por "Adizero", altera os precos, salva
-4. Voce clica em **"Atualizar via CSV"** e envia o arquivo de volta
-5. O sistema compara cada linha com o banco e **so atualiza os campos que mudaram**
-6. Um resumo mostra quantos produtos foram atualizados
+1. **Banner de atacado destacado**: Adicionar um card/banner visualmente chamativo (com fundo colorido, icone de etiqueta) logo abaixo dos precos, mostrando:
+   - Preco de atacado por unidade
+   - Quantidade minima necessaria (usando `wholesale_min_qty` do produto)
+   - Economia por unidade e economia total estimada
+   - Exemplo: "Compre a partir de 6 unidades por R$ 199,27 cada! Economize R$ 100,00 por unidade"
+
+2. **Indicador dinamico na quantidade**: Quando o usuario estiver abaixo da quantidade minima, mostrar quantas unidades faltam. Quando atingir, mostrar confirmacao visual de que o preco de atacado foi aplicado.
+
+3. **Atualizar total automaticamente**: O calculo do total ja existe no codigo (`currentPrice * quantity`), mas a condicao `hasWholesale` precisa considerar quando `wholesale_price` existe (independente de ser menor que o retail, ja que o usuario quer sempre usar a coluna atacado).
+
+**Arquivo: `src/pages/CartPage.tsx`**
+
+4. **Indicador no carrinho**: Adicionar uma dica abaixo de cada item mostrando quantas unidades faltam para atingir o preco de atacado (quando aplicavel).
 
 ### Detalhes Tecnicos
 
-**Arquivo 1: `src/components/admin/csvExportProducts.ts`** (novo)
-- Funcao `exportProductsCSV(products)` que gera um CSV com colunas: `id`, `nome`, `slug`, `categoria`, `marca`, `preco_varejo`, `preco_atacado`, `qtd_min_atacado`, `destaque`, `novo`, `ativo`
-- O `id` e essencial para vincular cada linha ao produto correto no banco
-- Formato identico ao template de importacao, com a adicao da coluna `id`
+**`src/pages/ProductDetailPage.tsx`**:
+- Alterar condicao `hasWholesale` para: `product.wholesale_price != null && product.wholesale_price > 0`
+- Adicionar um componente de banner entre a secao de precos e a selecao de cor/tamanho
+- O banner tera fundo `bg-green-50 dark:bg-green-950` com borda, icone de Tag/Percent e texto informativo
+- Atualizar o indicador na secao de quantidade para ser mais visivel (badge colorido)
 
-**Arquivo 2: `src/components/admin/BulkUpdateModal.tsx`** (novo)
-- Modal para upload do CSV de atualizacao
-- Parseia o CSV e compara cada campo com os dados atuais dos produtos (recebidos via props)
-- Exibe um resumo de diferencas antes de confirmar (ex: "12 produtos serao atualizados")
-- Lista os campos alterados por produto para revisao
-- Botao de confirmar executa as atualizacoes
+**`src/hooks/useCart.ts`**:
+- Verificar que `getItemPrice` usa `wholesale_min_qty` do produto (ja faz isso, sem alteracao necessaria)
 
-**Arquivo 3: `src/hooks/admin/useBulkUpdate.ts`** (novo)
-- Mutation `useBulkUpdateProducts` que recebe array de `{ id, changes }` 
-- Executa updates individuais no Supabase (apenas os campos que mudaram)
-- Processa em lotes de 10 para estabilidade
-- Invalida o cache de produtos apos sucesso
+**`src/pages/CartPage.tsx`**:
+- Adicionar hint abaixo de cada item: "Adicione mais X para preco de atacado" quando a quantidade estiver abaixo do minimo e o produto tiver preco de atacado
 
-**Arquivo 4: `src/pages/admin/ProductsPage.tsx`** (editar)
-- Adicionar botao "Exportar Produtos" ao lado de "Baixar Modelo"
-- Adicionar botao "Atualizar via CSV" ao lado de "Importar CSV"
-- Integrar o `BulkUpdateModal`
-- Passar os produtos atuais para o modal (para comparacao de diferencas)
-
-**Arquivo 5: `src/components/admin/csvTemplate.ts`** (editar)
-- Adicionar funcao `parseUpdateCSV` que le o CSV de atualizacao (com coluna `id`)
-- Retorna apenas os campos que diferem dos valores atuais
-
-### Colunas do CSV de exportacao
-
-```
-id;nome;slug;categoria;marca;preco_varejo;preco_atacado;qtd_min_atacado;destaque;novo;ativo
-```
-
-### Logica de comparacao (diff)
-
-Para cada linha do CSV reimportado:
-1. Localiza o produto pelo `id`
-2. Compara `preco_varejo`, `preco_atacado`, `qtd_min_atacado`, `destaque`, `novo`, `ativo`
-3. Monta um objeto apenas com os campos que mudaram
-4. Se nenhum campo mudou, ignora a linha
-5. Exibe resumo antes de executar
+Alteracoes em 2 arquivos, sem mudanca de banco de dados.
 
