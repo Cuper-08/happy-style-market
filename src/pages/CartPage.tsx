@@ -89,6 +89,24 @@ export default function CartPage() {
                       )}
                     </div>
 
+                    {/* Wholesale hint */}
+                    {item.product.wholesale_price != null && item.product.wholesale_price > 0 && (() => {
+                      const minQty = item.product.wholesale_min_qty || 6;
+                      const remaining = minQty - item.quantity;
+                      if (remaining > 0) {
+                        return (
+                          <p className="text-xs font-medium text-orange-600 dark:text-orange-400 mt-2">
+                            Adicione mais {remaining} un. para preço de atacado ({new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.product.wholesale_price!)}/un.)
+                          </p>
+                        );
+                      }
+                      return (
+                        <p className="text-xs font-medium text-green-600 dark:text-green-400 mt-2">
+                          ✓ Preço de atacado aplicado!
+                        </p>
+                      );
+                    })()}
+
                     {/* Quantity & Actions */}
                     <div className="flex items-center justify-between mt-3">
                       <div className="flex items-center border border-border rounded-lg">
