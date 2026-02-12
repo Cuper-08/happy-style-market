@@ -5,3 +5,4 @@ export * from './useAdminProducts';
 export * from './useAdminCategories';
 export * from './useAdminBrands';
 export * from './useAdminCustomers';
+export * from './useAdminBanners';

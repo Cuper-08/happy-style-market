@@ -29,6 +29,7 @@ import {
   ProductFormPage,
   CategoriesPage,
   BrandsPage,
+  BannersPage,
   CustomersPage,
   SettingsPage,
   ReportsPage,
@@ -74,6 +75,7 @@ const App = () => (
                 <Route path="/admin/produtos/:id" element={<ProductFormPage />} />
                 <Route path="/admin/categorias" element={<CategoriesPage />} />
                 <Route path="/admin/marcas" element={<BrandsPage />} />
+                <Route path="/admin/banners" element={<BannersPage />} />
                 <Route path="/admin/clientes" element={<CustomersPage />} />
                 <Route path="/admin/configuracoes" element={<SettingsPage />} />
                 <Route path="/admin/relatorios" element={<ReportsPage />} />
