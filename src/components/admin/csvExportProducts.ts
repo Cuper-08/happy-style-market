@@ -3,27 +3,50 @@ import type { Product } from '@/types';
 export function exportProductsCSV(products: Product[]) {
   const separator = ';';
   const headers = [
-    'id', 'nome', 'slug', 'categoria', 'marca',
+    'id', 'variant_id', 'nome', 'slug', 'categoria', 'marca',
     'preco_varejo', 'preco_atacado', 'qtd_min_atacado',
     'destaque', 'novo', 'ativo',
+    'tamanho', 'cor', 'cor_hex', 'estoque', 'sku',
   ];
 
   const boolStr = (val: boolean | undefined | null) => (val ? 'sim' : 'nao');
   const numStr = (val: number | undefined | null) => (val != null ? String(val) : '');
 
-  const rows = products.map(p => [
-    p.id,
-    p.name,
-    p.slug,
-    p.category?.name || '',
-    p.brand?.name || '',
-    numStr(p.retail_price),
-    numStr(p.wholesale_price),
-    numStr(p.wholesale_min_qty),
-    boolStr(p.featured),
-    boolStr(p.is_new),
-    boolStr(p.is_active),
-  ]);
+  const rows: string[][] = [];
+
+  for (const p of products) {
+    const baseRow = [
+      p.id,
+      '', // variant_id placeholder
+      p.name,
+      p.slug,
+      p.category?.name || '',
+      p.brand?.name || '',
+      numStr(p.retail_price),
+      numStr(p.wholesale_price),
+      numStr(p.wholesale_min_qty),
+      boolStr(p.featured),
+      boolStr(p.is_new),
+      boolStr(p.is_active),
+    ];
+
+    if (p.variants && p.variants.length > 0) {
+      for (const v of p.variants) {
+        rows.push([
+          ...baseRow.slice(0, 1),
+          v.id,
+          ...baseRow.slice(2),
+          v.size || '',
+          v.color || '',
+          v.color_hex || '',
+          numStr(v.stock_quantity),
+          v.sku || '',
+        ]);
+      }
+    } else {
+      rows.push([...baseRow, '', '', '', '', '']);
+    }
+  }
 
   const csvContent = [
     headers.join(separator),

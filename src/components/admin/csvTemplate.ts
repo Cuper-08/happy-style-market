@@ -1,3 +1,5 @@
+import { extractColorFromName } from './colorDictionary';
+
 export function downloadCSVTemplate() {
   const separator = ';';
   const headers = [
@@ -80,16 +82,37 @@ function parseNumber(val: string): number {
 
 // --- Bulk Update CSV parsing ---
 
+export interface VariantDiff {
+  variant_id?: string; // empty = new variant
+  changes: Record<string, any>;
+  oldValues: Record<string, any>;
+  label: string; // e.g. "Tam 42 / Preto"
+}
+
 export interface ProductDiff {
   id: string;
   name: string;
   changes: Record<string, any>;
   oldValues: Record<string, any>;
+  variantDiffs: VariantDiff[];
+  newVariants: { size: string; color?: string; color_hex?: string; stock_quantity: number; sku?: string }[];
+}
+
+interface CurrentProduct {
+  id: string;
+  name: string;
+  retail_price: number;
+  wholesale_price?: number;
+  wholesale_min_qty: number;
+  featured: boolean;
+  is_new: boolean;
+  is_active: boolean;
+  variants?: { id: string; size: string; color?: string; color_hex?: string; stock_quantity: number; sku?: string }[];
 }
 
 export function parseUpdateCSV(
   content: string,
-  currentProducts: { id: string; name: string; retail_price: number; wholesale_price?: number; wholesale_min_qty: number; featured: boolean; is_new: boolean; is_active: boolean }[],
+  currentProducts: CurrentProduct[],
 ): { diffs: ProductDiff[]; errors: string[] } {
   const lines = content.split(/\r?\n/).filter(l => l.trim());
   if (lines.length < 2) return { diffs: [], errors: ['Arquivo vazio ou sem dados.'] };
@@ -103,7 +126,9 @@ export function parseUpdateCSV(
   };
 
   const productMap = new Map(currentProducts.map(p => [p.id, p]));
-  const diffs: ProductDiff[] = [];
+
+  // Group rows by product id
+  const rowsByProduct = new Map<string, string[][]>();
   const errors: string[] = [];
 
   for (let i = 1; i < lines.length; i++) {
@@ -113,61 +138,137 @@ export function parseUpdateCSV(
       errors.push(`Linha ${i + 1}: ID vazio, ignorada.`);
       continue;
     }
-
-    const current = productMap.get(id);
-    if (!current) {
+    if (!productMap.has(id)) {
       errors.push(`Linha ${i + 1}: Produto com ID "${id}" não encontrado.`);
       continue;
     }
+    if (!rowsByProduct.has(id)) rowsByProduct.set(id, []);
+    rowsByProduct.get(id)!.push(row);
+  }
 
+  const diffs: ProductDiff[] = [];
+
+  for (const [id, rows] of rowsByProduct) {
+    const current = productMap.get(id)!;
+    const firstRow = rows[0];
     const changes: Record<string, any> = {};
     const oldValues: Record<string, any> = {};
 
-    const csvRetail = parseNumber(col(row, 'preco_varejo'));
+    // Product-level diffs (from first row)
+    const csvRetail = parseNumber(col(firstRow, 'preco_varejo'));
     if (csvRetail && csvRetail !== Number(current.retail_price)) {
       changes.retail_price = csvRetail;
       oldValues.retail_price = Number(current.retail_price);
     }
 
-    const csvWholesale = parseNumber(col(row, 'preco_atacado'));
+    const csvWholesale = parseNumber(col(firstRow, 'preco_atacado'));
     const curWholesale = current.wholesale_price ? Number(current.wholesale_price) : 0;
-    if (col(row, 'preco_atacado') && csvWholesale !== curWholesale) {
+    if (col(firstRow, 'preco_atacado') && csvWholesale !== curWholesale) {
       changes.wholesale_price = csvWholesale || null;
       oldValues.wholesale_price = curWholesale;
     }
 
-    const csvMinQty = parseInt(col(row, 'qtd_min_atacado')) || 0;
-    if (col(row, 'qtd_min_atacado') && csvMinQty !== current.wholesale_min_qty) {
+    const csvMinQty = parseInt(col(firstRow, 'qtd_min_atacado')) || 0;
+    if (col(firstRow, 'qtd_min_atacado') && csvMinQty !== current.wholesale_min_qty) {
       changes.wholesale_min_qty = csvMinQty;
       oldValues.wholesale_min_qty = current.wholesale_min_qty;
     }
 
-    if (col(row, 'destaque')) {
-      const csvFeatured = parseBool(col(row, 'destaque'));
+    if (col(firstRow, 'destaque')) {
+      const csvFeatured = parseBool(col(firstRow, 'destaque'));
       if (csvFeatured !== current.featured) {
         changes.featured = csvFeatured;
         oldValues.featured = current.featured;
       }
     }
 
-    if (col(row, 'novo')) {
-      const csvNew = parseBool(col(row, 'novo'));
+    if (col(firstRow, 'novo')) {
+      const csvNew = parseBool(col(firstRow, 'novo'));
       if (csvNew !== current.is_new) {
         changes.is_new = csvNew;
         oldValues.is_new = current.is_new;
       }
     }
 
-    if (col(row, 'ativo')) {
-      const csvActive = parseBool(col(row, 'ativo'));
+    if (col(firstRow, 'ativo')) {
+      const csvActive = parseBool(col(firstRow, 'ativo'));
       if (csvActive !== current.is_active) {
         changes.is_active = csvActive;
         oldValues.is_active = current.is_active;
       }
     }
 
-    if (Object.keys(changes).length > 0) {
-      diffs.push({ id, name: current.name, changes, oldValues });
+    // Variant-level diffs
+    const variantMap = new Map((current.variants || []).map(v => [v.id, v]));
+    const variantDiffs: VariantDiff[] = [];
+    const newVariants: ProductDiff['newVariants'] = [];
+
+    for (const row of rows) {
+      const variantId = col(row, 'variant_id');
+      const csvSize = col(row, 'tamanho');
+      const csvColor = col(row, 'cor');
+      const csvColorHex = col(row, 'cor_hex');
+      const csvStockStr = col(row, 'estoque');
+      const csvSku = col(row, 'sku');
+
+      if (!csvSize && !variantId) continue; // no variant data
+
+      if (variantId) {
+        const curVariant = variantMap.get(variantId);
+        if (!curVariant) {
+          errors.push(`Produto "${current.name}": variant_id "${variantId}" não encontrada.`);
+          continue;
+        }
+
+        const vChanges: Record<string, any> = {};
+        const vOld: Record<string, any> = {};
+
+        if (csvSize && csvSize !== curVariant.size) {
+          vChanges.size = csvSize;
+          vOld.size = curVariant.size;
+        }
+        if (csvColor && csvColor !== (curVariant.color || '')) {
+          vChanges.color = csvColor;
+          vOld.color = curVariant.color || '';
+        }
+        if (csvColorHex && csvColorHex !== (curVariant.color_hex || '')) {
+          vChanges.color_hex = csvColorHex;
+          vOld.color_hex = curVariant.color_hex || '';
+        }
+        if (csvStockStr) {
+          const csvStock = parseInt(csvStockStr) || 0;
+          if (csvStock !== (curVariant.stock_quantity || 0)) {
+            vChanges.stock_quantity = csvStock;
+            vOld.stock_quantity = curVariant.stock_quantity || 0;
+          }
+        }
+        if (csvSku && csvSku !== (curVariant.sku || '')) {
+          vChanges.sku = csvSku;
+          vOld.sku = curVariant.sku || '';
+        }
+
+        if (Object.keys(vChanges).length > 0) {
+          variantDiffs.push({
+            variant_id: variantId,
+            changes: vChanges,
+            oldValues: vOld,
+            label: `Tam ${curVariant.size}${curVariant.color ? ' / ' + curVariant.color : ''}`,
+          });
+        }
+      } else if (csvSize) {
+        // New variant
+        newVariants.push({
+          size: csvSize,
+          color: csvColor || undefined,
+          color_hex: csvColorHex || undefined,
+          stock_quantity: parseInt(csvStockStr) || 0,
+          sku: csvSku || undefined,
+        });
+      }
+    }
+
+    if (Object.keys(changes).length > 0 || variantDiffs.length > 0 || newVariants.length > 0) {
+      diffs.push({ id, name: current.name, changes, oldValues, variantDiffs, newVariants });
     }
   }
 
@@ -233,15 +334,23 @@ export function parseCSV(
     const brand_id = brandName ? brandMap.get(brandName.toLowerCase()) : undefined;
     if (brandName && !brand_id) errors.push(`Marca "${brandName}" não encontrada`);
 
+    // Auto-detect color from product name
+    const autoColor = extractColorFromName(name);
+
     const variants: ParsedVariant[] = rows
       .filter(r => col(r, 'tamanho'))
-      .map(r => ({
-        size: col(r, 'tamanho'),
-        color: col(r, 'cor') || undefined,
-        color_hex: col(r, 'cor_hex') || undefined,
-        stock_quantity: parseInt(col(r, 'estoque')) || 0,
-        sku: col(r, 'sku') || undefined,
-      }));
+      .map(r => {
+        const csvColor = col(r, 'cor') || undefined;
+        const csvColorHex = col(r, 'cor_hex') || undefined;
+
+        return {
+          size: col(r, 'tamanho'),
+          color: csvColor || autoColor?.color || undefined,
+          color_hex: csvColorHex || autoColor?.color_hex || undefined,
+          stock_quantity: parseInt(col(r, 'estoque')) || 0,
+          sku: col(r, 'sku') || undefined,
+        };
+      });
 
     products.push({
       name,
