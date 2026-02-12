@@ -78,6 +78,102 @@ function parseNumber(val: string): number {
   return parseFloat(val.replace(',', '.')) || 0;
 }
 
+// --- Bulk Update CSV parsing ---
+
+export interface ProductDiff {
+  id: string;
+  name: string;
+  changes: Record<string, any>;
+  oldValues: Record<string, any>;
+}
+
+export function parseUpdateCSV(
+  content: string,
+  currentProducts: { id: string; name: string; retail_price: number; wholesale_price?: number; wholesale_min_qty: number; featured: boolean; is_new: boolean; is_active: boolean }[],
+): { diffs: ProductDiff[]; errors: string[] } {
+  const lines = content.split(/\r?\n/).filter(l => l.trim());
+  if (lines.length < 2) return { diffs: [], errors: ['Arquivo vazio ou sem dados.'] };
+
+  const separator = lines[0].includes(';') ? ';' : ',';
+  const headers = lines[0].split(separator).map(h => h.trim().toLowerCase());
+
+  const col = (row: string[], name: string) => {
+    const idx = headers.indexOf(name);
+    return idx >= 0 ? (row[idx] || '').trim() : '';
+  };
+
+  const productMap = new Map(currentProducts.map(p => [p.id, p]));
+  const diffs: ProductDiff[] = [];
+  const errors: string[] = [];
+
+  for (let i = 1; i < lines.length; i++) {
+    const row = lines[i].split(separator);
+    const id = col(row, 'id');
+    if (!id) {
+      errors.push(`Linha ${i + 1}: ID vazio, ignorada.`);
+      continue;
+    }
+
+    const current = productMap.get(id);
+    if (!current) {
+      errors.push(`Linha ${i + 1}: Produto com ID "${id}" não encontrado.`);
+      continue;
+    }
+
+    const changes: Record<string, any> = {};
+    const oldValues: Record<string, any> = {};
+
+    const csvRetail = parseNumber(col(row, 'preco_varejo'));
+    if (csvRetail && csvRetail !== Number(current.retail_price)) {
+      changes.retail_price = csvRetail;
+      oldValues.retail_price = Number(current.retail_price);
+    }
+
+    const csvWholesale = parseNumber(col(row, 'preco_atacado'));
+    const curWholesale = current.wholesale_price ? Number(current.wholesale_price) : 0;
+    if (col(row, 'preco_atacado') && csvWholesale !== curWholesale) {
+      changes.wholesale_price = csvWholesale || null;
+      oldValues.wholesale_price = curWholesale;
+    }
+
+    const csvMinQty = parseInt(col(row, 'qtd_min_atacado')) || 0;
+    if (col(row, 'qtd_min_atacado') && csvMinQty !== current.wholesale_min_qty) {
+      changes.wholesale_min_qty = csvMinQty;
+      oldValues.wholesale_min_qty = current.wholesale_min_qty;
+    }
+
+    if (col(row, 'destaque')) {
+      const csvFeatured = parseBool(col(row, 'destaque'));
+      if (csvFeatured !== current.featured) {
+        changes.featured = csvFeatured;
+        oldValues.featured = current.featured;
+      }
+    }
+
+    if (col(row, 'novo')) {
+      const csvNew = parseBool(col(row, 'novo'));
+      if (csvNew !== current.is_new) {
+        changes.is_new = csvNew;
+        oldValues.is_new = current.is_new;
+      }
+    }
+
+    if (col(row, 'ativo')) {
+      const csvActive = parseBool(col(row, 'ativo'));
+      if (csvActive !== current.is_active) {
+        changes.is_active = csvActive;
+        oldValues.is_active = current.is_active;
+      }
+    }
+
+    if (Object.keys(changes).length > 0) {
+      diffs.push({ id, name: current.name, changes, oldValues });
+    }
+  }
+
+  return { diffs, errors };
+}
+
 export function parseCSV(
   content: string,
   categories: { id: string; name: string }[],

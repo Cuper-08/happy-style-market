@@ -37,12 +37,15 @@ import {
 import { Plus, Search, Loader2, Pencil, Trash2, Package, Upload, Download, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { BulkImportModal } from '@/components/admin/BulkImportModal';
+import { BulkUpdateModal } from '@/components/admin/BulkUpdateModal';
 import { downloadCSVTemplate } from '@/components/admin/csvTemplate';
+import { exportProductsCSV } from '@/components/admin/csvExportProducts';
 
 export default function ProductsPage() {
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [importOpen, setImportOpen] = useState(false);
+  const [updateOpen, setUpdateOpen] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
   const [currentPage, setCurrentPage] = useState(() => {
     const page = parseInt(searchParams.get('page') || '1', 10);
@@ -115,6 +118,14 @@ export default function ProductsPage() {
             <Button variant="outline" size="sm" onClick={() => setImportOpen(true)}>
               <Upload className="h-4 w-4 mr-2" />
               Importar CSV
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => exportProductsCSV(products as any)}>
+              <Download className="h-4 w-4 mr-2" />
+              Exportar Produtos
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => setUpdateOpen(true)}>
+              <Upload className="h-4 w-4 mr-2" />
+              Atualizar via CSV
             </Button>
             <Button asChild className="w-full sm:w-auto">
               <Link to={`/admin/produtos/novo${currentPage > 1 ? `?page=${currentPage}` : ''}`}>
@@ -430,6 +441,7 @@ export default function ProductsPage() {
       </div>
 
       <BulkImportModal open={importOpen} onOpenChange={setImportOpen} />
+      <BulkUpdateModal open={updateOpen} onOpenChange={setUpdateOpen} products={products as any} />
     </AdminLayout>
   );
 }
