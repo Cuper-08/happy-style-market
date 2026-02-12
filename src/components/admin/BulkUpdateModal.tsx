@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
-import { Upload, Loader2, AlertCircle, CheckCircle2, Plus } from 'lucide-react';
+import { Upload, Loader2, AlertCircle, CheckCircle2, Plus, Sparkles } from 'lucide-react';
 import { parseUpdateCSV, type ProductDiff } from '@/components/admin/csvTemplate';
 import { useBulkUpdateProducts, type ProductChange } from '@/hooks/admin/useBulkUpdate';
 import type { Product } from '@/types';
@@ -186,6 +186,12 @@ export function BulkUpdateModal({ open, onOpenChange, products }: BulkUpdateModa
                               <Badge variant="secondary" className="text-xs bg-accent">
                                 Nova variante: Tam {nv.size}{nv.color ? ` / ${nv.color}` : ''}{nv.stock_quantity ? ` (${nv.stock_quantity} un)` : ''}
                               </Badge>
+                              {nv.size === 'Unico' && nv.color && (
+                                <Badge className="text-xs bg-primary/20 text-primary border-0">
+                                  <Sparkles className="h-3 w-3 mr-1" />
+                                  Detectada do nome
+                                </Badge>
+                              )}
                             </div>
                           ))}
                         </div>

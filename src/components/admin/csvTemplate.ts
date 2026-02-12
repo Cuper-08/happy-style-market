@@ -267,6 +267,19 @@ export function parseUpdateCSV(
       }
     }
 
+    // Auto-detect color for products with no variants at all
+    if (newVariants.length === 0 && variantDiffs.length === 0 && (!current.variants || current.variants.length === 0)) {
+      const autoColor = extractColorFromName(current.name);
+      if (autoColor) {
+        newVariants.push({
+          size: 'Unico',
+          color: autoColor.color,
+          color_hex: autoColor.color_hex,
+          stock_quantity: 0,
+        });
+      }
+    }
+
     if (Object.keys(changes).length > 0 || variantDiffs.length > 0 || newVariants.length > 0) {
       diffs.push({ id, name: current.name, changes, oldValues, variantDiffs, newVariants });
     }
@@ -351,6 +364,16 @@ export function parseCSV(
           sku: col(r, 'sku') || undefined,
         };
       });
+
+    // If no variants from CSV but color detected in name, create a "Unico" variant
+    if (variants.length === 0 && autoColor) {
+      variants.push({
+        size: 'Unico',
+        color: autoColor.color,
+        color_hex: autoColor.color_hex,
+        stock_quantity: 0,
+      });
+    }
 
     products.push({
       name,
