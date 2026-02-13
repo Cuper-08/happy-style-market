@@ -72,6 +72,12 @@ export interface ParsedProduct {
   brand_id?: string;
 }
 
+export interface ParseResult {
+  products: ParsedProduct[];
+  newCategories: string[];
+  newBrands: string[];
+}
+
 function parseBool(val: string): boolean {
   return ['sim', 's', 'true', '1', 'yes'].includes(val.trim().toLowerCase());
 }
@@ -288,13 +294,17 @@ export function parseUpdateCSV(
   return { diffs, errors };
 }
 
+function normalize(str: string): string {
+  return str.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+}
+
 export function parseCSV(
   content: string,
   categories: { id: string; name: string }[],
   brands: { id: string; name: string }[],
-): ParsedProduct[] {
+): ParseResult {
   const lines = content.split(/\r?\n/).filter(l => l.trim());
-  if (lines.length < 2) return [];
+  if (lines.length < 2) return { products: [], newCategories: [], newBrands: [] };
 
   const separator = lines[0].includes(';') ? ';' : ',';
   const headers = lines[0].split(separator).map(h => h.trim().toLowerCase());
@@ -304,8 +314,10 @@ export function parseCSV(
     return idx >= 0 ? (row[idx] || '').trim() : '';
   };
 
-  const catMap = new Map(categories.map(c => [c.name.toLowerCase(), c.id]));
-  const brandMap = new Map(brands.map(b => [b.name.toLowerCase(), b.id]));
+  const catMap = new Map(categories.map(c => [normalize(c.name), c.id]));
+  const brandMap = new Map(brands.map(b => [normalize(b.name), b.id]));
+  const newCategoriesSet = new Set<string>();
+  const newBrandsSet = new Set<string>();
 
   const grouped = new Map<string, { rows: string[][] }>();
 
@@ -341,11 +353,11 @@ export function parseCSV(
     if (!name) errors.push('Nome obrigatório');
     if (!retailPrice) errors.push('Preço varejo obrigatório');
 
-    const category_id = categoryName ? catMap.get(categoryName.toLowerCase()) : undefined;
-    if (categoryName && !category_id) errors.push(`Categoria "${categoryName}" não encontrada`);
+    const category_id = categoryName ? catMap.get(normalize(categoryName)) : undefined;
+    if (categoryName && !category_id) newCategoriesSet.add(categoryName);
 
-    const brand_id = brandName ? brandMap.get(brandName.toLowerCase()) : undefined;
-    if (brandName && !brand_id) errors.push(`Marca "${brandName}" não encontrada`);
+    const brand_id = brandName ? brandMap.get(normalize(brandName)) : undefined;
+    if (brandName && !brand_id) newBrandsSet.add(brandName);
 
     // Auto-detect color from product name
     const autoColor = extractColorFromName(name);
@@ -422,5 +434,9 @@ export function parseCSV(
     });
   }
 
-  return products;
+  return {
+    products,
+    newCategories: Array.from(newCategoriesSet),
+    newBrands: Array.from(newBrandsSet),
+  };
 }
