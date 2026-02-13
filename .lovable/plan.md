@@ -1,54 +1,70 @@
-## Criar Categorias e Marcas Automaticamente na Importacao CSV
 
-### Problema identificado
 
-A importacao CSV apenas faz correspondencia (match) de categorias e marcas ja existentes no banco de dados. Se o nome no CSV nao corresponder exatamente a uma categoria/marca cadastrada, o produto fica sem categoria ou e marcado com erro. Alem disso, a comparacao nao normaliza acentos, entao "Tenis" (banco) nao corresponde a "Tênis" (CSV).
+## Expansao Visual de Variantes no Formulario + Correcao na Pagina do Produto
 
-### Solucao
+### O que muda
 
-Alterar o fluxo de importacao para **criar automaticamente** categorias e marcas que nao existem no banco antes de inserir os produtos.
+Duas correcoes principais:
 
-### Mudancas tecnicas
+### 1. Formulario admin: botao "Gerar Variantes" (ProductFormPage.tsx)
 
-**1. Arquivo: `src/components/admin/csvTemplate.ts**`
+Hoje, ao digitar "38,39,40" no tamanho e "Preto,Branco" na cor, o sistema so expande na hora de salvar (invisivel para o usuario). A mudanca adiciona um **botao "Gerar Variantes"** ao lado de cada linha que contenha virgulas, que ao ser clicado:
 
-- Melhorar a funcao `parseCSV` para normalizar acentos na comparacao de nomes (remover diacriticos com `normalize('NFD')`)
-- Em vez de marcar erro quando categoria/marca nao existe, guardar o nome para criacao posterior
-- Exportar uma nova interface `ParseResult` que inclua listas de categorias e marcas a criar
+- Detecta virgulas nos campos tamanho e/ou cor
+- Expande imediatamente em linhas individuais no formulario
+- Remove a linha original e substitui pelas linhas expandidas
 
-**2. Arquivo: `src/components/admin/BulkImportModal.tsx**`
+**Exemplo visual:**
 
-- Antes de iniciar a importacao, verificar se ha categorias/marcas novas para criar
-- Chamar `supabase.from('categories').insert(...)` e `supabase.from('brands').insert(...)` para criar as que nao existem
-- Atualizar os `category_id` e `brand_id` nos produtos parseados com os IDs recebidos
-- Invalidar as queries de categorias e marcas apos criacao
-
-**3. Arquivo: `src/components/admin/csvTemplate.ts` - Normalizacao de nomes**
-
-Adicionar funcao auxiliar para normalizar strings (remover acentos e converter para minusculo):
-
-```
-function normalize(str: string): string {
-  return str.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
-}
+Antes (1 linha):
+```text
+Tamanho: 38,39,40  |  Cor: Preto,Branco  |  Estoque: 162
 ```
 
-Usar essa funcao tanto na criacao do mapa de categorias/marcas quanto na busca:
-
+Depois de clicar "Gerar" (6 linhas):
+```text
+Tamanho: 38  |  Cor: Preto   |  Hex: #000000  |  Estoque: 162
+Tamanho: 38  |  Cor: Branco  |  Hex: #FFFFFF  |  Estoque: 162
+Tamanho: 39  |  Cor: Preto   |  Hex: #000000  |  Estoque: 162
+Tamanho: 39  |  Cor: Branco  |  Hex: #FFFFFF  |  Estoque: 162
+Tamanho: 40  |  Cor: Preto   |  Hex: #000000  |  Estoque: 162
+Tamanho: 40  |  Cor: Branco  |  Hex: #FFFFFF  |  Estoque: 162
 ```
-const catMap = new Map(categories.map(c => [normalize(c.name), c.id]));
-const category_id = categoryName ? catMap.get(normalize(categoryName)) : undefined;
-```
 
-### Fluxo atualizado
+Assim voce ve exatamente o que sera criado antes de salvar.
 
-1. Usuario faz upload do CSV
-2. `parseCSV` identifica categorias/marcas que nao existem (sem marcar como erro)
-3. Na tela de preview, categorias/marcas novas sao mostradas com badge indicativo
-4. Ao clicar "Importar", o sistema primeiro cria as categorias/marcas novas no banco
-5. Com os novos IDs, atualiza os produtos e insere tudo normalmente
-6. Corrige letras com possuem caracteres especiais
+### 2. Pagina do produto: selecao de cor e tamanho independentes (ProductDetailPage.tsx)
 
-### Resultado esperado
+A selecao de variantes atual tem um bug: ao clicar na cor, o estado inteiro e substituido, e ao clicar no tamanho, perde a cor selecionada. A correcao separa em dois estados independentes (`selectedColor` e `selectedSize`), e o sistema busca a variante correta na intersecao dos dois.
 
-O usuario pode digitar qualquer nome de categoria/marca no CSV e o sistema cria automaticamente as que nao existirem, eliminando erros de correspondencia.
+Fluxo corrigido (igual Netshoes):
+1. Usuario clica numa **cor** - mostra os tamanhos disponiveis para aquela cor
+2. Usuario clica num **tamanho** - o sistema encontra a variante exata (cor + tamanho)
+3. Estoque e preco refletem a variante selecionada
+
+### 3. Limpeza do banco de dados
+
+Deletar a variante antiga mal formatada (ID `a65a78fe-...`) que contem "38,39,40,42,43" como texto literal no campo tamanho.
+
+### Detalhes tecnicos
+
+**Arquivo: `src/pages/admin/ProductFormPage.tsx`**
+
+- Adicionar funcao `expandVariants(index)` que:
+  - Le os valores da linha no indice informado
+  - Divide `size` e `color` por virgula
+  - Gera o produto cartesiano
+  - Remove a linha original com `remove(index)`
+  - Insere as novas linhas com `append()` para cada combinacao
+- Adicionar botao "Gerar" ao lado do botao de lixeira em cada linha de variante
+- O botao so aparece quando o campo tamanho ou cor contem virgulas
+
+**Arquivo: `src/pages/ProductDetailPage.tsx`**
+
+- Substituir `selectedVariant` por dois estados: `selectedColor` (string | null) e `selectedSize` (string | null)
+- Derivar `selectedVariant` com `useMemo`: buscar em `product.variants` a variante onde `color === selectedColor && size === selectedSize`
+- Ao clicar numa cor: setar `selectedColor`, resetar `selectedSize`
+- Ao clicar num tamanho: setar `selectedSize`
+- Filtrar tamanhos disponiveis baseado na cor selecionada
+- Manter compatibilidade com produtos sem variantes
+
