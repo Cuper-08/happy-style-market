@@ -163,13 +163,39 @@ export default function ProductFormPage() {
 
     const validVariants = (data.variants || [])
       .filter((v) => v.size && v.size.trim() !== '')
-      .map((v) => ({
-        size: v.size || '',
-        color: v.color,
-        color_hex: v.color_hex,
-        stock_quantity: v.stock_quantity || 0,
-        sku: v.sku?.trim() || null,
-      }));
+      .flatMap((v) => {
+        const sizes = v.size.split(',').map(s => s.trim()).filter(Boolean);
+        const colors = v.color ? v.color.split(',').map(s => s.trim()).filter(Boolean) : [];
+        const colorHexes = v.color_hex ? v.color_hex.split(',').map(s => s.trim()).filter(Boolean) : [];
+        const stock = v.stock_quantity || 0;
+        const csvSku = v.sku?.trim() || null;
+
+        if (colors.length > 0) {
+          const result: { size: string; color: string; color_hex: string | null; stock_quantity: number; sku: string | null }[] = [];
+          for (const size of sizes) {
+            for (let ci = 0; ci < colors.length; ci++) {
+              result.push({
+                size,
+                color: colors[ci],
+                color_hex: colorHexes[ci] || null,
+                stock_quantity: stock,
+                sku: null,
+              });
+            }
+          }
+          // Only apply SKU if exactly 1 variant
+          if (result.length === 1 && csvSku) result[0].sku = csvSku;
+          return result;
+        }
+
+        return sizes.map(size => ({
+          size,
+          color: v.color || undefined,
+          color_hex: v.color_hex || undefined,
+          stock_quantity: stock,
+          sku: sizes.length === 1 ? csvSku : null,
+        }));
+      });
 
     if (isEditing) {
       updateProduct(
