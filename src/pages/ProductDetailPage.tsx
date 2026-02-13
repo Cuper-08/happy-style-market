@@ -103,38 +103,6 @@ export default function ProductDetailPage() {
   const unitsNeeded = hasWholesale ? Math.max(0, wholesaleMinQty - quantity) : 0;
   const totalPrice = currentPrice * quantity;
 
-  // Unique colors
-  const colors = useMemo(() => {
-    const seen = new Set<string>();
-    return (product.variants || []).filter(v => {
-      if (!v.color || seen.has(v.color)) return false;
-      seen.add(v.color);
-      return true;
-    });
-  }, [product.variants]);
-
-  // Sizes filtered by selected color
-  const sizes = useMemo(() => {
-    const filtered = (product.variants || []).filter(v =>
-      !selectedColor || v.color === selectedColor
-    );
-    const seen = new Set<string>();
-    return filtered.filter(v => {
-      if (seen.has(v.size)) return false;
-      seen.add(v.size);
-      return true;
-    });
-  }, [product.variants, selectedColor]);
-
-  // Derive selected variant from color + size
-  const selectedVariant = useMemo(() => {
-    if (!selectedColor && !selectedSize) return null;
-    return (product.variants || []).find(v =>
-      (!selectedColor || v.color === selectedColor) &&
-      (!selectedSize || v.size === selectedSize)
-    ) || null;
-  }, [product.variants, selectedColor, selectedSize]);
-
   // Calculate total stock across all variants
   const totalStock = product.variants?.reduce((sum, v) => sum + (v.stock_quantity || 0), 0) ?? 0;
   const selectedStock = selectedVariant?.stock_quantity ?? totalStock;
