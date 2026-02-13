@@ -1,58 +1,54 @@
+## Criar Categorias e Marcas Automaticamente na Importacao CSV
 
-## Expandir Variantes com Virgula no Formulario Manual
+### Problema identificado
 
-### Problema
-A logica de separar tamanhos e cores por virgula foi implementada apenas no fluxo de importacao CSV (modal). Quando o usuario digita "38,39,40,42" no campo tamanho do formulario manual de produto, o sistema salva como uma unica variante com esse texto literal, em vez de criar 4 variantes separadas.
+A importacao CSV apenas faz correspondencia (match) de categorias e marcas ja existentes no banco de dados. Se o nome no CSV nao corresponder exatamente a uma categoria/marca cadastrada, o produto fica sem categoria ou e marcado com erro. Alem disso, a comparacao nao normaliza acentos, entao "Tenis" (banco) nao corresponde a "Tênis" (CSV).
 
 ### Solucao
-Adicionar logica de expansao no `onSubmit` do formulario de produto (`ProductFormPage.tsx`). Quando o usuario digitar valores separados por virgula nos campos de tamanho e/ou cor, o sistema automaticamente gera as variantes individuais antes de salvar.
 
-### Exemplo pratico
+Alterar o fluxo de importacao para **criar automaticamente** categorias e marcas que nao existem no banco antes de inserir os produtos.
 
-**Entrada no formulario:**
-- Tamanho: `38,39,40,42`
-- Cor: `Preto,Branco`
-- Estoque: `162`
+### Mudancas tecnicas
 
-**Resultado apos expansao (produto cartesiano):**
-8 variantes criadas: 38/Preto, 38/Branco, 39/Preto, 39/Branco, 40/Preto, 40/Branco, 42/Preto, 42/Branco — todas com estoque 162.
+**1. Arquivo: `src/components/admin/csvTemplate.ts**`
 
-### Mudanca tecnica
+- Melhorar a funcao `parseCSV` para normalizar acentos na comparacao de nomes (remover diacriticos com `normalize('NFD')`)
+- Em vez de marcar erro quando categoria/marca nao existe, guardar o nome para criacao posterior
+- Exportar uma nova interface `ParseResult` que inclua listas de categorias e marcas a criar
 
-**Arquivo: `src/pages/admin/ProductFormPage.tsx`**
+**2. Arquivo: `src/components/admin/BulkImportModal.tsx**`
 
-Alterar a funcao `onSubmit` (linha ~148) para, antes de enviar as variantes ao backend, expandir cada variante cujos campos `size` ou `color` contenham virgulas:
+- Antes de iniciar a importacao, verificar se ha categorias/marcas novas para criar
+- Chamar `supabase.from('categories').insert(...)` e `supabase.from('brands').insert(...)` para criar as que nao existem
+- Atualizar os `category_id` e `brand_id` nos produtos parseados com os IDs recebidos
+- Invalidar as queries de categorias e marcas apos criacao
+
+**3. Arquivo: `src/components/admin/csvTemplate.ts` - Normalizacao de nomes**
+
+Adicionar funcao auxiliar para normalizar strings (remover acentos e converter para minusculo):
 
 ```
-const expandedVariants = validVariants.flatMap(v => {
-  const sizes = v.size.split(',').map(s => s.trim()).filter(Boolean);
-  const colors = v.color ? v.color.split(',').map(s => s.trim()).filter(Boolean) : [];
-  const colorHexes = v.color_hex ? v.color_hex.split(',').map(s => s.trim()).filter(Boolean) : [];
-
-  if (colors.length > 0) {
-    const result = [];
-    for (const size of sizes) {
-      for (let ci = 0; ci < colors.length; ci++) {
-        result.push({
-          size,
-          color: colors[ci],
-          color_hex: colorHexes[ci] || null,
-          stock_quantity: v.stock_quantity,
-          sku: null,
-        });
-      }
-    }
-    return result;
-  }
-
-  return sizes.map(size => ({
-    ...v,
-    size,
-    sku: sizes.length === 1 ? v.sku : null,
-  }));
-});
+function normalize(str: string): string {
+  return str.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+}
 ```
 
-A variavel `expandedVariants` substitui `validVariants` na chamada de `createProduct` / `updateProduct`.
+Usar essa funcao tanto na criacao do mapa de categorias/marcas quanto na busca:
 
-Nenhuma outra alteracao e necessaria — o backend ja aceita arrays de variantes normalmente.
+```
+const catMap = new Map(categories.map(c => [normalize(c.name), c.id]));
+const category_id = categoryName ? catMap.get(normalize(categoryName)) : undefined;
+```
+
+### Fluxo atualizado
+
+1. Usuario faz upload do CSV
+2. `parseCSV` identifica categorias/marcas que nao existem (sem marcar como erro)
+3. Na tela de preview, categorias/marcas novas sao mostradas com badge indicativo
+4. Ao clicar "Importar", o sistema primeiro cria as categorias/marcas novas no banco
+5. Com os novos IDs, atualiza os produtos e insere tudo normalmente
+6. Corrige letras com possuem caracteres especiais
+
+### Resultado esperado
+
+O usuario pode digitar qualquer nome de categoria/marca no CSV e o sistema cria automaticamente as que nao existirem, eliminando erros de correspondencia.
