@@ -30,7 +30,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { ArrowLeft, Plus, Trash2, Loader2, Save } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Loader2, Save, Zap } from 'lucide-react';
+import { COLOR_DICTIONARY } from '@/components/admin/colorDictionary';
 
 const variantSchema = z.object({
   size: z.string().min(1, 'Tamanho é obrigatório'),
@@ -98,6 +99,37 @@ export default function ProductFormPage() {
     control: form.control,
     name: 'variants',
   });
+
+  const expandVariants = (index: number) => {
+    const values = form.getValues(`variants.${index}`);
+    const sizes = values.size.split(',').map(s => s.trim()).filter(Boolean);
+    const colors = values.color ? values.color.split(',').map(s => s.trim()).filter(Boolean) : [];
+    const stock = values.stock_quantity || 0;
+
+    const newRows: ProductFormData['variants'] = [];
+
+    if (colors.length > 0) {
+      for (const size of sizes) {
+        for (const color of colors) {
+          const normalizedColor = color.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+          const hex = COLOR_DICTIONARY[normalizedColor] || '';
+          newRows.push({ size, color, color_hex: hex, stock_quantity: stock, sku: '' });
+        }
+      }
+    } else {
+      for (const size of sizes) {
+        newRows.push({ size, color: values.color || '', color_hex: values.color_hex || '', stock_quantity: stock, sku: '' });
+      }
+    }
+
+    remove(index);
+    newRows.forEach(row => append(row));
+  };
+
+  const hasCommas = (index: number) => {
+    const values = form.watch(`variants.${index}`);
+    return (values?.size?.includes(',') || values?.color?.includes(','));
+  };
 
   // Load existing product data
   useEffect(() => {
@@ -471,7 +503,19 @@ export default function ProductFormPage() {
                           </FormItem>
                         )}
                       />
-                      <div className="flex items-end">
+                      <div className="flex items-end gap-1">
+                        {hasCommas(index) && (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="icon"
+                            className="text-primary"
+                            onClick={() => expandVariants(index)}
+                            title="Gerar variantes expandidas"
+                          >
+                            <Zap className="h-4 w-4" />
+                          </Button>
+                        )}
                         <Button
                           type="button"
                           variant="ghost"

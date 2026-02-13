@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Layout } from '@/components/layout';
 import { useProduct, useProducts } from '@/hooks/useProducts';
@@ -24,9 +24,40 @@ export default function ProductDetailPage() {
   const { addItem } = useCart();
   const { isFavorite, toggleFavorite } = useFavorites();
 
-  const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(null);
+  const [selectedColor, setSelectedColor] = useState<string | null>(null);
+  const [selectedSize, setSelectedSize] = useState<string | null>(null);
   const [quantity, setQuantity] = useState(1);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
+
+  // Unique colors (must be before early returns - React hooks rule)
+  const colors = useMemo(() => {
+    const seen = new Set<string>();
+    return (product?.variants || []).filter(v => {
+      if (!v.color || seen.has(v.color)) return false;
+      seen.add(v.color);
+      return true;
+    });
+  }, [product?.variants]);
+
+  const sizes = useMemo(() => {
+    const filtered = (product?.variants || []).filter(v =>
+      !selectedColor || v.color === selectedColor
+    );
+    const seen = new Set<string>();
+    return filtered.filter(v => {
+      if (seen.has(v.size)) return false;
+      seen.add(v.size);
+      return true;
+    });
+  }, [product?.variants, selectedColor]);
+
+  const selectedVariant = useMemo(() => {
+    if (!selectedColor && !selectedSize) return null;
+    return (product?.variants || []).find(v =>
+      (!selectedColor || v.color === selectedColor) &&
+      (!selectedSize || v.size === selectedSize)
+    ) || null;
+  }, [product?.variants, selectedColor, selectedSize]);
 
   if (isLoading) {
     return (
@@ -72,23 +103,37 @@ export default function ProductDetailPage() {
   const unitsNeeded = hasWholesale ? Math.max(0, wholesaleMinQty - quantity) : 0;
   const totalPrice = currentPrice * quantity;
 
-  // Group variants by color
-  const colors = product.variants?.reduce((acc, variant) => {
-    if (variant.color && !acc.find(v => v.color === variant.color)) {
-      acc.push(variant);
-    }
-    return acc;
-  }, [] as ProductVariant[]) || [];
+  // Unique colors
+  const colors = useMemo(() => {
+    const seen = new Set<string>();
+    return (product.variants || []).filter(v => {
+      if (!v.color || seen.has(v.color)) return false;
+      seen.add(v.color);
+      return true;
+    });
+  }, [product.variants]);
 
-  // Get sizes for selected color
-  const sizes = product.variants?.filter(v => 
-    !selectedVariant?.color || v.color === selectedVariant.color
-  ).reduce((acc, variant) => {
-    if (!acc.find(v => v.size === variant.size)) {
-      acc.push(variant);
-    }
-    return acc;
-  }, [] as ProductVariant[]) || [];
+  // Sizes filtered by selected color
+  const sizes = useMemo(() => {
+    const filtered = (product.variants || []).filter(v =>
+      !selectedColor || v.color === selectedColor
+    );
+    const seen = new Set<string>();
+    return filtered.filter(v => {
+      if (seen.has(v.size)) return false;
+      seen.add(v.size);
+      return true;
+    });
+  }, [product.variants, selectedColor]);
+
+  // Derive selected variant from color + size
+  const selectedVariant = useMemo(() => {
+    if (!selectedColor && !selectedSize) return null;
+    return (product.variants || []).find(v =>
+      (!selectedColor || v.color === selectedColor) &&
+      (!selectedSize || v.size === selectedSize)
+    ) || null;
+  }, [product.variants, selectedColor, selectedSize]);
 
   // Calculate total stock across all variants
   const totalStock = product.variants?.reduce((sum, v) => sum + (v.stock_quantity || 0), 0) ?? 0;
@@ -222,23 +267,26 @@ export default function ProductDetailPage() {
             {colors.length > 0 && (
               <div>
                 <span className="text-sm font-medium mb-2 block">
-                  Cor: {selectedVariant?.color || 'Selecione'}
+                  Cor: {selectedColor || 'Selecione'}
                 </span>
                 <div className="flex gap-2 flex-wrap">
                   {colors.map((variant) => (
                     <button
                       key={variant.id}
-                      onClick={() => setSelectedVariant(variant)}
+                      onClick={() => {
+                        setSelectedColor(variant.color!);
+                        setSelectedSize(null);
+                      }}
                       className={cn(
                         'h-10 w-10 rounded-full border-2 transition-all relative',
-                        selectedVariant?.color === variant.color 
+                        selectedColor === variant.color 
                           ? 'border-primary ring-2 ring-primary ring-offset-2 ring-offset-background' 
                           : 'border-border hover:border-foreground'
                       )}
                       style={{ backgroundColor: variant.color_hex || '#888' }}
                       title={variant.color || ''}
                     >
-                      {selectedVariant?.color === variant.color && (
+                      {selectedColor === variant.color && (
                         <Check className="absolute inset-0 m-auto h-4 w-4 text-white drop-shadow-md" />
                       )}
                     </button>
@@ -251,17 +299,17 @@ export default function ProductDetailPage() {
             {sizes.length > 0 && (
               <div>
                 <span className="text-sm font-medium mb-2 block">
-                  Tamanho: {selectedVariant?.size || 'Selecione'}
+                  Tamanho: {selectedSize || 'Selecione'}
                 </span>
                 <div className="flex gap-2 flex-wrap">
                   {sizes.map((variant) => (
                     <button
                       key={variant.id}
-                      onClick={() => setSelectedVariant(variant)}
+                      onClick={() => setSelectedSize(variant.size)}
                       disabled={variant.stock_quantity === 0}
                       className={cn(
                         'h-10 min-w-[2.5rem] px-3 rounded-lg border transition-all text-sm font-medium',
-                        selectedVariant?.size === variant.size
+                        selectedSize === variant.size
                           ? 'border-primary bg-primary text-primary-foreground'
                           : 'border-border hover:border-foreground',
                         variant.stock_quantity === 0 && 'opacity-50 cursor-not-allowed line-through'
