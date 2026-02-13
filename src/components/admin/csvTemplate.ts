@@ -13,12 +13,12 @@ export function downloadCSVTemplate() {
     [
       'Tenis Exemplo', 'tenis-exemplo', 'Descricao do produto', 'Tenis', 'Nike',
       '299.90', '199.90', '6', 'sim', 'sim', 'sim',
-      '38', 'Preto', '#000000', '50', 'SKU001',
+      '38,39,40,41,42', 'Preto', '#000000', '50', '',
     ],
     [
-      'Tenis Exemplo', 'tenis-exemplo', '', 'Tenis', 'Nike',
-      '299.90', '199.90', '6', 'sim', 'sim', 'sim',
-      '39', 'Preto', '#000000', '30', 'SKU002',
+      'Camiseta Basica', 'camiseta-basica', 'Camiseta algodao', 'Camisetas', 'Adidas',
+      '89.90', '59.90', '6', 'nao', 'sim', 'sim',
+      'P,M,G,GG', 'Preto,Branco', '#000000,#FFFFFF', '30', '',
     ],
   ];
 
@@ -350,20 +350,48 @@ export function parseCSV(
     // Auto-detect color from product name
     const autoColor = extractColorFromName(name);
 
-    const variants: ParsedVariant[] = rows
-      .filter(r => col(r, 'tamanho'))
-      .map(r => {
-        const csvColor = col(r, 'cor') || undefined;
-        const csvColorHex = col(r, 'cor_hex') || undefined;
+    const variants: ParsedVariant[] = rows.flatMap(r => {
+      const rawSize = col(r, 'tamanho');
+      if (!rawSize) return [];
 
-        return {
-          size: col(r, 'tamanho'),
-          color: csvColor || autoColor?.color || undefined,
-          color_hex: csvColorHex || autoColor?.color_hex || undefined,
-          stock_quantity: parseInt(col(r, 'estoque')) || 0,
-          sku: col(r, 'sku') || undefined,
-        };
-      });
+      const sizes = rawSize.split(',').map(s => s.trim()).filter(Boolean);
+      const rawColor = col(r, 'cor');
+      const rawColorHex = col(r, 'cor_hex');
+      const colors = rawColor ? rawColor.split(',').map(s => s.trim()).filter(Boolean) : [];
+      const colorHexes = rawColorHex ? rawColorHex.split(',').map(s => s.trim()).filter(Boolean) : [];
+      const stock = parseInt(col(r, 'estoque')) || 0;
+      const csvSku = col(r, 'sku') || undefined;
+
+      // Build cartesian product of sizes x colors
+      if (colors.length > 0) {
+        const result: ParsedVariant[] = [];
+        for (const size of sizes) {
+          for (let ci = 0; ci < colors.length; ci++) {
+            result.push({
+              size,
+              color: colors[ci] || autoColor?.color || undefined,
+              color_hex: colorHexes[ci] || autoColor?.color_hex || undefined,
+              stock_quantity: stock,
+              sku: undefined, // SKU not applied for multi-variant rows
+            });
+          }
+        }
+        // Apply SKU only if exactly 1 variant resulted
+        if (result.length === 1 && csvSku) result[0].sku = csvSku;
+        return result;
+      }
+
+      // Single or multiple sizes, no multiple colors
+      const result: ParsedVariant[] = sizes.map(size => ({
+        size,
+        color: autoColor?.color || undefined,
+        color_hex: autoColor?.color_hex || undefined,
+        stock_quantity: stock,
+        sku: undefined,
+      }));
+      if (result.length === 1 && csvSku) result[0].sku = csvSku;
+      return result;
+    });
 
     // If no variants from CSV but color detected in name, create a "Unico" variant
     if (variants.length === 0 && autoColor) {
