@@ -1,51 +1,58 @@
 
+## Expandir Variantes com Virgula no Formulario Manual
 
-## Variantes na Mesma Linha do CSV (separadas por virgula)
+### Problema
+A logica de separar tamanhos e cores por virgula foi implementada apenas no fluxo de importacao CSV (modal). Quando o usuario digita "38,39,40,42" no campo tamanho do formulario manual de produto, o sistema salva como uma unica variante com esse texto literal, em vez de criar 4 variantes separadas.
 
-### Como vai funcionar
+### Solucao
+Adicionar logica de expansao no `onSubmit` do formulario de produto (`ProductFormPage.tsx`). Quando o usuario digitar valores separados por virgula nos campos de tamanho e/ou cor, o sistema automaticamente gera as variantes individuais antes de salvar.
 
-Hoje, para cadastrar um produto com 5 tamanhos, voce precisa de 5 linhas. Com a nova logica, basta **1 linha**:
+### Exemplo pratico
 
-```text
-nome;slug;...;tamanho;cor;cor_hex;estoque;sku
-Tenis Runner;tenis-runner;...;38,39,40,41,42;Preto;#000000;50;
+**Entrada no formulario:**
+- Tamanho: `38,39,40,42`
+- Cor: `Preto,Branco`
+- Estoque: `162`
+
+**Resultado apos expansao (produto cartesiano):**
+8 variantes criadas: 38/Preto, 38/Branco, 39/Preto, 39/Branco, 40/Preto, 40/Branco, 42/Preto, 42/Branco — todas com estoque 162.
+
+### Mudanca tecnica
+
+**Arquivo: `src/pages/admin/ProductFormPage.tsx`**
+
+Alterar a funcao `onSubmit` (linha ~148) para, antes de enviar as variantes ao backend, expandir cada variante cujos campos `size` ou `color` contenham virgulas:
+
+```
+const expandedVariants = validVariants.flatMap(v => {
+  const sizes = v.size.split(',').map(s => s.trim()).filter(Boolean);
+  const colors = v.color ? v.color.split(',').map(s => s.trim()).filter(Boolean) : [];
+  const colorHexes = v.color_hex ? v.color_hex.split(',').map(s => s.trim()).filter(Boolean) : [];
+
+  if (colors.length > 0) {
+    const result = [];
+    for (const size of sizes) {
+      for (let ci = 0; ci < colors.length; ci++) {
+        result.push({
+          size,
+          color: colors[ci],
+          color_hex: colorHexes[ci] || null,
+          stock_quantity: v.stock_quantity,
+          sku: null,
+        });
+      }
+    }
+    return result;
+  }
+
+  return sizes.map(size => ({
+    ...v,
+    size,
+    sku: sizes.length === 1 ? v.sku : null,
+  }));
+});
 ```
 
-Isso gera automaticamente **5 variantes** (uma por tamanho), todas com cor "Preto", hex "#000000" e estoque 50.
+A variavel `expandedVariants` substitui `validVariants` na chamada de `createProduct` / `updateProduct`.
 
-### Combinacoes tamanho x cor
-
-Se voce tambem informar varias cores separadas por virgula, o sistema cria o **produto cartesiano** (todas as combinacoes):
-
-```text
-tamanho: 38,39,40
-cor: Preto,Branco
-cor_hex: #000000,#FFFFFF
-```
-
-Resultado: 6 variantes (38/Preto, 38/Branco, 39/Preto, 39/Branco, 40/Preto, 40/Branco), todas com o mesmo estoque.
-
-### Regras
-
-- Separador de variantes dentro da celula: **virgula ( , )**
-- Separador de colunas do CSV continua sendo **ponto e virgula ( ; )**
-- Estoque: o valor informado e aplicado igualmente a todas as variantes geradas
-- SKU: quando ha multiplas variantes, o SKU nao e aplicado (pois precisa ser unico por variante)
-- A logica antiga (linhas duplicadas) continua funcionando normalmente
-
-### Mudancas tecnicas
-
-**Arquivo: `src/components/admin/csvTemplate.ts`**
-
-1. **Template de exemplo** (`downloadCSVTemplate`): Atualizar o exemplo para mostrar multiplos tamanhos na mesma celula (ex: `38,39,40,41,42`) em vez de linhas duplicadas.
-
-2. **Funcao `parseCSV`** (linhas 353-366): Alterar a logica de geracao de variantes para:
-   - Verificar se o campo `tamanho` contem virgulas; se sim, dividir em array de tamanhos
-   - Verificar se o campo `cor` contem virgulas; se sim, dividir em array de cores (e `cor_hex` tambem)
-   - Gerar o produto cartesiano de tamanhos x cores
-   - Aplicar o mesmo estoque para todas as variantes geradas
-   - SKU so e aplicado quando resulta em exatamente 1 variante
-
-3. **Funcao `parseUpdateCSV`**: Manter como esta (atualizar variantes existentes usa IDs individuais, entao nao faz sentido multiplos valores na mesma celula).
-
-Nenhuma alteracao no banco de dados ou nas funcoes de bulk import/update e necessaria, pois elas ja recebem arrays de variantes prontos.
+Nenhuma outra alteracao e necessaria — o backend ja aceita arrays de variantes normalmente.
