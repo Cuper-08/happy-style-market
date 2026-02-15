@@ -10,6 +10,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { ProductSection } from '@/components/home';
 import { Heart, Minus, Plus, ShoppingBag, Check, Tag } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { ProductViewer360 } from '@/components/product/ProductViewer360';
 import { toast } from '@/hooks/use-toast';
 import { ProductVariant } from '@/types';
 
@@ -140,15 +141,13 @@ export default function ProductDetailPage() {
     <Layout>
       <div className="container py-4 space-y-8">
         <div className="grid md:grid-cols-2 gap-8">
-          {/* Images */}
+          {/* Images - 360 Viewer */}
           <div className="space-y-4">
-            <div className="aspect-square rounded-lg overflow-hidden bg-card">
-              <img
-                src={product.images[selectedImageIndex] || '/placeholder.svg'}
-                alt={product.name}
-                className="h-full w-full object-cover"
-              />
-            </div>
+            <ProductViewer360
+              images={product.images}
+              alt={product.name}
+              onImageIndexChange={setSelectedImageIndex}
+            />
             {product.images.length > 1 && (
               <div className="flex gap-2 overflow-x-auto pb-2">
                 {product.images.map((image, index) => (
