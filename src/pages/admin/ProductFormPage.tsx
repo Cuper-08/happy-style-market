@@ -407,12 +407,15 @@ export default function ProductFormPage() {
                 <CardHeader>
                   <CardTitle>Imagens</CardTitle>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="space-y-3">
                   <ImageUploader
                     images={images}
                     onChange={setImages}
-                    maxImages={5}
+                    maxImages={36}
                   />
+                  <p className="text-xs text-muted-foreground">
+                    💡 Para visualização 360°, suba fotos do produto em sequência de ângulos (12, 24 ou 36 fotos). O cliente poderá girar o produto na loja.
+                  </p>
                 </CardContent>
               </Card>
 
