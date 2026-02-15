@@ -8,6 +8,7 @@ export interface CartItem {
 }
 
 const CART_STORAGE_KEY = 'bras-conceito-cart';
+const WHOLESALE_MIN_ITEMS = 6;
 
 export function useCart() {
   const [items, setItems] = useState<CartItem[]>([]);
@@ -74,16 +75,27 @@ export function useCart() {
     setItems([]);
   }, []);
 
-  const getItemPrice = useCallback((item: CartItem) => {
-    // Always use retail price for now (no wholesale_min_qty logic)
-    return item.product.price_retail || 0;
-  }, []);
-
   const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
+  const isWholesale = totalItems >= WHOLESALE_MIN_ITEMS;
+
+  const getItemPrice = useCallback((item: CartItem) => {
+    if (isWholesale && item.product.price && item.product.price > 0) {
+      return item.product.price;
+    }
+    return item.product.price_retail || 0;
+  }, [isWholesale]);
 
   const subtotal = items.reduce((sum, item) => {
     return sum + getItemPrice(item) * item.quantity;
   }, 0);
+
+  // Calculate how much user saves vs retail
+  const retailTotal = items.reduce((sum, item) => {
+    return sum + (item.product.price_retail || 0) * item.quantity;
+  }, 0);
+  const wholesaleSavings = isWholesale ? retailTotal - subtotal : 0;
+
+  const itemsUntilWholesale = isWholesale ? 0 : WHOLESALE_MIN_ITEMS - totalItems;
 
   return {
     items,
@@ -95,5 +107,8 @@ export function useCart() {
     getItemPrice,
     totalItems,
     subtotal,
+    isWholesale,
+    wholesaleSavings,
+    itemsUntilWholesale,
   };
 }
