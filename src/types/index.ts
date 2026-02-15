@@ -15,32 +15,25 @@ export interface Brand {
 
 export interface Product {
   id: string;
-  name: string;
+  title: string;
   slug: string;
-  description?: string;
-  category_id?: string;
-  brand_id?: string;
-  retail_price: number;
-  wholesale_price?: number;
-  wholesale_min_qty: number;
+  description?: string | null;
+  price?: number | null; // wholesale price
+  price_display?: string | null;
+  price_retail?: number | null; // retail price
+  price_retail_display?: string | null;
   images: string[];
-  featured: boolean;
-  is_new: boolean;
-  is_active: boolean;
+  original_url?: string | null;
   created_at: string;
-  category?: Category;
-  brand?: Brand;
   variants?: ProductVariant[];
 }
 
 export interface ProductVariant {
   id: string;
-  product_id: string;
+  product_id: string | null;
   size: string;
-  color?: string;
-  color_hex?: string;
-  stock_quantity: number;
-  sku?: string;
+  stock?: boolean | null;
+  created_at?: string;
 }
 
 export interface CartItem {

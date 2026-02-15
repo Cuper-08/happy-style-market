@@ -23,36 +23,11 @@ export function AlertsPanel() {
     queryFn: async (): Promise<Alert[]> => {
       const results: Alert[] = [];
 
-      // Low stock products
-      const { data: lowStock } = await supabase
-        .from('product_variants')
-        .select(`
-          id, 
-          stock_quantity, 
-          size,
-          color,
-          products(name)
-        `)
-        .lt('stock_quantity', 5)
-        .gt('stock_quantity', 0)
-        .limit(5);
-
-      if (lowStock && lowStock.length > 0) {
-        results.push({
-          id: 'low-stock',
-          type: 'low_stock',
-          title: 'Estoque Baixo',
-          description: `${lowStock.length} variante(s) com menos de 5 unidades`,
-          count: lowStock.length,
-          href: '/admin/produtos',
-        });
-      }
-
-      // Out of stock
+      // Out of stock variants
       const { count: outOfStock } = await supabase
         .from('product_variants')
         .select('*', { count: 'exact', head: true })
-        .eq('stock_quantity', 0);
+        .eq('stock', false);
 
       if (outOfStock && outOfStock > 0) {
         results.push({

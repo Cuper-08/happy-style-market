@@ -13,7 +13,6 @@ export function useCart() {
   const [items, setItems] = useState<CartItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Load cart from localStorage on mount
   useEffect(() => {
     const stored = localStorage.getItem(CART_STORAGE_KEY);
     if (stored) {
@@ -26,7 +25,6 @@ export function useCart() {
     setIsLoading(false);
   }, []);
 
-  // Save cart to localStorage whenever items change
   useEffect(() => {
     if (!isLoading) {
       localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(items));
@@ -77,15 +75,8 @@ export function useCart() {
   }, []);
 
   const getItemPrice = useCallback((item: CartItem) => {
-    const { product, quantity } = item;
-    const minQty = product.wholesale_min_qty || 6;
-    const wholesalePrice = product.wholesale_price;
-    
-    // Apply wholesale price if quantity meets minimum and wholesale price exists
-    if (wholesalePrice && quantity >= minQty) {
-      return wholesalePrice;
-    }
-    return product.retail_price;
+    // Always use retail price for now (no wholesale_min_qty logic)
+    return item.product.price_retail || 0;
   }, []);
 
   const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);

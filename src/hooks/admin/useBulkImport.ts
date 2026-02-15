@@ -10,17 +10,11 @@ export function useBulkCreateProducts() {
   return useMutation({
     mutationFn: async (products: ParsedProduct[]) => {
       const productInserts = products.map(p => ({
-        name: p.name,
+        title: p.name,
         slug: p.slug,
         description: p.description || null,
-        category_id: p.category_id || null,
-        brand_id: p.brand_id || null,
-        retail_price: p.retail_price,
-        wholesale_price: p.wholesale_price || null,
-        wholesale_min_qty: p.wholesale_min_qty || 6,
-        featured: p.featured,
-        is_new: p.is_new,
-        is_active: p.is_active,
+        price_retail: p.retail_price,
+        price: p.wholesale_price || null,
         images: [],
       }));
 
@@ -32,7 +26,6 @@ export function useBulkCreateProducts() {
       if (error) throw error;
       if (!inserted) throw new Error('No products returned');
 
-      // Map slug → id for variant insertion
       const slugToId = new Map(inserted.map(p => [p.slug, p.id]));
 
       const allVariants = products.flatMap(p => {
@@ -41,10 +34,7 @@ export function useBulkCreateProducts() {
         return p.variants.map(v => ({
           product_id: productId,
           size: v.size,
-          color: v.color || null,
-          color_hex: v.color_hex || null,
-          stock_quantity: v.stock_quantity,
-          sku: v.sku?.trim() || null,
+          stock: (v.stock_quantity || 0) > 0,
         }));
       });
 

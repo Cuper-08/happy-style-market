@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
 export interface VariantChange {
-  variant_id?: string; // empty = insert new
+  variant_id?: string;
   changes: Record<string, any>;
 }
 
@@ -11,7 +11,7 @@ export interface ProductChange {
   id: string;
   changes: Record<string, any>;
   variantChanges?: VariantChange[];
-  newVariants?: { size: string; color?: string; color_hex?: string; stock_quantity: number; sku?: string }[];
+  newVariants?: { size: string; stock?: boolean }[];
 }
 
 export function useBulkUpdateProducts() {
@@ -28,7 +28,6 @@ export function useBulkUpdateProducts() {
         const promises: Promise<any>[] = [];
 
         for (const { id, changes, variantChanges, newVariants } of batch) {
-          // Update product fields
           if (Object.keys(changes).length > 0) {
             promises.push(
               supabase.from('products').update(changes).eq('id', id).then(r => {
@@ -37,7 +36,6 @@ export function useBulkUpdateProducts() {
             );
           }
 
-          // Update existing variants
           if (variantChanges) {
             for (const vc of variantChanges) {
               if (vc.variant_id) {
@@ -50,15 +48,11 @@ export function useBulkUpdateProducts() {
             }
           }
 
-          // Insert new variants
           if (newVariants && newVariants.length > 0) {
             const inserts = newVariants.map(v => ({
               product_id: id,
               size: v.size,
-              color: v.color || null,
-              color_hex: v.color_hex || null,
-              stock_quantity: v.stock_quantity,
-              sku: v.sku?.trim() || null,
+              stock: v.stock !== false,
             }));
             promises.push(
               supabase.from('product_variants').insert(inserts).then(r => {
