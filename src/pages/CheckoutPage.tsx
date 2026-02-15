@@ -13,6 +13,7 @@ import { Loader2, CreditCard, QrCode, FileText, Truck, Zap, ArrowLeft, CheckCirc
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { Skeleton } from '@/components/ui/skeleton';
+import { fetchCEP } from '@/lib/cepUtils';
 
 // Máscaras de formatação
 const formatCPF = (value: string) => {
@@ -143,26 +144,17 @@ export default function CheckoutPage() {
 
   // Busca automática de CEP via ViaCEP
   const handleCepSearch = useCallback(async (cep: string) => {
-    const cleanCep = cep.replace(/\D/g, '');
-    if (cleanCep.length !== 8) return;
-    
     try {
-      const response = await fetch(`https://viacep.com.br/ws/${cleanCep}/json/`);
-      const data = await response.json();
-      if (!data.erro) {
-        setShippingData(prev => ({
-          ...prev,
-          street: data.logradouro || '',
-          neighborhood: data.bairro || '',
-          city: data.localidade || '',
-          state: data.uf || '',
-        }));
+      const result = await fetchCEP(cep);
+      if (result) {
+        setShippingData(prev => ({ ...prev, ...result }));
         toast({ title: 'Endereço encontrado!' });
       } else {
         toast({ title: 'CEP não encontrado', variant: 'destructive' });
       }
     } catch (error) {
-      console.error('Erro ao buscar CEP:', error);
+      console.error('CEP lookup error:', error);
+      toast({ title: 'Erro ao buscar CEP', variant: 'destructive' });
     }
   }, []);
 
