@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { usePublicBanners } from '@/hooks/admin/useAdminBanners';
@@ -41,7 +41,7 @@ interface HeroBannerProps {
 export function HeroBanner({ className }: HeroBannerProps) {
   const { data: dbBanners, isLoading } = usePublicBanners();
   const [current, setCurrent] = useState(0);
-  const [isTransitioning, setIsTransitioning] = useState(false);
+  const isTransitioning = useRef(false);
 
   const banners: Banner[] = dbBanners && dbBanners.length >= 2 ? dbBanners : defaultBanners;
   const isUsingDefaults = !dbBanners || dbBanners.length < 2;
@@ -51,26 +51,27 @@ export function HeroBanner({ className }: HeroBannerProps) {
   const getBtnLink = (b: Banner) => b.button_link || b.buttonLink || '';
 
   const goToSlide = useCallback((index: number) => {
-    if (isTransitioning) return;
-    setIsTransitioning(true);
+    if (isTransitioning.current) return;
+    isTransitioning.current = true;
     setCurrent(index);
-    setTimeout(() => setIsTransitioning(false), 700);
-  }, [isTransitioning]);
+    setTimeout(() => { isTransitioning.current = false; }, 700);
+  }, []);
 
   useEffect(() => {
+    if (banners.length <= 1) return;
     const timer = setInterval(() => {
-      goToSlide((current + 1) % banners.length);
+      setCurrent(prev => (prev + 1) % banners.length);
     }, 6000);
     return () => clearInterval(timer);
-  }, [banners.length, current, goToSlide]);
+  }, [banners.length]);
 
   if (isLoading) {
-    return <Skeleton className={cn('w-full aspect-[3/2] sm:aspect-[2/1] md:aspect-[3/1] rounded-2xl', className)} />;
+    return <Skeleton className={cn('w-full aspect-square sm:aspect-[2/1] md:aspect-[3/1] rounded-2xl', className)} />;
   }
 
   return (
     <div className={cn('relative w-full overflow-hidden rounded-2xl shadow-lg bg-[#0D0D0D]', className)}>
-      <div className="aspect-[3/2] sm:aspect-[2/1] md:aspect-[3/1] relative">
+      <div className="aspect-square sm:aspect-[2/1] md:aspect-[3/1] relative">
         {banners.map((banner, index) => (
           <div
             key={banner.id}
