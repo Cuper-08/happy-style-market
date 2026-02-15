@@ -18,28 +18,19 @@ interface Banner {
 
 const defaultBanners: Banner[] = [
   {
-    id: '1',
-    image: 'https://images.unsplash.com/photo-1556906781-9a412961c28c?w=1200&h=600&fit=crop',
-    title: 'Novos Tênis Esportivos',
-    subtitle: 'Preços exclusivos de atacado',
-    buttonText: 'Ver Coleção',
-    buttonLink: '/categoria/tenis',
+    id: 'default-1',
+    image: '/banners/slide-artistas.webp',
+    title: 'A Loja Que Veste Os Artistas',
   },
   {
-    id: '2',
-    image: 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=1200&h=600&fit=crop',
-    title: 'Moda Esportiva',
-    subtitle: 'As melhores marcas em um só lugar',
-    buttonText: 'Explorar',
-    buttonLink: '/produtos',
+    id: 'default-2',
+    image: '/banners/slide-loja-fisica.webp',
+    title: 'Loja Física',
   },
   {
-    id: '3',
-    image: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=1200&h=600&fit=crop',
-    title: 'Até 40% OFF',
-    subtitle: 'Promoção por tempo limitado',
-    buttonText: 'Aproveitar',
-    buttonLink: '/produtos',
+    id: 'default-3',
+    image: '/banners/slide-frete-gratis.webp',
+    title: 'Frete Grátis',
   },
 ];
 
@@ -53,6 +44,7 @@ export function HeroBanner({ className }: HeroBannerProps) {
   const [isTransitioning, setIsTransitioning] = useState(false);
 
   const banners: Banner[] = dbBanners && dbBanners.length > 0 ? dbBanners : defaultBanners;
+  const isUsingDefaults = !dbBanners || dbBanners.length === 0;
 
   const getImage = (b: Banner) => b.image_url || b.image || '';
   const getBtnText = (b: Banner) => b.button_text || b.buttonText || '';
@@ -73,12 +65,12 @@ export function HeroBanner({ className }: HeroBannerProps) {
   }, [banners.length, current, goToSlide]);
 
   if (isLoading) {
-    return <Skeleton className={cn('w-full aspect-[16/9] sm:aspect-[2/1] md:aspect-[3/1] rounded-2xl', className)} />;
+    return <Skeleton className={cn('w-full aspect-[4/5] sm:aspect-[2/1] md:aspect-[3/1] rounded-2xl', className)} />;
   }
 
   return (
     <div className={cn('relative w-full overflow-hidden rounded-2xl shadow-lg bg-[#0D0D0D]', className)}>
-      <div className="aspect-[16/9] sm:aspect-[2/1] md:aspect-[3/1] relative">
+      <div className="aspect-[4/5] sm:aspect-[2/1] md:aspect-[3/1] relative">
         {banners.map((banner, index) => (
           <div
             key={banner.id}
@@ -89,35 +81,39 @@ export function HeroBanner({ className }: HeroBannerProps) {
                 : 'opacity-0 scale-105 pointer-events-none'
             )}
           >
-            <img src={getImage(banner)} alt={banner.title} className="h-full w-full object-cover" />
-            <div className="absolute inset-0 bg-gradient-to-r from-black/60 via-black/20 to-transparent" />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent" />
-            <div className="absolute inset-0 flex items-center">
-              <div className="container">
-                <div
-                  className={cn(
-                    'max-w-md space-y-3 md:space-y-5 px-4 md:px-0 transition-all duration-700 delay-200',
-                    index === current ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
-                  )}
-                >
-                  <h2 className="text-xl md:text-4xl lg:text-5xl font-bold text-white leading-tight drop-shadow-lg">
-                    {banner.title}
-                  </h2>
-                  {banner.subtitle && (
-                    <p className="text-sm md:text-lg text-white/90 drop-shadow">{banner.subtitle}</p>
-                  )}
-                  {getBtnText(banner) && getBtnLink(banner) && (
-                    <Button
-                      asChild
-                      size="default"
-                      className="h-9 px-4 md:h-11 md:px-6 text-sm md:text-base bg-primary text-primary-foreground hover:bg-primary/90 hover:shadow-gold-md transition-all duration-300"
+            <img src={getImage(banner)} alt={banner.title} className="h-full w-full object-cover object-center" />
+            {!isUsingDefaults && (
+              <>
+                <div className="absolute inset-0 bg-gradient-to-r from-black/60 via-black/20 to-transparent" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent" />
+                <div className="absolute inset-0 flex items-center">
+                  <div className="container">
+                    <div
+                      className={cn(
+                        'max-w-md space-y-3 md:space-y-5 px-4 md:px-0 transition-all duration-700 delay-200',
+                        index === current ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
+                      )}
                     >
-                      <a href={getBtnLink(banner)}>{getBtnText(banner)}</a>
-                    </Button>
-                  )}
+                      <h2 className="text-xl md:text-4xl lg:text-5xl font-bold text-white leading-tight drop-shadow-lg">
+                        {banner.title}
+                      </h2>
+                      {banner.subtitle && (
+                        <p className="text-sm md:text-lg text-white/90 drop-shadow">{banner.subtitle}</p>
+                      )}
+                      {getBtnText(banner) && getBtnLink(banner) && (
+                        <Button
+                          asChild
+                          size="default"
+                          className="h-9 px-4 md:h-11 md:px-6 text-sm md:text-base bg-primary text-primary-foreground hover:bg-primary/90 hover:shadow-gold-md transition-all duration-300"
+                        >
+                          <a href={getBtnLink(banner)}>{getBtnText(banner)}</a>
+                        </Button>
+                      )}
+                    </div>
+                  </div>
                 </div>
-              </div>
-            </div>
+              </>
+            )}
           </div>
         ))}
       </div>
