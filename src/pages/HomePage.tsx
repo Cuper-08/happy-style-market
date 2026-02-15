@@ -1,16 +1,40 @@
+import { Link } from 'react-router-dom';
 import { Layout } from '@/components/layout';
 import { HeroBanner, ProductSection } from '@/components/home';
 import { useProducts } from '@/hooks/useProducts';
 import { Skeleton } from '@/components/ui/skeleton';
+import { getAvailableBrands } from '@/lib/productCategories';
+import { useMemo } from 'react';
+import { Tag } from 'lucide-react';
 
 export default function HomePage() {
   const { data: allProducts = [], isLoading: loadingAll } = useProducts({ limit: 12 });
+
+  const brands = useMemo(() => getAvailableBrands(allProducts), [allProducts]);
 
   return (
     <Layout>
       <div className="container py-6 md:py-10 space-y-10 md:space-y-14">
         {/* Hero Banner */}
         <HeroBanner className="animate-fade-in" />
+
+        {/* Brand Chips */}
+        {brands.length > 0 && (
+          <section className="space-y-4">
+            <h2 className="text-lg font-bold">Categorias</h2>
+            <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+              {brands.map((brand) => (
+                <Link
+                  key={brand.slug}
+                  to={`/produtos?marca=${brand.slug}`}
+                  className="flex-shrink-0 px-4 py-2 rounded-full border border-border bg-card hover:bg-primary hover:text-primary-foreground transition-colors text-sm font-medium whitespace-nowrap"
+                >
+                  {brand.name}
+                </Link>
+              ))}
+            </div>
+          </section>
+        )}
 
         {/* All Products */}
         {loadingAll ? (
@@ -40,9 +64,10 @@ export default function HomePage() {
         {/* Wholesale Info */}
         <section className="relative overflow-hidden bg-gradient-to-r from-primary/20 via-primary/10 to-primary/20 rounded-2xl p-8 md:p-10 text-center space-y-3 border border-primary/20">
           <div className="absolute inset-0 bg-gradient-to-r from-transparent via-primary/5 to-transparent animate-shimmer" />
-          <h2 className="text-xl md:text-2xl font-bold relative">Preços Especiais de Atacado</h2>
+          <Tag className="h-8 w-8 mx-auto text-primary relative" />
+          <h2 className="text-xl md:text-2xl font-bold relative">Preços de Atacado a partir de 6 pares</h2>
           <p className="text-muted-foreground relative max-w-lg mx-auto">
-            Consulte nossos preços de atacado em cada produto!
+            Adicione 6 ou mais itens ao carrinho e pague automaticamente o preço de atacado!
           </p>
         </section>
       </div>

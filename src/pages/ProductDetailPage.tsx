@@ -8,10 +8,11 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ProductSection } from '@/components/home';
-import { Heart, Minus, Plus, ShoppingBag, Tag } from 'lucide-react';
+import { Heart, Minus, Plus, ShoppingBag, Tag, Info } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ProductViewer360 } from '@/components/product/ProductViewer360';
 import { toast } from '@/hooks/use-toast';
+import { stripHtml } from '@/lib/sanitizeDescription';
 
 export default function ProductDetailPage() {
   const { slug } = useParams();
@@ -249,11 +250,20 @@ export default function ProductDetailPage() {
               </Button>
             </div>
 
+            {/* Wholesale Info Banner */}
+            <div className="flex items-start gap-3 p-4 rounded-lg bg-primary/10 border border-primary/20">
+              <Info className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
+              <div className="text-sm">
+                <p className="font-semibold text-foreground">Atacado: a partir de 6 pares</p>
+                <p className="text-muted-foreground">Adicione 6 ou mais itens ao carrinho e pague automaticamente o preço de atacado.</p>
+              </div>
+            </div>
+
             {/* Description */}
             {product.description && (
               <div className="pt-6 border-t border-border">
                 <h3 className="font-semibold mb-2">Descrição</h3>
-                <p className="text-muted-foreground whitespace-pre-line">{product.description}</p>
+                <p className="text-muted-foreground whitespace-pre-line">{stripHtml(product.description)}</p>
               </div>
             )}
           </div>

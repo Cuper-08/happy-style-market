@@ -3,10 +3,11 @@ import { Layout } from '@/components/layout';
 import { useCart } from '@/contexts/CartContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Trash2, Minus, Plus, ShoppingBag, ArrowRight } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Trash2, Minus, Plus, ShoppingBag, ArrowRight, Tag, Info } from 'lucide-react';
 
 export default function CartPage() {
-  const { items, removeItem, updateQuantity, getItemPrice, subtotal, clearCart } = useCart();
+  const { items, removeItem, updateQuantity, getItemPrice, subtotal, clearCart, isWholesale, wholesaleSavings, itemsUntilWholesale } = useCart();
 
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat('pt-BR', {
@@ -36,6 +37,26 @@ export default function CartPage() {
     <Layout>
       <div className="container py-4">
         <h1 className="text-2xl font-bold mb-6">Carrinho de Compras</h1>
+
+        {/* Wholesale banner */}
+        {isWholesale ? (
+          <div className="flex items-center gap-3 p-4 mb-6 rounded-lg bg-primary/10 border border-primary/20">
+            <Tag className="h-5 w-5 text-primary flex-shrink-0" />
+            <div className="flex-1">
+              <p className="font-semibold text-sm">
+                <Badge variant="secondary" className="mr-2 bg-primary text-primary-foreground">ATACADO ATIVO</Badge>
+                Você está economizando {formatPrice(wholesaleSavings)}!
+              </p>
+            </div>
+          </div>
+        ) : itemsUntilWholesale > 0 ? (
+          <div className="flex items-center gap-3 p-4 mb-6 rounded-lg bg-muted border border-border">
+            <Info className="h-5 w-5 text-muted-foreground flex-shrink-0" />
+            <p className="text-sm text-muted-foreground">
+              Adicione mais <strong className="text-foreground">{itemsUntilWholesale} {itemsUntilWholesale === 1 ? 'item' : 'itens'}</strong> para desbloquear o preço de atacado!
+            </p>
+          </div>
+        ) : null}
 
         <div className="grid lg:grid-cols-3 gap-8">
           {/* Items */}
@@ -73,6 +94,11 @@ export default function CartPage() {
                       <span className="font-bold">
                         {formatPrice(price)}
                       </span>
+                      {isWholesale && item.product.price_retail && item.product.price && item.product.price < item.product.price_retail && (
+                        <span className="text-xs text-muted-foreground line-through">
+                          {formatPrice(item.product.price_retail)}
+                        </span>
+                      )}
                     </div>
 
                     {/* Quantity & Actions */}
@@ -130,19 +156,17 @@ export default function CartPage() {
                 <Button variant="outline">Aplicar</Button>
               </div>
 
-              <div>
-                <label className="text-sm font-medium mb-2 block">Calcular frete</label>
-                <div className="flex gap-2">
-                  <Input placeholder="CEP" className="bg-secondary" maxLength={9} />
-                  <Button variant="outline">Calcular</Button>
-                </div>
-              </div>
-
               <div className="border-t border-border pt-4 space-y-2">
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Subtotal</span>
                   <span>{formatPrice(subtotal)}</span>
                 </div>
+                {isWholesale && wholesaleSavings > 0 && (
+                  <div className="flex justify-between text-sm text-primary">
+                    <span>Economia atacado</span>
+                    <span>-{formatPrice(wholesaleSavings)}</span>
+                  </div>
+                )}
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Frete</span>
                   <span className="text-muted-foreground">A calcular</span>
