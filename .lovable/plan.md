@@ -1,70 +1,57 @@
 
 
-## Expansao Visual de Variantes no Formulario + Correcao na Pagina do Produto
+## Visualizador 360 graus com Fotos em Sequencia
 
-### O que muda
+### Como funciona
 
-Duas correcoes principais:
+O admin sobe varias fotos do produto tiradas em angulos diferentes (ex: 12, 24 ou 36 fotos girando o produto). Na pagina do produto, em vez da galeria de fotos tradicional, aparece um visualizador interativo onde o cliente arrasta para girar o produto e pode dar zoom com pinch/scroll.
 
-### 1. Formulario admin: botao "Gerar Variantes" (ProductFormPage.tsx)
+### Mudancas
 
-Hoje, ao digitar "38,39,40" no tamanho e "Preto,Branco" na cor, o sistema so expande na hora de salvar (invisivel para o usuario). A mudanca adiciona um **botao "Gerar Variantes"** ao lado de cada linha que contenha virgulas, que ao ser clicado:
+**1. Novo componente: `src/components/product/ProductViewer360.tsx`**
 
-- Detecta virgulas nos campos tamanho e/ou cor
-- Expande imediatamente em linhas individuais no formulario
-- Remove a linha original e substitui pelas linhas expandidas
+Componente que recebe um array de imagens e permite:
+- Arrastar horizontalmente (mouse ou touch) para girar o produto entre as fotos
+- Scroll do mouse ou pinch para dar zoom
+- Indicador visual "Arraste para girar" na primeira interacao
+- Fallback: se houver apenas 1 imagem, mostra a imagem normal com zoom
 
-**Exemplo visual:**
+Logica principal:
+- Dividir a largura do container pelo numero de imagens para calcular o "passo" de rotacao
+- Ao arrastar, calcular o delta X e avançar/retroceder no indice da imagem (loop circular)
+- Zoom com CSS `transform: scale()` controlado por scroll/pinch
 
-Antes (1 linha):
-```text
-Tamanho: 38,39,40  |  Cor: Preto,Branco  |  Estoque: 162
-```
+**2. Modificar: `src/pages/ProductDetailPage.tsx`**
 
-Depois de clicar "Gerar" (6 linhas):
-```text
-Tamanho: 38  |  Cor: Preto   |  Hex: #000000  |  Estoque: 162
-Tamanho: 38  |  Cor: Branco  |  Hex: #FFFFFF  |  Estoque: 162
-Tamanho: 39  |  Cor: Preto   |  Hex: #000000  |  Estoque: 162
-Tamanho: 39  |  Cor: Branco  |  Hex: #FFFFFF  |  Estoque: 162
-Tamanho: 40  |  Cor: Preto   |  Hex: #000000  |  Estoque: 162
-Tamanho: 40  |  Cor: Branco  |  Hex: #FFFFFF  |  Estoque: 162
-```
+- Substituir a secao de imagens atual pelo `ProductViewer360` quando o produto tiver mais de 1 imagem
+- Manter a galeria de thumbnails abaixo como opcao de navegacao direta
+- Manter a imagem simples para produtos com 1 foto apenas
 
-Assim voce ve exatamente o que sera criado antes de salvar.
+**3. Modificar: `src/pages/admin/ProductFormPage.tsx`**
 
-### 2. Pagina do produto: selecao de cor e tamanho independentes (ProductDetailPage.tsx)
+- Aumentar o limite de upload de imagens de 5 para 36 (para acomodar fotos 360)
+- Adicionar uma dica visual: "Para visualizacao 360, suba fotos do produto em sequencia de angulos"
 
-A selecao de variantes atual tem um bug: ao clicar na cor, o estado inteiro e substituido, e ao clicar no tamanho, perde a cor selecionada. A correcao separa em dois estados independentes (`selectedColor` e `selectedSize`), e o sistema busca a variante correta na intersecao dos dois.
+### Comportamento do visualizador
 
-Fluxo corrigido (igual Netshoes):
-1. Usuario clica numa **cor** - mostra os tamanhos disponiveis para aquela cor
-2. Usuario clica num **tamanho** - o sistema encontra a variante exata (cor + tamanho)
-3. Estoque e preco refletem a variante selecionada
-
-### 3. Limpeza do banco de dados
-
-Deletar a variante antiga mal formatada (ID `a65a78fe-...`) que contem "38,39,40,42,43" como texto literal no campo tamanho.
+- **Desktop**: arrastar com mouse para girar, scroll para zoom
+- **Mobile**: arrastar com dedo para girar, pinch para zoom
+- **Cursor**: muda para "grab" / "grabbing" durante o arraste
+- **Loop**: ao chegar na ultima foto, volta para a primeira (rotacao continua)
+- **Icone**: mostra um icone de rotacao 360 no canto para indicar a funcionalidade
+- **Performance**: usa `will-change: transform` e pre-carrega todas as imagens
 
 ### Detalhes tecnicos
 
-**Arquivo: `src/pages/admin/ProductFormPage.tsx`**
+O componente nao usa bibliotecas externas — apenas eventos de mouse/touch nativos do React:
 
-- Adicionar funcao `expandVariants(index)` que:
-  - Le os valores da linha no indice informado
-  - Divide `size` e `color` por virgula
-  - Gera o produto cartesiano
-  - Remove a linha original com `remove(index)`
-  - Insere as novas linhas com `append()` para cada combinacao
-- Adicionar botao "Gerar" ao lado do botao de lixeira em cada linha de variante
-- O botao so aparece quando o campo tamanho ou cor contem virgulas
+```
+onMouseDown -> salva posicao inicial, ativa "dragging"
+onMouseMove -> calcula deltaX, atualiza indice da imagem
+onMouseUp -> desativa "dragging"
+onTouchStart/Move/End -> mesma logica para mobile
+onWheel -> controla zoom (scale 1x ate 3x)
+```
 
-**Arquivo: `src/pages/ProductDetailPage.tsx`**
-
-- Substituir `selectedVariant` por dois estados: `selectedColor` (string | null) e `selectedSize` (string | null)
-- Derivar `selectedVariant` com `useMemo`: buscar em `product.variants` a variante onde `color === selectedColor && size === selectedSize`
-- Ao clicar numa cor: setar `selectedColor`, resetar `selectedSize`
-- Ao clicar num tamanho: setar `selectedSize`
-- Filtrar tamanhos disponiveis baseado na cor selecionada
-- Manter compatibilidade com produtos sem variantes
+Pre-carregamento das imagens com `new Image()` no `useEffect` para evitar piscar durante a rotacao.
 
