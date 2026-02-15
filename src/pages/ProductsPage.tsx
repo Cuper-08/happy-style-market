@@ -1,12 +1,12 @@
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useParams } from 'react-router-dom';
 import { Layout } from '@/components/layout';
 import { ProductGrid } from '@/components/product';
-import { useProducts } from '@/hooks/useProducts';
+import { useProducts, useCategories } from '@/hooks/useProducts';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { Checkbox } from '@/components/ui/checkbox';
-import { SlidersHorizontal } from 'lucide-react';
+import { SlidersHorizontal, PackageOpen } from 'lucide-react';
 import { useState, useMemo } from 'react';
 import { getAvailableBrands, extractBrandSlug } from '@/lib/productCategories';
 
@@ -25,24 +25,24 @@ interface FilterContentProps {
 function FilterContent({ priceRange, setPriceRange, selectedBrand, setSelectedBrand, brands, hasActiveFilters, clearFilters }: FilterContentProps) {
   return (
     <div className="space-y-6">
-      {/* Brand filter */}
-      <div>
-        <h3 className="font-semibold mb-3">Marca / Linha</h3>
-        <div className="space-y-2 max-h-60 overflow-y-auto">
-          <label className="flex items-center gap-2 cursor-pointer">
-            <Checkbox checked={selectedBrand === 'all'} onCheckedChange={() => setSelectedBrand('all')} />
-            <span className="text-sm">Todas as marcas</span>
-          </label>
-          {brands.map((b) => (
-            <label key={b.slug} className="flex items-center gap-2 cursor-pointer">
-              <Checkbox checked={selectedBrand === b.slug} onCheckedChange={() => setSelectedBrand(b.slug)} />
-              <span className="text-sm">{b.name}</span>
+      {brands.length > 0 && (
+        <div>
+          <h3 className="font-semibold mb-3">Marca / Linha</h3>
+          <div className="space-y-2 max-h-60 overflow-y-auto">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <Checkbox checked={selectedBrand === 'all'} onCheckedChange={() => setSelectedBrand('all')} />
+              <span className="text-sm">Todas as marcas</span>
             </label>
-          ))}
+            {brands.map((b) => (
+              <label key={b.slug} className="flex items-center gap-2 cursor-pointer">
+                <Checkbox checked={selectedBrand === b.slug} onCheckedChange={() => setSelectedBrand(b.slug)} />
+                <span className="text-sm">{b.name}</span>
+              </label>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
-      {/* Price filter */}
       <div>
         <h3 className="font-semibold mb-3">Faixa de Preço</h3>
         <div className="space-y-2">
@@ -70,31 +70,39 @@ function FilterContent({ priceRange, setPriceRange, selectedBrand, setSelectedBr
 }
 
 export default function ProductsPage() {
+  const { categorySlug } = useParams<{ categorySlug?: string }>();
   const [searchParams, setSearchParams] = useSearchParams();
   const [priceRange, setPriceRange] = useState<PriceRange>('all');
 
   const brandParam = searchParams.get('marca') || 'all';
   const setSelectedBrand = (slug: string) => {
     const params = new URLSearchParams(searchParams);
-    if (slug === 'all') {
-      params.delete('marca');
-    } else {
-      params.set('marca', slug);
-    }
+    if (slug === 'all') params.delete('marca');
+    else params.set('marca', slug);
     setSearchParams(params, { replace: true });
   };
 
   const { data: products = [], isLoading } = useProducts();
+  const { data: allCategories = [] } = useCategories();
   const brands = useMemo(() => getAvailableBrands(products), [products]);
+
+  // Determine if this is a non-tenis category (empty for now)
+  const isTenisCategory = !categorySlug || categorySlug === 'tenis';
+  const currentCategory = allCategories.find(c => c.slug === categorySlug);
 
   const searchQuery = searchParams.get('q');
   const title = searchQuery
     ? `Resultados para "${searchQuery}"`
-    : brandParam !== 'all'
-      ? brands.find(b => b.slug === brandParam)?.name || 'Produtos'
-      : 'Todos os Produtos';
+    : currentCategory
+      ? currentCategory.name
+      : brandParam !== 'all'
+        ? brands.find(b => b.slug === brandParam)?.name || 'Produtos'
+        : 'Todos os Produtos';
 
   const filteredProducts = useMemo(() => {
+    // Non-tenis categories have no products yet
+    if (categorySlug && !isTenisCategory) return [];
+
     let result = products;
 
     if (searchQuery) {
@@ -119,7 +127,7 @@ export default function ProductsPage() {
     }
 
     return result;
-  }, [products, priceRange, searchQuery, brandParam]);
+  }, [products, priceRange, searchQuery, brandParam, categorySlug, isTenisCategory]);
 
   const clearFilters = () => {
     setPriceRange('all');
@@ -127,6 +135,24 @@ export default function ProductsPage() {
   };
 
   const hasActiveFilters = priceRange !== 'all' || brandParam !== 'all';
+
+  // Empty state for non-tenis categories
+  if (categorySlug && !isTenisCategory) {
+    return (
+      <Layout>
+        <div className="container py-16 text-center space-y-4">
+          <PackageOpen className="h-16 w-16 mx-auto text-muted-foreground" />
+          <h1 className="text-2xl font-bold">{currentCategory?.name || categorySlug}</h1>
+          <p className="text-muted-foreground max-w-md mx-auto">
+            Em breve teremos produtos nesta categoria. Fique ligado!
+          </p>
+          <Button variant="outline" asChild>
+            <a href="/categoria/tenis">Ver Tênis</a>
+          </Button>
+        </div>
+      </Layout>
+    );
+  }
 
   return (
     <Layout>
