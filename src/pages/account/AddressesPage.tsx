@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from '@/hooks/use-toast';
 import { ArrowLeft, MapPin, Plus, Trash2, Star, Search, X } from 'lucide-react';
+import { fetchCEP } from '@/lib/cepUtils';
 
 interface Address {
   id: string;
@@ -64,21 +65,15 @@ export default function AddressesPage() {
   useEffect(() => { fetchAddresses(); }, [fetchAddresses]);
 
   const handleCepSearch = async (cep: string) => {
-    const clean = cep.replace(/\D/g, '');
-    if (clean.length !== 8) return;
     try {
-      const res = await fetch(`https://viacep.com.br/ws/${clean}/json/`);
-      const data = await res.json();
-      if (!data.erro) {
-        setForm(prev => ({
-          ...prev,
-          street: data.logradouro || '',
-          neighborhood: data.bairro || '',
-          city: data.localidade || '',
-          state: data.uf || '',
-        }));
+      const result = await fetchCEP(cep);
+      if (result) {
+        setForm(prev => ({ ...prev, ...result }));
       }
-    } catch {}
+    } catch (error) {
+      console.error('CEP lookup error:', error);
+      toast({ title: 'Erro ao buscar CEP', variant: 'destructive' });
+    }
   };
 
   const resetForm = () => {
