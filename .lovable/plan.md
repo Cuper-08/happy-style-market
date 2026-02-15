@@ -1,70 +1,71 @@
 
 
-## Reorganizar Home por Tipo de Produto + Categorias no Supabase
+## Corrigir Desconto Atacado 6+ e Implementar Sub-Páginas da Conta
 
-### O que muda
+### Problema 1: Desconto Atacado
 
-A seção "Categorias" na Home será renomeada para **"Produtos"** e exibirá chips por **tipo de produto** (Tênis, Boné, Meias, etc.) em vez de por marca. As marcas (Air Jordan, Nike, Gucci) continuarão disponíveis como **sub-filtros** dentro de cada tipo de produto.
+A lógica no `useCart.ts` está **correta** -- quando `totalItems >= 6`, usa `product.price` (atacado) em vez de `product.price_retail` (varejo). Porém, há dois problemas de visibilidade:
 
-### 1. Inserir categorias faltantes no Supabase
+1. **No Checkout**: o resumo do pedido **não mostra** a economia de atacado. Só mostra desconto do método de pagamento (PIX 10%, Boleto 5%). O usuário não consegue ver que o preço já está com atacado aplicado.
+2. **No Checkout**: não importa `isWholesale` nem `wholesaleSavings` do contexto do carrinho, então não há indicação visual de que o atacado está ativo.
 
-A tabela `categories` já possui: Tenis, Boné, Acessórios, Roupas, Esportivos, HIGH QUALITY.
+**Correção no `src/pages/CheckoutPage.tsx`:**
+- Importar `isWholesale` e `wholesaleSavings` do `useCart`
+- Mostrar linha "Economia atacado" no resumo quando aplicável
+- Mostrar badge "ATACADO ATIVO" quando `isWholesale = true`
 
-Inserir as que faltam via SQL:
-- Meias (slug: meias)
-- Bolsas (slug: bolsas)
-- Cintos (slug: cintos)
-- Malas (slug: malas)
-- Chinelo (slug: chinelo)
-- Importados (slug: importados)
-- Tênis Infantil (slug: tenis-infantil)
+---
 
-### 2. Modificar `src/pages/HomePage.tsx`
+### Problema 2: Sub-Páginas da Conta (Meus Pedidos, Enderecos, Perfil)
 
-- Trocar o título "Categorias" por **"Produtos"**
-- Buscar categorias da tabela `categories` do Supabase (em vez de extrair marcas do título)
-- Exibir apenas as categorias desejadas: Tênis, Boné, Meias, Bolsas, Cintos, Malas, Chinelo, Importados, Tênis Infantil
-- Cada chip linka para `/categoria/:slug` (rota já existente no App.tsx)
+As rotas `/minha-conta/pedidos`, `/minha-conta/enderecos` e `/minha-conta/perfil` todas apontam para o mesmo `AccountPage` que é apenas o **menu**. Não existe conteúdo real nessas páginas.
 
-### 3. Modificar `src/pages/ProductsPage.tsx`
+**Solução: Criar 3 novas páginas completas:**
 
-- Quando acessado via `/categoria/tenis`, mostrar todos os produtos atuais (que são todos tênis)
-- Quando acessado via `/categoria/bone`, `/categoria/meias`, etc., mostrar apenas produtos daquela categoria (vazio por enquanto -- mensagem "Em breve")
-- Manter os filtros por marca como sub-filtros dentro da categoria Tênis
-- Ler o param `categorySlug` da URL para filtrar
+**1. `src/pages/account/OrdersPage.tsx` -- Meus Pedidos**
+- Buscar pedidos do usuário logado via `supabase.from('orders').select('*, order_items(*)').eq('user_id', user.id)`
+- Listar pedidos com: data, status (badge colorido), total, itens
+- Expandir detalhes de cada pedido (itens, endereço, rastreio)
+- Estado vazio: "Você ainda não fez nenhum pedido"
 
-### 4. Lógica de categorização dos produtos
+**2. `src/pages/account/AddressesPage.tsx` -- Enderecos**
+- Buscar endereços via `supabase.from('addresses').select('*').eq('user_id', user.id)`
+- Listar endereços com: label, rua, número, bairro, cidade, CEP
+- Permitir adicionar novo endereço (formulário com busca CEP via ViaCEP)
+- Permitir editar e excluir endereços existentes
+- Marcar endereço como padrão
 
-Como a tabela `products` não tem coluna `category_id`, todos os produtos atuais serão considerados como "Tênis" por padrão. Quando novas categorias receberem produtos no futuro, será necessário adicionar um campo `category_id` à tabela products ou usar detecção por título.
+**3. `src/pages/account/ProfilePage.tsx` -- Dados Pessoais**
+- Buscar perfil via `supabase.from('profiles').select('*').eq('user_id', user.id)`
+- Formulário editável: Nome completo, Telefone, CPF
+- Mostrar e-mail (somente leitura, vem do auth)
+- Botão "Salvar Alterações" com feedback visual
+- Máscaras de CPF e telefone (reutilizar do checkout)
 
-Por agora: `/categoria/tenis` mostra todos os produtos; outras categorias ficam preparadas mas vazias.
+**Atualizar rotas no `src/App.tsx`:**
+```text
+/minha-conta/pedidos   -> OrdersPage (novo)
+/minha-conta/enderecos -> AddressesPage (novo)
+/minha-conta/perfil    -> ProfilePage (novo)
+```
 
-### 5. Desconto Atacado 6+ itens
-
-A lógica já está implementada no `useCart.ts`:
-- `isWholesale = totalItems >= 6`
-- Quando ativo, usa `product.price` (atacado) em vez de `product.price_retail` (varejo)
-- Exemplo: Louis Vuitton R$ 2.100 varejo / R$ 1.800 atacado -- com 6+ itens, cada unidade sai por R$ 1.800
-
-Verificar que esta lógica está sendo corretamente aplicada no `CartPage`, `CheckoutPage` e `ProductDetailPage`. Ajustes pontuais se necessário.
-
-### 6. Admin - Gestão de Categorias
-
-O painel admin (`/admin/categorias`) já possui CRUD completo para categorias, conectado ao Supabase. Nenhuma mudança estrutural necessária -- apenas garantir que as novas categorias apareçam lá corretamente após a inserção.
+---
 
 ### Detalhes Técnicos
 
+**Arquivos a criar:**
+1. `src/pages/account/OrdersPage.tsx`
+2. `src/pages/account/AddressesPage.tsx`
+3. `src/pages/account/ProfilePage.tsx`
+
 **Arquivos a modificar:**
-1. `src/pages/HomePage.tsx` -- trocar "Categorias" por "Produtos", buscar da tabela `categories`, filtrar os tipos desejados
-2. `src/pages/ProductsPage.tsx` -- suportar rota `/categoria/:categorySlug`, considerar todos os produtos como "tenis" por padrão
-3. `src/hooks/useProducts.ts` -- adicionar hook ou query para buscar categorias do Supabase
+1. `src/App.tsx` -- atualizar rotas das sub-páginas
+2. `src/pages/CheckoutPage.tsx` -- adicionar indicadores visuais de atacado no resumo
 
-**SQL a executar:**
-Inserir categorias faltantes na tabela `categories` (Meias, Bolsas, Cintos, Malas, Chinelo, Importados, Tênis Infantil)
+**Segurança (já ok):**
+- RLS de `orders` e `order_items`: usuario só vê os seus próprios (`auth.uid() = user_id`)
+- RLS de `addresses`: usuario só vê/edita/deleta os seus próprios
+- RLS de `profiles`: usuario só vê/edita o seu próprio
 
-**Nenhuma mudança necessária em:**
-- `useCart.ts` (lógica de atacado 6+ já funciona)
-- `CartPage.tsx` (banner de atacado já implementado)
-- `CheckoutPage.tsx` (usa `getItemPrice` do carrinho)
-- Admin CategoriesPage (CRUD já funcional)
+**Nenhuma mudança no banco necessária** -- todas as tabelas e políticas já existem.
 
