@@ -43,7 +43,7 @@ type Step = 'shipping' | 'payment' | 'confirmation';
 
 export default function CheckoutPage() {
   const navigate = useNavigate();
-  const { items, subtotal, clearCart, getItemPrice } = useCart();
+  const { items, subtotal, clearCart, getItemPrice, isWholesale, wholesaleSavings } = useCart();
   const { user, profile, isLoading: authLoading } = useAuth();
 
   const [step, setStep] = useState<Step>('shipping');
@@ -705,10 +705,21 @@ export default function CheckoutPage() {
                 </div>
 
                 <div className="border-t border-border pt-4 space-y-2 text-sm">
+                  {isWholesale && (
+                    <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-2 mb-2 text-center">
+                      <span className="text-green-600 font-bold text-xs">🏷️ ATACADO ATIVO — 6+ peças</span>
+                    </div>
+                  )}
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Subtotal</span>
                     <span>{formatPrice(subtotal)}</span>
                   </div>
+                  {isWholesale && wholesaleSavings > 0 && (
+                    <div className="flex justify-between text-green-600">
+                      <span>Economia atacado</span>
+                      <span>-{formatPrice(wholesaleSavings)}</span>
+                    </div>
+                  )}
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Frete ({shippingOptions[shippingMethod].name})</span>
                     <span>{formatPrice(shippingCost)}</span>
