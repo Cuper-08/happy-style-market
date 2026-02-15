@@ -1,71 +1,42 @@
 
 
-## Corrigir Desconto Atacado 6+ e Implementar Sub-Páginas da Conta
+## Adicionar Imagens ao Banner Carrossel (Mobile-First)
 
-### Problema 1: Desconto Atacado
+### O que sera feito
 
-A lógica no `useCart.ts` está **correta** -- quando `totalItems >= 6`, usa `product.price` (atacado) em vez de `product.price_retail` (varejo). Porém, há dois problemas de visibilidade:
+As 3 imagens enviadas serao copiadas para o projeto e usadas como banners no carrossel da home. Como as imagens ja possuem texto e branding embutidos (titulos, subtitulos, logo Bras Conceito), o overlay de texto do carrossel sera removido para esses banners, exibindo apenas a imagem pura.
 
-1. **No Checkout**: o resumo do pedido **não mostra** a economia de atacado. Só mostra desconto do método de pagamento (PIX 10%, Boleto 5%). O usuário não consegue ver que o preço já está com atacado aplicado.
-2. **No Checkout**: não importa `isWholesale` nem `wholesaleSavings` do contexto do carrinho, então não há indicação visual de que o atacado está ativo.
+### 1. Copiar imagens para o projeto
 
-**Correção no `src/pages/CheckoutPage.tsx`:**
-- Importar `isWholesale` e `wholesaleSavings` do `useCart`
-- Mostrar linha "Economia atacado" no resumo quando aplicável
-- Mostrar badge "ATACADO ATIVO" quando `isWholesale = true`
+Copiar as 3 imagens para `public/banners/`:
+- `public/banners/slide-artistas.webp` (A Loja Que Veste Os Artistas)
+- `public/banners/slide-loja-fisica.webp` (Loja Fisica)
+- `public/banners/slide-frete-gratis.webp` (Frete Gratis)
 
----
+### 2. Ajustar HeroBanner para mobile
 
-### Problema 2: Sub-Páginas da Conta (Meus Pedidos, Enderecos, Perfil)
+**Modificar `src/components/home/HeroBanner.tsx`:**
 
-As rotas `/minha-conta/pedidos`, `/minha-conta/enderecos` e `/minha-conta/perfil` todas apontam para o mesmo `AccountPage` que é apenas o **menu**. Não existe conteúdo real nessas páginas.
+- Atualizar os `defaultBanners` para usar as 3 novas imagens locais
+- Remover o overlay de texto (gradientes + titulo + subtitulo + botao) pois as imagens ja contem todo o conteudo visual
+- Ajustar aspect ratio para mobile: mudar de `aspect-[16/9]` para `aspect-[16/7]` no mobile, garantindo que a imagem apareca mais alta e com melhor enquadramento no celular
+- Usar `object-center` para manter o foco no centro da imagem em todas as telas
+- Manter os dots de navegacao na parte inferior
+- Manter o auto-slide a cada 6 segundos
 
-**Solução: Criar 3 novas páginas completas:**
+### 3. Logica de fallback
 
-**1. `src/pages/account/OrdersPage.tsx` -- Meus Pedidos**
-- Buscar pedidos do usuário logado via `supabase.from('orders').select('*, order_items(*)').eq('user_id', user.id)`
-- Listar pedidos com: data, status (badge colorido), total, itens
-- Expandir detalhes de cada pedido (itens, endereço, rastreio)
-- Estado vazio: "Você ainda não fez nenhum pedido"
+- Se houver banners cadastrados no Supabase (via admin), esses continuam tendo prioridade e o overlay de texto continua funcionando para eles
+- Os defaultBanners (as 3 imagens novas) so aparecem quando nao ha banners no banco de dados
+- Para os defaultBanners, o overlay de texto/gradiente sera ocultado pois o conteudo ja esta na imagem
 
-**2. `src/pages/account/AddressesPage.tsx` -- Enderecos**
-- Buscar endereços via `supabase.from('addresses').select('*').eq('user_id', user.id)`
-- Listar endereços com: label, rua, número, bairro, cidade, CEP
-- Permitir adicionar novo endereço (formulário com busca CEP via ViaCEP)
-- Permitir editar e excluir endereços existentes
-- Marcar endereço como padrão
+### Detalhes Tecnicos
 
-**3. `src/pages/account/ProfilePage.tsx` -- Dados Pessoais**
-- Buscar perfil via `supabase.from('profiles').select('*').eq('user_id', user.id)`
-- Formulário editável: Nome completo, Telefone, CPF
-- Mostrar e-mail (somente leitura, vem do auth)
-- Botão "Salvar Alterações" com feedback visual
-- Máscaras de CPF e telefone (reutilizar do checkout)
+**Arquivos a criar (copia de assets):**
+- `public/banners/slide-artistas.webp`
+- `public/banners/slide-loja-fisica.webp`
+- `public/banners/slide-frete-gratis.webp`
 
-**Atualizar rotas no `src/App.tsx`:**
-```text
-/minha-conta/pedidos   -> OrdersPage (novo)
-/minha-conta/enderecos -> AddressesPage (novo)
-/minha-conta/perfil    -> ProfilePage (novo)
-```
-
----
-
-### Detalhes Técnicos
-
-**Arquivos a criar:**
-1. `src/pages/account/OrdersPage.tsx`
-2. `src/pages/account/AddressesPage.tsx`
-3. `src/pages/account/ProfilePage.tsx`
-
-**Arquivos a modificar:**
-1. `src/App.tsx` -- atualizar rotas das sub-páginas
-2. `src/pages/CheckoutPage.tsx` -- adicionar indicadores visuais de atacado no resumo
-
-**Segurança (já ok):**
-- RLS de `orders` e `order_items`: usuario só vê os seus próprios (`auth.uid() = user_id`)
-- RLS de `addresses`: usuario só vê/edita/deleta os seus próprios
-- RLS de `profiles`: usuario só vê/edita o seu próprio
-
-**Nenhuma mudança no banco necessária** -- todas as tabelas e políticas já existem.
+**Arquivo a modificar:**
+- `src/components/home/HeroBanner.tsx` -- novos defaultBanners, aspect ratio mobile ajustado, overlay condicional
 
