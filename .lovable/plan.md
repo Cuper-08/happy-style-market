@@ -1,12 +1,12 @@
 
 
-## Corrigir Zoom e Transicao do Carrossel
+## Corrigir Carrossel Travado e Zoom no Mobile (iPhone)
 
-### Causa Raiz Identificada
+### Problemas Identificados
 
-**1. Carrossel nao troca:** Existe **1 banner ativo no banco de dados** (Supabase). Como `dbBanners.length > 0`, o codigo ignora os 3 banners padrao (as imagens enviadas) e mostra apenas esse unico banner do banco. Com 1 banner, nao ha transicao.
+**1. Carrossel nao troca automaticamente**: O `goToSlide` usa `isTransitioning` como dependencia do `useCallback`, criando um problema de closure obsoleto (stale closure). Quando o `setInterval` dispara, ele chama uma versao antiga de `goToSlide` que ve `isTransitioning = true` e retorna sem fazer nada. Resultado: o carrossel trava no primeiro slide.
 
-**2. Imagem com muito zoom:** O aspect ratio `aspect-[4/5]` no mobile cria um container muito alto (quase retrato), forcando o `object-cover` a cortar excessivamente a imagem.
+**2. Imagem cortada no mobile**: Com `aspect-[3/2]` e `object-cover`, as imagens 1920x1920 (quadradas) sao cortadas excessivamente, escondendo partes importantes do conteudo (texto e branding ficam cortados nas laterais).
 
 ---
 
@@ -14,42 +14,46 @@
 
 **Arquivo: `src/components/home/HeroBanner.tsx`**
 
-1. **Mudar logica de fallback**: Usar os banners padrao (as 3 imagens enviadas) quando o banco tiver menos de 2 banners ativos. Isso garante que o carrossel funcione com as 3 imagens mesmo com 1 banner solitario no banco.
+**1. Corrigir auto-slide com `useRef`**: Substituir o estado `isTransitioning` por um `useRef` para evitar o problema de stale closure. O `useEffect` do intervalo usara diretamente o ref, garantindo que sempre tenha o valor atualizado.
 
-2. **Ajustar aspect ratio no mobile**: Trocar de `aspect-[4/5]` para `aspect-[3/2]` no mobile. Isso reduz significativamente o zoom, mostrando mais da imagem sem corte excessivo. Manter `sm:aspect-[2/1]` e `md:aspect-[3/1]` para tablet e desktop.
+```text
+// Antes: estado causa stale closure
+const [isTransitioning, setIsTransitioning] = useState(false);
+const goToSlide = useCallback((index) => {
+  if (isTransitioning) return;  // valor obsoleto!
+  ...
+}, [isTransitioning]);
 
-3. **Remover `scale-105` na transicao**: O efeito de scale nos slides inativos (`scale-105`) contribui para a sensacao de zoom. Substituir por uma transicao apenas de opacidade (fade) mais limpa.
+// Depois: ref sempre atualizado
+const isTransitioning = useRef(false);
+const goToSlide = useCallback((index) => {
+  if (isTransitioning.current) return;  // sempre correto
+  isTransitioning.current = true;
+  setCurrent(index);
+  setTimeout(() => { isTransitioning.current = false; }, 700);
+}, []);
+```
+
+**2. Simplificar o auto-play**: Remover `goToSlide` e `current` das dependencias do `useEffect` do intervalo. Usar um ref para `current` tambem, ou usar o pattern `setCurrent(prev => ...)` funcional que sempre tem o valor mais recente.
+
+```text
+useEffect(() => {
+  const timer = setInterval(() => {
+    setCurrent(prev => (prev + 1) % banners.length);
+  }, 6000);
+  return () => clearInterval(timer);
+}, [banners.length]);
+```
+
+**3. Ajustar aspect ratio mobile**: Mudar de `aspect-[3/2]` para `aspect-[1/1]` no mobile para imagens quadradas (1920x1920), reduzindo o corte. Manter `sm:aspect-[2/1]` e `md:aspect-[3/1]` para telas maiores.
 
 ---
 
-### Detalhes Tecnicos
+### Resumo das mudancas
 
-**Mudanca de fallback (linha 46):**
-```text
-// Antes: usa defaults so quando DB esta vazio
-const banners = dbBanners && dbBanners.length > 0 ? dbBanners : defaultBanners;
-
-// Depois: usa defaults quando DB tem menos de 2 banners
-const banners = dbBanners && dbBanners.length >= 2 ? dbBanners : defaultBanners;
-```
-
-**Mudanca de aspect ratio (linhas 68, 73):**
-```text
-// Antes
-aspect-[4/5] sm:aspect-[2/1] md:aspect-[3/1]
-
-// Depois
-aspect-[3/2] sm:aspect-[2/1] md:aspect-[3/1]
-```
-
-**Remover scale na transicao (linhas 79-81):**
-```text
-// Antes
-index === current ? 'opacity-100 scale-100' : 'opacity-0 scale-105 pointer-events-none'
-
-// Depois
-index === current ? 'opacity-100' : 'opacity-0 pointer-events-none'
-```
-
-**Arquivo unico a modificar:** `src/components/home/HeroBanner.tsx`
+- **Arquivo unico**: `src/components/home/HeroBanner.tsx`
+- Trocar `useState(false)` de transicao por `useRef(false)`
+- Simplificar `useEffect` do auto-play com `setCurrent(prev => ...)`
+- Remover dependencias desnecessarias que causam re-criacao do intervalo
+- Ajustar aspect ratio mobile para `aspect-[1/1]` (imagens quadradas)
 
