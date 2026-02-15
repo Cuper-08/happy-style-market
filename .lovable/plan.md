@@ -1,110 +1,70 @@
 
 
-## Organizar Produtos por Categorias, Limpar Descrições e Desconto Atacado 6+
+## Reorganizar Home por Tipo de Produto + Categorias no Supabase
 
-### 1. Filtros Inteligentes por Marca/Linha (extraídos do título)
+### O que muda
 
-Como a tabela `products` não tem coluna `category_id` ou `brand`, vamos extrair a marca/linha automaticamente do campo `title` usando um dicionário no frontend.
+A seção "Categorias" na Home será renomeada para **"Produtos"** e exibirá chips por **tipo de produto** (Tênis, Boné, Meias, etc.) em vez de por marca. As marcas (Air Jordan, Nike, Gucci) continuarão disponíveis como **sub-filtros** dentro de cada tipo de produto.
 
-**Marcas detectadas nos seus produtos atuais:**
-- Air Jordan
-- Balenciaga
-- Nike (SB Dunk, etc.)
-- Adidas (Superstar, Yeezy)
-- On Cloudtilt
-- New Balance
-- Gucci
-- Louis Vuitton
-- Travis Scott (collabs)
+### 1. Inserir categorias faltantes no Supabase
 
-**Arquivo novo: `src/lib/productCategories.ts`**
-- Dicionário de marcas com palavras-chave para match no título
-- Função `extractBrand(title)` que retorna a marca do produto
-- Função `getAvailableBrands(products)` que retorna marcas presentes nos produtos carregados
+A tabela `categories` já possui: Tenis, Boné, Acessórios, Roupas, Esportivos, HIGH QUALITY.
 
-**Modificações em `src/pages/ProductsPage.tsx`:**
-- Adicionar filtro por marca na sidebar e no Sheet mobile
-- Chips/botões clicáveis por marca no topo da página
-- Combinar com o filtro de preço existente
-- URL query param `?marca=air-jordan` para links diretos
+Inserir as que faltam via SQL:
+- Meias (slug: meias)
+- Bolsas (slug: bolsas)
+- Cintos (slug: cintos)
+- Malas (slug: malas)
+- Chinelo (slug: chinelo)
+- Importados (slug: importados)
+- Tênis Infantil (slug: tenis-infantil)
 
-**Modificações em `src/pages/HomePage.tsx`:**
-- Seção de marcas clicáveis acima dos produtos (chips horizontais com scroll)
-- Ao clicar, redireciona para `/produtos?marca=air-jordan`
+### 2. Modificar `src/pages/HomePage.tsx`
 
----
+- Trocar o título "Categorias" por **"Produtos"**
+- Buscar categorias da tabela `categories` do Supabase (em vez de extrair marcas do título)
+- Exibir apenas as categorias desejadas: Tênis, Boné, Meias, Bolsas, Cintos, Malas, Chinelo, Importados, Tênis Infantil
+- Cada chip linka para `/categoria/:slug` (rota já existente no App.tsx)
 
-### 2. Limpar Descrições HTML
+### 3. Modificar `src/pages/ProductsPage.tsx`
 
-O campo `description` contém HTML bruto com tags `<style>`, `<div>`, `<p>`, etc. Precisamos extrair apenas o texto limpo.
+- Quando acessado via `/categoria/tenis`, mostrar todos os produtos atuais (que são todos tênis)
+- Quando acessado via `/categoria/bone`, `/categoria/meias`, etc., mostrar apenas produtos daquela categoria (vazio por enquanto -- mensagem "Em breve")
+- Manter os filtros por marca como sub-filtros dentro da categoria Tênis
+- Ler o param `categorySlug` da URL para filtrar
 
-**Arquivo novo: `src/lib/sanitizeDescription.ts`**
-- Função `stripHtml(html: string): string` que:
-  - Remove tags `<style>...</style>` completamente
-  - Remove todas as tags HTML restantes
-  - Decodifica entidades HTML (`&apos;` etc.)
-  - Remove espaços duplicados e linhas vazias
-  - Retorna texto limpo e legível
+### 4. Lógica de categorização dos produtos
 
-**Modificações em `src/pages/ProductDetailPage.tsx`:**
-- Aplicar `stripHtml()` ao `product.description` antes de renderizar
-- Manter `whitespace-pre-line` para preservar quebras de linha do texto limpo
+Como a tabela `products` não tem coluna `category_id`, todos os produtos atuais serão considerados como "Tênis" por padrão. Quando novas categorias receberem produtos no futuro, será necessário adicionar um campo `category_id` à tabela products ou usar detecção por título.
 
-**Modificações em `src/components/product/ProductCard.tsx`:**
-- Se houver descrição curta no card, também aplicar sanitização
+Por agora: `/categoria/tenis` mostra todos os produtos; outras categorias ficam preparadas mas vazias.
 
----
+### 5. Desconto Atacado 6+ itens
 
-### 3. Lógica de Desconto Atacado (6+ produtos)
+A lógica já está implementada no `useCart.ts`:
+- `isWholesale = totalItems >= 6`
+- Quando ativo, usa `product.price` (atacado) em vez de `product.price_retail` (varejo)
+- Exemplo: Louis Vuitton R$ 2.100 varejo / R$ 1.800 atacado -- com 6+ itens, cada unidade sai por R$ 1.800
 
-Conforme as descrições dos produtos: "Atacado: acima de 6 pares". O preço de atacado (`price`) se aplica quando o carrinho tem 6 ou mais itens no total.
+Verificar que esta lógica está sendo corretamente aplicada no `CartPage`, `CheckoutPage` e `ProductDetailPage`. Ajustes pontuais se necessário.
 
-**Modificações em `src/hooks/useCart.ts`:**
-- `getItemPrice(item)`: verificar se `totalItems >= 6`
-  - Se sim, usar `product.price` (atacado)
-  - Se não, usar `product.price_retail` (varejo)
-- Recalcular `subtotal` com base nessa lógica
-- Exportar flag `isWholesale: boolean` para a UI
+### 6. Admin - Gestão de Categorias
 
-**Modificações em `src/pages/CartPage.tsx`:**
-- Mostrar banner informativo: "Adicione X mais itens para preço de atacado!"
-- Quando ativo, mostrar badge "ATACADO ATIVO" e preços com destaque
-- Mostrar economia total vs. preço de varejo
-
-**Modificações em `src/pages/ProductDetailPage.tsx`:**
-- Informar: "Compre 6+ itens e pague preço de atacado"
-- Mostrar ambos os preços com explicação clara
-
-**Modificações em `src/pages/CheckoutPage.tsx`:**
-- Usar a mesma lógica de preço do carrinho
-
----
-
-### 4. Levantamento de Melhorias (após implementação)
-
-Após concluir os 3 itens acima, farei um levantamento completo analisando:
-- Performance (lazy loading de imagens, paginação)
-- SEO (meta tags, títulos dinâmicos)
-- UX mobile (navegação, tamanho de botões)
-- Funcionalidades faltantes (busca no header, ordenação)
-- Integridade dos dados (slugs duplicados detectados no DB)
-- Segurança (RLS policies)
-
----
+O painel admin (`/admin/categorias`) já possui CRUD completo para categorias, conectado ao Supabase. Nenhuma mudança estrutural necessária -- apenas garantir que as novas categorias apareçam lá corretamente após a inserção.
 
 ### Detalhes Técnicos
 
-**Arquivos a criar:**
-1. `src/lib/productCategories.ts` - dicionário de marcas e funções de extração
-2. `src/lib/sanitizeDescription.ts` - função para limpar HTML das descrições
-
 **Arquivos a modificar:**
-1. `src/pages/ProductsPage.tsx` - filtros por marca + preço
-2. `src/pages/HomePage.tsx` - chips de marcas na home
-3. `src/pages/ProductDetailPage.tsx` - descrição limpa + info atacado 6+
-4. `src/hooks/useCart.ts` - lógica de preço atacado quando 6+ itens
-5. `src/pages/CartPage.tsx` - banner de desconto e preços atacado
-6. `src/pages/CheckoutPage.tsx` - preços consistentes com carrinho
+1. `src/pages/HomePage.tsx` -- trocar "Categorias" por "Produtos", buscar da tabela `categories`, filtrar os tipos desejados
+2. `src/pages/ProductsPage.tsx` -- suportar rota `/categoria/:categorySlug`, considerar todos os produtos como "tenis" por padrão
+3. `src/hooks/useProducts.ts` -- adicionar hook ou query para buscar categorias do Supabase
 
-**Observação sobre dados:** Detectei vários produtos com slugs duplicados no banco (ex: múltiplos "Balenciaga Tênis 3XL com cadarço" e "On Cloudtilt" com slugs diferentes). Isso será mencionado no levantamento de melhorias, pois pode indicar dados duplicados.
+**SQL a executar:**
+Inserir categorias faltantes na tabela `categories` (Meias, Bolsas, Cintos, Malas, Chinelo, Importados, Tênis Infantil)
+
+**Nenhuma mudança necessária em:**
+- `useCart.ts` (lógica de atacado 6+ já funciona)
+- `CartPage.tsx` (banner de atacado já implementado)
+- `CheckoutPage.tsx` (usa `getItemPrice` do carrinho)
+- Admin CategoriesPage (CRUD já funcional)
 
