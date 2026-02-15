@@ -1,35 +1,42 @@
 import { Link } from 'react-router-dom';
 import { Layout } from '@/components/layout';
 import { HeroBanner, ProductSection } from '@/components/home';
-import { useProducts } from '@/hooks/useProducts';
+import { useProducts, useCategories } from '@/hooks/useProducts';
 import { Skeleton } from '@/components/ui/skeleton';
-import { getAvailableBrands } from '@/lib/productCategories';
 import { useMemo } from 'react';
 import { Tag } from 'lucide-react';
 
+const DESIRED_CATEGORY_SLUGS = [
+  'tenis', 'bone', 'meias', 'bolsas', 'cintos', 'malas', 'chinelo', 'importados', 'tenis-infantil',
+];
+
 export default function HomePage() {
   const { data: allProducts = [], isLoading: loadingAll } = useProducts({ limit: 12 });
+  const { data: allCategories = [] } = useCategories();
 
-  const brands = useMemo(() => getAvailableBrands(allProducts), [allProducts]);
+  const categories = useMemo(() => {
+    return DESIRED_CATEGORY_SLUGS
+      .map(slug => allCategories.find(c => c.slug === slug))
+      .filter(Boolean) as typeof allCategories;
+  }, [allCategories]);
 
   return (
     <Layout>
       <div className="container py-6 md:py-10 space-y-10 md:space-y-14">
-        {/* Hero Banner */}
         <HeroBanner className="animate-fade-in" />
 
-        {/* Brand Chips */}
-        {brands.length > 0 && (
+        {/* Product Type Chips */}
+        {categories.length > 0 && (
           <section className="space-y-4">
-            <h2 className="text-lg font-bold">Categorias</h2>
+            <h2 className="text-lg font-bold">Produtos</h2>
             <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
-              {brands.map((brand) => (
+              {categories.map((cat) => (
                 <Link
-                  key={brand.slug}
-                  to={`/produtos?marca=${brand.slug}`}
+                  key={cat.slug}
+                  to={`/categoria/${cat.slug}`}
                   className="flex-shrink-0 px-4 py-2 rounded-full border border-border bg-card hover:bg-primary hover:text-primary-foreground transition-colors text-sm font-medium whitespace-nowrap"
                 >
-                  {brand.name}
+                  {cat.name}
                 </Link>
               ))}
             </div>
@@ -50,7 +57,7 @@ export default function HomePage() {
           <ProductSection
             title="Nossos Produtos"
             products={allProducts}
-            viewAllLink="/produtos"
+            viewAllLink="/categoria/tenis"
           />
         ) : (
           <section className="text-center py-16 bg-card rounded-2xl border border-border/50">
