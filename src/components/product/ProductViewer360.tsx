@@ -5,11 +5,13 @@ import { cn } from '@/lib/utils';
 interface ProductViewer360Props {
   images: string[];
   alt: string;
+  currentIndex?: number;
   onImageIndexChange?: (index: number) => void;
 }
 
-export function ProductViewer360({ images, alt, onImageIndexChange }: ProductViewer360Props) {
-  const [currentIndex, setCurrentIndex] = useState(0);
+export function ProductViewer360({ images, alt, currentIndex: externalIndex, onImageIndexChange }: ProductViewer360Props) {
+  const [internalIndex, setInternalIndex] = useState(0);
+  const currentIndex = externalIndex ?? internalIndex;
   const [scale, setScale] = useState(1);
   const [isDragging, setIsDragging] = useState(false);
   const [showHint, setShowHint] = useState(true);
@@ -44,7 +46,7 @@ export function ProductViewer360({ images, alt, onImageIndexChange }: ProductVie
     const steps = Math.floor(deltaX / sensitivity);
     let newIndex = (startIndexRef.current - steps) % images.length;
     if (newIndex < 0) newIndex += images.length;
-    setCurrentIndex(newIndex);
+    setInternalIndex(newIndex);
     onImageIndexChange?.(newIndex);
   }, [images.length, onImageIndexChange]);
 

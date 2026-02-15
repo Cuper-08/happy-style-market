@@ -146,6 +146,7 @@ export default function ProductDetailPage() {
             <ProductViewer360
               images={product.images}
               alt={product.name}
+              currentIndex={selectedImageIndex}
               onImageIndexChange={setSelectedImageIndex}
             />
             {product.images.length > 1 && (
