@@ -1,114 +1,110 @@
-## Adaptar a Interface ao Schema Real do Banco de Dados
-
-### Problema Atual
-
-A interface usa nomes de campos que **nao existem** na tabela `products` real do Supabase. Veja o mapeamento:
 
 
-| App espera (TypeScript)           | DB tem (real)  |
-| --------------------------------- | -------------- |
-| `name`                            | `title`        |
-| `retail_price`                    | `price_retail` |
-| `wholesale_price`                 | `price`        |
-| `category_id`, `brand_id`         | nao existem    |
-| `featured`, `is_new`, `is_active` | nao existem    |
-| `wholesale_min_qty`               | nao existe     |
+## Organizar Produtos por Categorias, Limpar Descrições e Desconto Atacado 6+
 
+### 1. Filtros Inteligentes por Marca/Linha (extraídos do título)
 
-A tabela `product_variants` tambem difere: o DB tem `size` e `stock` (boolean), enquanto o app espera `color`, `color_hex`, `stock_quantity`, `sku`.
+Como a tabela `products` não tem coluna `category_id` ou `brand`, vamos extrair a marca/linha automaticamente do campo `title` usando um dicionário no frontend.
 
-### Abordagem: Adaptar o codigo ao schema real
+**Marcas detectadas nos seus produtos atuais:**
+- Air Jordan
+- Balenciaga
+- Nike (SB Dunk, etc.)
+- Adidas (Superstar, Yeezy)
+- On Cloudtilt
+- New Balance
+- Gucci
+- Louis Vuitton
+- Travis Scott (collabs)
 
-Em vez de alterar o banco (que voce ja populou), vou adaptar todo o codigo TypeScript para funcionar com o schema real. Campos que nao existem no DB serao tratados como opcionais com valores padrao.
+**Arquivo novo: `src/lib/productCategories.ts`**
+- Dicionário de marcas com palavras-chave para match no título
+- Função `extractBrand(title)` que retorna a marca do produto
+- Função `getAvailableBrands(products)` que retorna marcas presentes nos produtos carregados
 
-### Arquivos a Modificar
+**Modificações em `src/pages/ProductsPage.tsx`:**
+- Adicionar filtro por marca na sidebar e no Sheet mobile
+- Chips/botões clicáveis por marca no topo da página
+- Combinar com o filtro de preço existente
+- URL query param `?marca=air-jordan` para links diretos
 
-**1. `src/types/index.ts` - Tipo Product**
+**Modificações em `src/pages/HomePage.tsx`:**
+- Seção de marcas clicáveis acima dos produtos (chips horizontais com scroll)
+- Ao clicar, redireciona para `/produtos?marca=air-jordan`
 
-Atualizar a interface para refletir o schema real:
+---
 
-```text
-Product {
-  id, title (em vez de name), slug, description,
-  price (atacado), price_display,
-  price_retail (varejo), price_retail_display,
-  images, created_at, original_url,
-  variants? (com size e stock boolean)
-}
-```
+### 2. Limpar Descrições HTML
 
-**2. `src/hooks/useProducts.ts` - Queries**
+O campo `description` contém HTML bruto com tags `<style>`, `<div>`, `<p>`, etc. Precisamos extrair apenas o texto limpo.
 
-- Remover joins com `categories` e `brands` (nao existem FK no schema real)
-- Remover filtros por `is_active`, `featured`, `is_new` (colunas inexistentes)
-- Select simples: `*, variants:product_variants(*)`
+**Arquivo novo: `src/lib/sanitizeDescription.ts`**
+- Função `stripHtml(html: string): string` que:
+  - Remove tags `<style>...</style>` completamente
+  - Remove todas as tags HTML restantes
+  - Decodifica entidades HTML (`&apos;` etc.)
+  - Remove espaços duplicados e linhas vazias
+  - Retorna texto limpo e legível
 
-**3. `src/components/product/ProductCard.tsx` - Card do Produto**
+**Modificações em `src/pages/ProductDetailPage.tsx`:**
+- Aplicar `stripHtml()` ao `product.description` antes de renderizar
+- Manter `whitespace-pre-line` para preservar quebras de linha do texto limpo
 
-- `product.name` -> `product.title`
-- `product.retail_price` -> `product.price_retail`
-- `product.wholesale_price` -> `product.price`
-- Usar `price_retail_display` quando disponivel (ja formatado)
-- Remover badge "LANCAMENTO" (sem campo `is_new`)
-- Remover logica de `brand.name`
-- Remover logica de estoque baseada em `stock_quantity` (agora e boolean `stock`)
+**Modificações em `src/components/product/ProductCard.tsx`:**
+- Se houver descrição curta no card, também aplicar sanitização
 
-**4. `src/pages/ProductDetailPage.tsx` - Pagina de Detalhe**
+---
 
-- Mesmas renomeacoes de campos
-- Remover secao de cores (sem `color`/`color_hex` no schema real)
-- Tamanhos via `product_variants.size`
-- Disponibilidade via `variant.stock` (boolean) em vez de `stock_quantity`
-- Remover banner de atacado baseado em `wholesale_min_qty` (campo inexistente)
-- Mostrar preco de varejo em destaque, atacado como secundario
+### 3. Lógica de Desconto Atacado (6+ produtos)
 
-**5. `src/pages/ProductsPage.tsx` - Listagem**
+Conforme as descrições dos produtos: "Atacado: acima de 6 pares". O preço de atacado (`price`) se aplica quando o carrinho tem 6 ou mais itens no total.
 
-- `p.name` -> `p.title`
-- `p.retail_price` -> `p.price_retail`
-- Remover filtros `featured`/`is_new` dos searchParams
+**Modificações em `src/hooks/useCart.ts`:**
+- `getItemPrice(item)`: verificar se `totalItems >= 6`
+  - Se sim, usar `product.price` (atacado)
+  - Se não, usar `product.price_retail` (varejo)
+- Recalcular `subtotal` com base nessa lógica
+- Exportar flag `isWholesale: boolean` para a UI
 
-**6. `src/pages/CartPage.tsx` e `src/hooks/useCart.ts` - Carrinho**
+**Modificações em `src/pages/CartPage.tsx`:**
+- Mostrar banner informativo: "Adicione X mais itens para preço de atacado!"
+- Quando ativo, mostrar badge "ATACADO ATIVO" e preços com destaque
+- Mostrar economia total vs. preço de varejo
 
-- `product.name` -> `product.title`
-- `product.retail_price` -> `product.price_retail`
-- `product.wholesale_price` -> `product.price`
-- Simplificar logica de preco (sem `wholesale_min_qty`, usar preco de varejo como padrao)
+**Modificações em `src/pages/ProductDetailPage.tsx`:**
+- Informar: "Compre 6+ itens e pague preço de atacado"
+- Mostrar ambos os preços com explicação clara
 
-**7. `src/pages/CheckoutPage.tsx` - Checkout**
+**Modificações em `src/pages/CheckoutPage.tsx`:**
+- Usar a mesma lógica de preço do carrinho
 
-- `item.product.name` -> `item.product.title`
-- Ajustar campos na criacao de order_items
+---
 
-**8. `src/pages/HomePage.tsx` - Home**
+### 4. Levantamento de Melhorias (após implementação)
 
-- Remover filtros `featured`/`isNew` (colunas inexistentes)
-- Mostrar todos os produtos ou organizar de outra forma
+Após concluir os 3 itens acima, farei um levantamento completo analisando:
+- Performance (lazy loading de imagens, paginação)
+- SEO (meta tags, títulos dinâmicos)
+- UX mobile (navegação, tamanho de botões)
+- Funcionalidades faltantes (busca no header, ordenação)
+- Integridade dos dados (slugs duplicados detectados no DB)
+- Segurança (RLS policies)
 
-**9. `src/components/home/ProductSection.tsx**`
+---
 
-- Nenhuma mudanca estrutural (usa ProductCard que sera atualizado)
+### Detalhes Técnicos
 
-**10. Admin (useAdminProducts, ProductsPage, ProductFormPage, etc.)**
+**Arquivos a criar:**
+1. `src/lib/productCategories.ts` - dicionário de marcas e funções de extração
+2. `src/lib/sanitizeDescription.ts` - função para limpar HTML das descrições
 
-- Adaptar para o schema real
-- Remover campos inexistentes dos formularios e queries
+**Arquivos a modificar:**
+1. `src/pages/ProductsPage.tsx` - filtros por marca + preço
+2. `src/pages/HomePage.tsx` - chips de marcas na home
+3. `src/pages/ProductDetailPage.tsx` - descrição limpa + info atacado 6+
+4. `src/hooks/useCart.ts` - lógica de preço atacado quando 6+ itens
+5. `src/pages/CartPage.tsx` - banner de desconto e preços atacado
+6. `src/pages/CheckoutPage.tsx` - preços consistentes com carrinho
 
-### Regras de Exibicao (conforme sua especificacao)
+**Observação sobre dados:** Detectei vários produtos com slugs duplicados no banco (ex: múltiplos "Balenciaga Tênis 3XL com cadarço" e "On Cloudtilt" com slugs diferentes). Isso será mencionado no levantamento de melhorias, pois pode indicar dados duplicados.
 
-- **Grid**: Imagem (`images[0]`), Titulo (`title`), Preco Varejo (`price_retail_display` ou formatado de `price_retail`)
-- **Detalhe**: Todas as imagens no viewer 360, titulo, descricao, precos, tamanhos disponiveis
-- **Atacado**: Mostrar `price_display` como label secundario (sem logica de quantidade minima por enquanto)
-
-### Minha Opiniao sobre Layout
-
-O layout atual dos cards e da pagina de detalhes ja esta muito bom. Sugiro manter:
-
-- Card com imagem principal, titulo e preco de varejo em destaque
-- Badge "ATACADO" com preco de atacado visivel apenas como informacao secundaria
-- Na pagina de detalhe, preco de varejo grande e preco de atacado menor abaixo
-- Viewer 360 para produtos com multiplas imagens (ja implementado)
-- Organizar os produtos por linha/modelos.
-- Adaptar/criar filtros inteligentes conforme linha dos produtos. Por exemplo, o modelo Air Jordan. O cliente clica nesse filtro e puxa os produtos Air Jordan.
-
-A unica mudanca significativa e remover funcionalidades que dependem de colunas inexistentes (categorias, marcas, featured, is_new) ate que essas colunas sejam adicionadas ao banco futuramente.
