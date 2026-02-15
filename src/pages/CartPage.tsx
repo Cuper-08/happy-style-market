@@ -4,7 +4,6 @@ import { useCart } from '@/contexts/CartContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Trash2, Minus, Plus, ShoppingBag, ArrowRight } from 'lucide-react';
-import { cn } from '@/lib/utils';
 
 export default function CartPage() {
   const { items, removeItem, updateQuantity, getItemPrice, subtotal, clearCart } = useCart();
@@ -43,9 +42,6 @@ export default function CartPage() {
           <div className="lg:col-span-2 space-y-4">
             {items.map((item) => {
               const price = getItemPrice(item);
-              const isWholesale = item.product.wholesale_price && 
-                item.quantity >= item.product.wholesale_min_qty &&
-                price === item.product.wholesale_price;
 
               return (
                 <div
@@ -55,8 +51,8 @@ export default function CartPage() {
                   {/* Image */}
                   <Link to={`/produto/${item.product.slug}`} className="flex-shrink-0">
                     <img
-                      src={item.product.images[0] || '/placeholder.svg'}
-                      alt={item.product.name}
+                      src={item.product.images?.[0] || '/placeholder.svg'}
+                      alt={item.product.title}
                       className="h-24 w-24 object-cover rounded-lg"
                     />
                   </Link>
@@ -65,47 +61,19 @@ export default function CartPage() {
                   <div className="flex-1 min-w-0">
                     <Link to={`/produto/${item.product.slug}`}>
                       <h3 className="font-medium hover:text-primary transition-colors line-clamp-2">
-                        {item.product.name}
+                        {item.product.title}
                       </h3>
                     </Link>
                     {item.variant && (
                       <p className="text-sm text-muted-foreground mt-1">
-                        {item.variant.color && `Cor: ${item.variant.color}`}
-                        {item.variant.color && item.variant.size && ' | '}
-                        {item.variant.size && `Tam: ${item.variant.size}`}
+                        Tam: {item.variant.size}
                       </p>
                     )}
                     <div className="flex items-center gap-2 mt-2">
-                      <span className={cn(
-                        'font-bold',
-                        isWholesale ? 'text-primary' : ''
-                      )}>
+                      <span className="font-bold">
                         {formatPrice(price)}
                       </span>
-                      {isWholesale && (
-                        <span className="text-xs bg-primary/20 text-primary px-2 py-0.5 rounded">
-                          ATACADO
-                        </span>
-                      )}
                     </div>
-
-                    {/* Wholesale hint */}
-                    {item.product.wholesale_price != null && item.product.wholesale_price > 0 && (() => {
-                      const minQty = item.product.wholesale_min_qty || 6;
-                      const remaining = minQty - item.quantity;
-                      if (remaining > 0) {
-                        return (
-                          <p className="text-xs font-medium text-orange-600 dark:text-orange-400 mt-2">
-                            Adicione mais {remaining} un. para preço de atacado ({new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.product.wholesale_price!)}/un.)
-                          </p>
-                        );
-                      }
-                      return (
-                        <p className="text-xs font-medium text-green-600 dark:text-green-400 mt-2">
-                          ✓ Preço de atacado aplicado!
-                        </p>
-                      );
-                    })()}
 
                     {/* Quantity & Actions */}
                     <div className="flex items-center justify-between mt-3">
@@ -157,13 +125,11 @@ export default function CartPage() {
             <div className="bg-card rounded-lg border border-border p-6 space-y-4 sticky top-20">
               <h2 className="text-lg font-bold">Resumo do Pedido</h2>
 
-              {/* Coupon */}
               <div className="flex gap-2">
                 <Input placeholder="Cupom de desconto" className="bg-secondary" />
                 <Button variant="outline">Aplicar</Button>
               </div>
 
-              {/* Shipping Calculator */}
               <div>
                 <label className="text-sm font-medium mb-2 block">Calcular frete</label>
                 <div className="flex gap-2">

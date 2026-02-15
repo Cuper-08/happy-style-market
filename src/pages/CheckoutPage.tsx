@@ -271,9 +271,9 @@ export default function CheckoutPage() {
         order_id: order.id,
         product_id: item.product.id,
         variant_id: item.variant?.id || null,
-        product_name: item.product.name,
+        product_name: item.product.title,
         variant_info: item.variant 
-          ? `${item.variant.color || ''} ${item.variant.size}`.trim()
+          ? `Tam ${item.variant.size}`
           : null,
         quantity: item.quantity,
         unit_price: getItemPrice(item),
@@ -691,11 +691,11 @@ export default function CheckoutPage() {
                     <div key={`${item.product.id}-${item.variant?.id}`} className="flex gap-3">
                       <img
                         src={item.product.images[0] || '/placeholder.svg'}
-                        alt={item.product.name}
+                        alt={item.product.title}
                         className="h-12 w-12 rounded object-cover"
                       />
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate">{item.product.name}</p>
+                        <p className="text-sm font-medium truncate">{item.product.title}</p>
                         <p className="text-xs text-muted-foreground">
                           Qtd: {item.quantity} × {formatPrice(getItemPrice(item))}
                         </p>

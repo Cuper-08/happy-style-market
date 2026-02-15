@@ -7,15 +7,26 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
-import { Upload, Loader2, AlertCircle, CheckCircle2, Plus, Sparkles } from 'lucide-react';
+import { Upload, Loader2, AlertCircle, CheckCircle2, Plus } from 'lucide-react';
 import { parseUpdateCSV, type ProductDiff } from '@/components/admin/csvTemplate';
 import { useBulkUpdateProducts, type ProductChange } from '@/hooks/admin/useBulkUpdate';
-import type { Product } from '@/types';
+
+interface CurrentProduct {
+  id: string;
+  name: string;
+  retail_price: number;
+  wholesale_price?: number;
+  wholesale_min_qty: number;
+  featured: boolean;
+  is_new: boolean;
+  is_active: boolean;
+  variants?: { id: string; size: string; color?: string; color_hex?: string; stock_quantity: number; sku?: string }[];
+}
 
 interface BulkUpdateModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  products: Product[];
+  products: CurrentProduct[];
 }
 
 const fieldLabels: Record<string, string> = {
@@ -107,17 +118,10 @@ export function BulkUpdateModal({ open, onOpenChange, products }: BulkUpdateModa
           <div className="space-y-4">
             <div>
               <Label htmlFor="csv-update-file">Arquivo CSV</Label>
-              <Input
-                id="csv-update-file"
-                type="file"
-                accept=".csv"
-                onChange={handleFile}
-                className="mt-1"
-              />
+              <Input id="csv-update-file" type="file" accept=".csv" onChange={handleFile} className="mt-1" />
             </div>
             <p className="text-xs text-muted-foreground">
               Use o arquivo gerado por "Exportar Produtos". Edite os campos desejados e envie de volta.
-              Apenas os campos alterados serão atualizados. Agora inclui tamanhos, cores e estoque.
             </p>
           </div>
         )}
@@ -140,7 +144,7 @@ export function BulkUpdateModal({ open, onOpenChange, products }: BulkUpdateModa
               <div className="flex flex-col items-center py-6 text-center">
                 <CheckCircle2 className="h-10 w-10 text-muted-foreground mb-2" />
                 <p className="text-sm text-muted-foreground">
-                  Nenhuma diferença encontrada. Os dados do CSV são iguais aos do banco.
+                  Nenhuma diferença encontrada.
                 </p>
               </div>
             ) : (
@@ -149,8 +153,6 @@ export function BulkUpdateModal({ open, onOpenChange, products }: BulkUpdateModa
                   {diffs.map((diff) => (
                     <div key={diff.id} className="rounded-md border p-3 space-y-2">
                       <p className="font-medium text-sm">{diff.name}</p>
-
-                      {/* Product-level changes */}
                       {Object.keys(diff.changes).length > 0 && (
                         <div className="flex flex-wrap gap-1">
                           {Object.entries(diff.changes).map(([key, newVal]) => (
@@ -160,8 +162,6 @@ export function BulkUpdateModal({ open, onOpenChange, products }: BulkUpdateModa
                           ))}
                         </div>
                       )}
-
-                      {/* Variant changes */}
                       {diff.variantDiffs.length > 0 && (
                         <div className="space-y-1">
                           {diff.variantDiffs.map((vd, i) => (
@@ -176,22 +176,14 @@ export function BulkUpdateModal({ open, onOpenChange, products }: BulkUpdateModa
                           ))}
                         </div>
                       )}
-
-                      {/* New variants */}
                       {diff.newVariants.length > 0 && (
                         <div className="space-y-1">
                           {diff.newVariants.map((nv, i) => (
                             <div key={i} className="flex items-center gap-1">
                               <Plus className="h-3 w-3 text-primary" />
                               <Badge variant="secondary" className="text-xs bg-accent">
-                                Nova variante: Tam {nv.size}{nv.color ? ` / ${nv.color}` : ''}{nv.stock_quantity ? ` (${nv.stock_quantity} un)` : ''}
+                                Nova variante: Tam {nv.size}
                               </Badge>
-                              {nv.size === 'Unico' && nv.color && (
-                                <Badge className="text-xs bg-primary/20 text-primary border-0">
-                                  <Sparkles className="h-3 w-3 mr-1" />
-                                  Detectada do nome
-                                </Badge>
-                              )}
                             </div>
                           ))}
                         </div>
@@ -208,22 +200,14 @@ export function BulkUpdateModal({ open, onOpenChange, products }: BulkUpdateModa
           {step === 'review' && (diffs.length > 0) && (
             <Button onClick={handleConfirm} disabled={bulkUpdate.isPending}>
               {bulkUpdate.isPending ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Atualizando...
-                </>
+                <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Atualizando...</>
               ) : (
-                <>
-                  <Upload className="h-4 w-4 mr-2" />
-                  Confirmar {totalChanges} alteração(ões)
-                </>
+                <><Upload className="h-4 w-4 mr-2" />Confirmar {totalChanges} alteração(ões)</>
               )}
             </Button>
           )}
           {step === 'review' && (
-            <Button variant="outline" onClick={reset}>
-              Voltar
-            </Button>
+            <Button variant="outline" onClick={reset}>Voltar</Button>
           )}
         </DialogFooter>
       </DialogContent>

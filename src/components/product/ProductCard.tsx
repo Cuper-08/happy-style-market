@@ -23,11 +23,12 @@ export function ProductCard({ product, className, index = 0 }: ProductCardProps)
     }).format(price);
   };
 
-  const hasWholesale = product.wholesale_price && product.wholesale_price < product.retail_price;
-  const totalStock = product.variants?.reduce((sum, v) => sum + (v.stock_quantity || 0), 0) ?? 0;
-  const isOutOfStock = product.variants && product.variants.length > 0 && totalStock === 0;
+  const hasWholesale = product.price != null && product.price > 0 && 
+    product.price_retail != null && product.price < product.price_retail;
+  
+  const hasAnyVariantInStock = product.variants?.some(v => v.stock !== false) ?? true;
+  const isOutOfStock = product.variants && product.variants.length > 0 && !hasAnyVariantInStock;
 
-  // Staggered animation delay based on index
   const animationDelay = Math.min(index * 75, 500);
 
   return (
@@ -45,8 +46,8 @@ export function ProductCard({ product, className, index = 0 }: ProductCardProps)
       {/* Image */}
       <Link to={`/produto/${product.slug}`} className="relative aspect-square overflow-hidden bg-gray-50">
         <img
-          src={product.images[0] || '/placeholder.svg'}
-          alt={product.name}
+          src={product.images?.[0] || '/placeholder.svg'}
+          alt={product.title}
           className={cn(
             "h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-110",
             isOutOfStock && "opacity-50 grayscale"
@@ -58,11 +59,6 @@ export function ProductCard({ product, className, index = 0 }: ProductCardProps)
         
         {/* Badges */}
         <div className="absolute top-3 left-3 flex flex-col gap-1.5">
-          {product.is_new && (
-            <Badge className="bg-primary text-primary-foreground text-[10px] px-2.5 py-0.5 shimmer-badge">
-              LANÇAMENTO
-            </Badge>
-          )}
           {hasWholesale && (
             <Badge variant="secondary" className="text-[10px] px-2.5 py-0.5 bg-gray-800 text-white">
               ATACADO
@@ -98,42 +94,28 @@ export function ProductCard({ product, className, index = 0 }: ProductCardProps)
 
       {/* Content */}
       <div className="flex flex-col flex-1 p-4 md:p-5 bg-white">
-        {/* Brand */}
-        {product.brand && (
-          <span className="text-[10px] font-medium text-primary uppercase tracking-widest">
-            {product.brand.name}
-          </span>
-        )}
-
         {/* Name */}
         <Link to={`/produto/${product.slug}`}>
           <h3 className="font-medium text-sm mt-1.5 line-clamp-2 text-gray-900 hover:text-primary transition-colors duration-300">
-            {product.name}
+            {product.title}
           </h3>
         </Link>
 
         {/* Prices */}
         <div className="mt-auto pt-4 space-y-1.5">
+          <div className="flex items-center gap-2">
+            <span className="font-bold text-base text-gray-900">
+              {product.price_retail_display || (product.price_retail ? formatPrice(product.price_retail) : 'Consulte')}
+            </span>
+          </div>
           {hasWholesale && (
             <div className="flex items-center gap-2 flex-wrap">
               <span className="text-[10px] text-gray-500">Atacado:</span>
               <span className="text-sm font-bold text-primary">
-                {formatPrice(product.wholesale_price!)}
-              </span>
-              <span className="text-[10px] text-gray-500">
-                (mín. {product.wholesale_min_qty} un.)
+                {product.price_display || formatPrice(product.price!)}
               </span>
             </div>
           )}
-          <div className="flex items-center gap-2">
-            {hasWholesale && <span className="text-[10px] text-gray-500">Varejo:</span>}
-            <span className={cn(
-              'font-bold',
-              hasWholesale ? 'text-sm text-gray-600' : 'text-base text-gray-900'
-            )}>
-              {formatPrice(product.retail_price)}
-            </span>
-          </div>
         </div>
       </div>
     </div>

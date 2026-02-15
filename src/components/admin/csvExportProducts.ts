@@ -3,31 +3,24 @@ import type { Product } from '@/types';
 export function exportProductsCSV(products: Product[]) {
   const separator = ';';
   const headers = [
-    'id', 'variant_id', 'nome', 'slug', 'categoria', 'marca',
-    'preco_varejo', 'preco_atacado', 'qtd_min_atacado',
-    'destaque', 'novo', 'ativo',
-    'tamanho', 'cor', 'cor_hex', 'estoque', 'sku',
+    'id', 'variant_id', 'titulo', 'slug',
+    'preco_varejo', 'preco_atacado',
+    'tamanho', 'em_estoque',
   ];
 
-  const boolStr = (val: boolean | undefined | null) => (val ? 'sim' : 'nao');
   const numStr = (val: number | undefined | null) => (val != null ? String(val) : '');
+  const boolStr = (val: boolean | undefined | null) => (val ? 'sim' : 'nao');
 
   const rows: string[][] = [];
 
   for (const p of products) {
     const baseRow = [
       p.id,
-      '', // variant_id placeholder
-      p.name,
+      '',
+      p.title,
       p.slug,
-      p.category?.name || '',
-      p.brand?.name || '',
-      numStr(p.retail_price),
-      numStr(p.wholesale_price),
-      numStr(p.wholesale_min_qty),
-      boolStr(p.featured),
-      boolStr(p.is_new),
-      boolStr(p.is_active),
+      numStr(p.price_retail),
+      numStr(p.price),
     ];
 
     if (p.variants && p.variants.length > 0) {
@@ -37,14 +30,11 @@ export function exportProductsCSV(products: Product[]) {
           v.id,
           ...baseRow.slice(2),
           v.size || '',
-          v.color || '',
-          v.color_hex || '',
-          numStr(v.stock_quantity),
-          v.sku || '',
+          boolStr(v.stock),
         ]);
       }
     } else {
-      rows.push([...baseRow, '', '', '', '', '']);
+      rows.push([...baseRow, '', '']);
     }
   }
 

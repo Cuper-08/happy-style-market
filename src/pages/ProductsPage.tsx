@@ -1,26 +1,22 @@
-import { useParams, useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { Layout } from '@/components/layout';
 import { ProductGrid } from '@/components/product';
-import { useProducts, useCategories, useBrands } from '@/hooks/useProducts';
+import { useProducts } from '@/hooks/useProducts';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { Checkbox } from '@/components/ui/checkbox';
 import { SlidersHorizontal } from 'lucide-react';
 import { useState, useMemo } from 'react';
-import { Brand } from '@/types';
 
 interface FilterContentProps {
   priceRange: 'all' | 'under100' | '100to200' | 'over200';
   setPriceRange: (value: 'all' | 'under100' | '100to200' | 'over200') => void;
-  selectedBrands: string[];
-  toggleBrand: (slug: string) => void;
-  brands: Brand[];
   hasActiveFilters: boolean;
   clearFilters: () => void;
 }
 
-function FilterContent({ priceRange, setPriceRange, selectedBrands, toggleBrand, brands, hasActiveFilters, clearFilters }: FilterContentProps) {
+function FilterContent({ priceRange, setPriceRange, hasActiveFilters, clearFilters }: FilterContentProps) {
   return (
     <div className="space-y-6">
       <div>
@@ -43,23 +39,6 @@ function FilterContent({ priceRange, setPriceRange, selectedBrands, toggleBrand,
         </div>
       </div>
 
-      {brands.length > 0 && (
-        <div>
-          <h3 className="font-semibold mb-3">Marcas</h3>
-          <div className="space-y-2">
-            {brands.map((brand) => (
-              <label key={brand.id} className="flex items-center gap-2 cursor-pointer">
-                <Checkbox
-                  checked={selectedBrands.includes(brand.slug)}
-                  onCheckedChange={() => toggleBrand(brand.slug)}
-                />
-                <span className="text-sm">{brand.name}</span>
-              </label>
-            ))}
-          </div>
-        </div>
-      )}
-
       {hasActiveFilters && (
         <Button variant="outline" onClick={clearFilters} className="w-full">
           Limpar Filtros
@@ -70,37 +49,27 @@ function FilterContent({ priceRange, setPriceRange, selectedBrands, toggleBrand,
 }
 
 export default function ProductsPage() {
-  const { categorySlug } = useParams();
   const [searchParams] = useSearchParams();
-  const [selectedBrands, setSelectedBrands] = useState<string[]>([]);
   const [priceRange, setPriceRange] = useState<'all' | 'under100' | '100to200' | 'over200'>('all');
 
-  const { data: products = [], isLoading } = useProducts({ categorySlug });
-  const { data: categories = [] } = useCategories();
-  const { data: brands = [] } = useBrands();
+  const { data: products = [], isLoading } = useProducts();
 
-  const category = categories.find(c => c.slug === categorySlug);
   const searchQuery = searchParams.get('q');
   const title = searchQuery
     ? `Resultados para "${searchQuery}"`
-    : category?.name || 'Todos os Produtos';
+    : 'Todos os Produtos';
 
   const filteredProducts = useMemo(() => {
     let result = products;
 
-    // Search filter
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
-      result = result.filter(p => p.name.toLowerCase().includes(q));
-    }
-
-    if (selectedBrands.length > 0) {
-      result = result.filter(p => p.brand && selectedBrands.includes(p.brand.slug));
+      result = result.filter(p => p.title.toLowerCase().includes(q));
     }
 
     if (priceRange !== 'all') {
       result = result.filter(p => {
-        const price = p.retail_price;
+        const price = p.price_retail || 0;
         switch (priceRange) {
           case 'under100': return price < 100;
           case '100to200': return price >= 100 && price <= 200;
@@ -110,28 +79,14 @@ export default function ProductsPage() {
       });
     }
 
-    if (searchParams.get('featured') === 'true') {
-      result = result.filter(p => p.featured);
-    }
-    if (searchParams.get('new') === 'true') {
-      result = result.filter(p => p.is_new);
-    }
-
     return result;
-  }, [products, selectedBrands, priceRange, searchParams, searchQuery]);
-
-  const toggleBrand = (slug: string) => {
-    setSelectedBrands(prev =>
-      prev.includes(slug) ? prev.filter(b => b !== slug) : [...prev, slug]
-    );
-  };
+  }, [products, priceRange, searchQuery]);
 
   const clearFilters = () => {
-    setSelectedBrands([]);
     setPriceRange('all');
   };
 
-  const hasActiveFilters = selectedBrands.length > 0 || priceRange !== 'all';
+  const hasActiveFilters = priceRange !== 'all';
 
   return (
     <Layout>
@@ -164,9 +119,6 @@ export default function ProductsPage() {
                 <FilterContent
                   priceRange={priceRange}
                   setPriceRange={setPriceRange}
-                  selectedBrands={selectedBrands}
-                  toggleBrand={toggleBrand}
-                  brands={brands}
                   hasActiveFilters={hasActiveFilters}
                   clearFilters={clearFilters}
                 />
@@ -182,9 +134,6 @@ export default function ProductsPage() {
               <FilterContent
                 priceRange={priceRange}
                 setPriceRange={setPriceRange}
-                selectedBrands={selectedBrands}
-                toggleBrand={toggleBrand}
-                brands={brands}
                 hasActiveFilters={hasActiveFilters}
                 clearFilters={clearFilters}
               />
