@@ -43,8 +43,8 @@ export function HeroBanner({ className }: HeroBannerProps) {
   const [current, setCurrent] = useState(0);
   const [isTransitioning, setIsTransitioning] = useState(false);
 
-  const banners: Banner[] = dbBanners && dbBanners.length > 0 ? dbBanners : defaultBanners;
-  const isUsingDefaults = !dbBanners || dbBanners.length === 0;
+  const banners: Banner[] = dbBanners && dbBanners.length >= 2 ? dbBanners : defaultBanners;
+  const isUsingDefaults = !dbBanners || dbBanners.length < 2;
 
   const getImage = (b: Banner) => b.image_url || b.image || '';
   const getBtnText = (b: Banner) => b.button_text || b.buttonText || '';
@@ -65,20 +65,20 @@ export function HeroBanner({ className }: HeroBannerProps) {
   }, [banners.length, current, goToSlide]);
 
   if (isLoading) {
-    return <Skeleton className={cn('w-full aspect-[4/5] sm:aspect-[2/1] md:aspect-[3/1] rounded-2xl', className)} />;
+    return <Skeleton className={cn('w-full aspect-[3/2] sm:aspect-[2/1] md:aspect-[3/1] rounded-2xl', className)} />;
   }
 
   return (
     <div className={cn('relative w-full overflow-hidden rounded-2xl shadow-lg bg-[#0D0D0D]', className)}>
-      <div className="aspect-[4/5] sm:aspect-[2/1] md:aspect-[3/1] relative">
+      <div className="aspect-[3/2] sm:aspect-[2/1] md:aspect-[3/1] relative">
         {banners.map((banner, index) => (
           <div
             key={banner.id}
             className={cn(
               'absolute inset-0 transition-all duration-700 ease-out',
               index === current
-                ? 'opacity-100 scale-100'
-                : 'opacity-0 scale-105 pointer-events-none'
+                ? 'opacity-100'
+                : 'opacity-0 pointer-events-none'
             )}
           >
             <img src={getImage(banner)} alt={banner.title} className="h-full w-full object-cover object-center" />
