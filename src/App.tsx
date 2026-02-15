@@ -17,6 +17,9 @@ import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
 import AccountPage from "./pages/AccountPage";
 import FavoritesPage from "./pages/FavoritesPage";
+import AccountOrdersPage from "./pages/account/OrdersPage";
+import AccountAddressesPage from "./pages/account/AddressesPage";
+import AccountProfilePage from "./pages/account/ProfilePage";
 import InstallPage from "./pages/InstallPage";
 import NotFound from "./pages/NotFound";
 
@@ -61,9 +64,9 @@ const App = () => (
                 <Route path="/cadastro" element={<RegisterPage />} />
                 <Route path="/minha-conta" element={<AccountPage />} />
                 <Route path="/minha-conta/favoritos" element={<FavoritesPage />} />
-                <Route path="/minha-conta/pedidos" element={<AccountPage />} />
-                <Route path="/minha-conta/enderecos" element={<AccountPage />} />
-                <Route path="/minha-conta/perfil" element={<AccountPage />} />
+                <Route path="/minha-conta/pedidos" element={<AccountOrdersPage />} />
+                <Route path="/minha-conta/enderecos" element={<AccountAddressesPage />} />
+                <Route path="/minha-conta/perfil" element={<AccountProfilePage />} />
                 <Route path="/instalar" element={<InstallPage />} />
                 
                 {/* Admin Routes */}
