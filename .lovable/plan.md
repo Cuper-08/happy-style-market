@@ -1,78 +1,56 @@
 
+## Barra de Beneficios com Marquee Continuo
 
-## Corrigir Scroll ao Abrir Produto + Melhorar Visualizador 360
+### O que sera feito
 
-### Problema 1: Pagina desce ao abrir produto
+Criar uma barra horizontal com animacao de marquee (rolagem continua infinita) posicionada entre o banner hero e a secao "Produtos". A barra tera fundo dourado (cor primary) e exibira 4 beneficios com icones, rolando continuamente da direita para a esquerda.
 
-O React Router nao faz scroll para o topo automaticamente quando voce navega para uma nova pagina. Quando voce clica num card de produto, a pagina do detalhe abre na mesma posicao de scroll que voce estava antes. Como a pagina de produto e menor que a home (que agora tem 28 produtos), o navegador "pula" para o final.
+### Beneficios exibidos
 
-**Solucao:** Criar um componente `ScrollToTop` que escuta mudancas de rota e faz `window.scrollTo(0, 0)` automaticamente.
-
-### Problema 2: Visualizador 360 pode ser melhorado
-
-O visualizador atual funciona, mas pode ser mais intuitivo e bonito.
-
----
+1. **FRETE EXPRESSO!** - "Faca seu pedido hoje e receba em ate 7 dias uteis!" (icone: Truck)
+2. **PARCELE EM ATE 12X** - "Ou pague a vista no Pix a vista!" (icone: CreditCard)
+3. **COMPRA SEGURA** - "Site 100% seguro, garantimos a melhor experiencia do cliente!" (icone: ShieldCheck)
+4. **SUPORTE AO CLIENTE** - "Estamos prontos para te atender e tirar suas duvidas!" (icone: MessageCircle)
 
 ### Mudancas
 
-**1. Novo componente `src/components/ScrollToTop.tsx`**
-- Usa `useLocation()` do React Router
-- Em cada mudanca de rota, executa `window.scrollTo(0, 0)`
-- Componente simples, sem render visual
+**1. Novo componente `src/components/home/BenefitsMarquee.tsx`**
+- Barra com fundo `bg-primary` e texto branco
+- Conteudo duplicado (2 copias lado a lado) para criar efeito de loop infinito
+- Animacao CSS `marquee` que translada de 0% a -50% no eixo X infinitamente
+- Cada beneficio tem icone do Lucide + titulo em negrito + descricao
+- Responsivo: no mobile os textos ficam menores
 
-**2. `src/App.tsx`**
-- Adicionar `<ScrollToTop />` dentro do `<BrowserRouter>`, antes do `<Routes>`
+**2. `src/index.css`**
+- Adicionar keyframe `@keyframes marquee` para a animacao de scroll continuo
 
-**3. `src/components/product/ProductViewer360.tsx` - Melhorias**
-- Adicionar barra de progresso visual na parte inferior mostrando em qual imagem o usuario esta (dots ou barra)
-- Botao de reset de zoom (quando zoom esta ativo)
-- Animacao de entrada mais suave na imagem
-- Auto-play sutil: ao carregar, rotacionar automaticamente uma vez para indicar que e interativo (substitui o hint de texto)
-- Melhorar transicao entre frames para ficar mais fluida
-- Esconder o hint "Arraste para girar" apos 3 segundos automaticamente
-
-**4. `src/pages/ProductDetailPage.tsx`**
-- Nenhuma mudanca estrutural necessaria, apenas se beneficia do ScrollToTop
-
----
+**3. `src/pages/HomePage.tsx`**
+- Importar e inserir `<BenefitsMarquee />` logo apos o `<HeroBanner />` e antes dos chips de categoria
+- O componente ficara fora do container para ocupar largura total da tela (full-bleed)
 
 ### Detalhes Tecnicos
 
-**ScrollToTop:**
 ```text
-// src/components/ScrollToTop.tsx
-import { useEffect } from 'react';
-import { useLocation } from 'react-router-dom';
+// Estrutura do marquee
+<div class="overflow-hidden bg-primary">
+  <div class="flex animate-marquee whitespace-nowrap">
+    [4 items] [4 items duplicados]  // duplicar para loop seamless
+  </div>
+</div>
 
-export function ScrollToTop() {
-  const { pathname } = useLocation();
-  useEffect(() => {
-    window.scrollTo(0, 0);
-  }, [pathname]);
-  return null;
+// CSS keyframe
+@keyframes marquee {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
 }
 ```
 
-**App.tsx:**
-```text
-<BrowserRouter>
-  <ScrollToTop />
-  <Routes>...</Routes>
-</BrowserRouter>
-```
-
-**ProductViewer360 melhorias:**
-- Auto-rotate: ao montar, animar do frame 0 ao 3 e voltar ao 0 em ~1.5s usando requestAnimationFrame, depois parar
-- Dots de navegacao: pequenos circulos na parte inferior indicando o frame atual
-- Botao de reset zoom: aparece quando scale > 1, clica para voltar a scale=1
-- Hint some apos 3s com setTimeout + fade-out
+A duplicacao do conteudo garante que quando a primeira copia sai pela esquerda, a segunda ja esta visivel, criando a ilusao de rolagem infinita.
 
 ### Resumo
 
 | Arquivo | Mudanca |
 |---------|---------|
-| `src/components/ScrollToTop.tsx` | Novo - scroll para topo em cada navegacao |
-| `src/App.tsx` | Adicionar ScrollToTop dentro do BrowserRouter |
-| `src/components/product/ProductViewer360.tsx` | Auto-rotate inicial, dots de navegacao, botao reset zoom, hint com auto-hide |
-
+| `src/components/home/BenefitsMarquee.tsx` | Novo - barra marquee com 4 beneficios |
+| `src/index.css` | Adicionar keyframe `marquee` |
+| `src/pages/HomePage.tsx` | Inserir BenefitsMarquee entre banner e chips |
