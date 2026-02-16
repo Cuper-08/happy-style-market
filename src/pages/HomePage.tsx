@@ -57,7 +57,7 @@ export default function HomePage() {
           <ProductSection
             title="Nossos Produtos"
             products={allProducts}
-            viewAllLink="/categoria/tenis"
+            viewAllLink="/produtos"
           />
         ) : (
           <section className="text-center py-16 bg-card rounded-2xl border border-border/50">
