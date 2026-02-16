@@ -18,6 +18,7 @@ export interface Product {
   title: string;
   slug: string;
   description?: string | null;
+  category?: string | null;
   price?: number | null; // wholesale price
   price_display?: string | null;
   price_retail?: number | null; // retail price

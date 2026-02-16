@@ -4,6 +4,7 @@ import { Product, Category, Brand } from '@/types';
 
 export function useProducts(options?: {
   searchQuery?: string;
+  category?: string;
   limit?: number;
 }) {
   return useQuery({
@@ -17,6 +18,10 @@ export function useProducts(options?: {
         `)
         .order('created_at', { ascending: false })
         .range(0, 4999);
+
+      if (options?.category) {
+        query = query.eq('category', options.category);
+      }
 
       if (options?.limit) {
         query = query.limit(options.limit);

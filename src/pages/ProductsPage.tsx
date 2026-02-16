@@ -1,7 +1,7 @@
 import { useSearchParams, useParams } from 'react-router-dom';
 import { Layout } from '@/components/layout';
 import { ProductGrid } from '@/components/product';
-import { useProducts, useCategories } from '@/hooks/useProducts';
+import { useProducts } from '@/hooks/useProducts';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
@@ -11,6 +11,18 @@ import { useState, useMemo } from 'react';
 import { getAvailableBrands, extractBrandSlug } from '@/lib/productCategories';
 
 type PriceRange = 'all' | 'under100' | '100to200' | 'over200';
+
+const CATEGORY_MAP: Record<string, string> = {
+  'tenis': 'Tênis',
+  'bolsas': 'Bolsas',
+  'bone': 'Boné',
+  'meias': 'Meias',
+  'chinelo': 'Chinelo',
+  'importados': 'Importados',
+  'tenis-infantil': 'Tênis Infantil',
+  'malas': 'Malas',
+  'cintos': 'Cintos',
+};
 
 interface FilterContentProps {
   priceRange: PriceRange;
@@ -82,27 +94,20 @@ export default function ProductsPage() {
     setSearchParams(params, { replace: true });
   };
 
-  const { data: products = [], isLoading } = useProducts();
-  const { data: allCategories = [] } = useCategories();
+  const categoryName = categorySlug ? CATEGORY_MAP[categorySlug] : undefined;
+  const { data: products = [], isLoading } = useProducts({ category: categoryName });
   const brands = useMemo(() => getAvailableBrands(products), [products]);
-
-  // Determine if this is a non-tenis category (empty for now)
-  const isTenisCategory = !categorySlug || categorySlug === 'tenis';
-  const currentCategory = allCategories.find(c => c.slug === categorySlug);
 
   const searchQuery = searchParams.get('q');
   const title = searchQuery
     ? `Resultados para "${searchQuery}"`
-    : currentCategory
-      ? currentCategory.name
+    : categoryName
+      ? categoryName
       : brandParam !== 'all'
         ? brands.find(b => b.slug === brandParam)?.name || 'Produtos'
         : 'Todos os Produtos';
 
   const filteredProducts = useMemo(() => {
-    // Non-tenis categories have no products yet
-    if (categorySlug && !isTenisCategory) return [];
-
     let result = products;
 
     if (searchQuery) {
@@ -127,7 +132,7 @@ export default function ProductsPage() {
     }
 
     return result;
-  }, [products, priceRange, searchQuery, brandParam, categorySlug, isTenisCategory]);
+  }, [products, priceRange, searchQuery, brandParam]);
 
   const clearFilters = () => {
     setPriceRange('all');
@@ -136,29 +141,11 @@ export default function ProductsPage() {
 
   const hasActiveFilters = priceRange !== 'all' || brandParam !== 'all';
 
-  // Empty state for non-tenis categories
-  if (categorySlug && !isTenisCategory) {
-    return (
-      <Layout>
-        <div className="container py-16 text-center space-y-4">
-          <PackageOpen className="h-16 w-16 mx-auto text-muted-foreground" />
-          <h1 className="text-2xl font-bold">{currentCategory?.name || categorySlug}</h1>
-          <p className="text-muted-foreground max-w-md mx-auto">
-            Em breve teremos produtos nesta categoria. Fique ligado!
-          </p>
-          <Button variant="outline" asChild>
-            <a href="/categoria/tenis">Ver Tênis</a>
-          </Button>
-        </div>
-      </Layout>
-    );
-  }
-
   return (
     <Layout>
       <div className="container py-4">
         {/* Brand chips - horizontal scroll */}
-        {brands.length > 0 && (
+        {brands.length > 1 && (
           <div className="flex gap-2 overflow-x-auto pb-3 mb-4 scrollbar-hide">
             <button
               onClick={() => setSelectedBrand('all')}
@@ -247,6 +234,17 @@ export default function ProductsPage() {
                 {[1, 2, 3, 4, 5, 6].map((i) => (
                   <Skeleton key={i} className="aspect-square rounded-lg" />
                 ))}
+              </div>
+            ) : filteredProducts.length === 0 ? (
+              <div className="text-center py-16 space-y-4">
+                <PackageOpen className="h-16 w-16 mx-auto text-muted-foreground" />
+                <h2 className="text-xl font-bold">Nenhum produto encontrado</h2>
+                <p className="text-muted-foreground">
+                  {hasActiveFilters ? 'Tente limpar os filtros.' : 'Em breve teremos produtos nesta categoria.'}
+                </p>
+                {hasActiveFilters && (
+                  <Button variant="outline" onClick={clearFilters}>Limpar Filtros</Button>
+                )}
               </div>
             ) : (
               <ProductGrid products={filteredProducts} columns={3} />
