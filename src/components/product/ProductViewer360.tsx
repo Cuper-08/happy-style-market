@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { RotateCw, ZoomIn, Move } from 'lucide-react';
+import { RotateCw, ZoomIn, ZoomOut, Move } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface ProductViewer360Props {
@@ -16,13 +16,15 @@ export function ProductViewer360({ images, alt, currentIndex: externalIndex, onI
   const [isDragging, setIsDragging] = useState(false);
   const [showHint, setShowHint] = useState(true);
   const [imagesLoaded, setImagesLoaded] = useState(false);
+  const [autoPlayed, setAutoPlayed] = useState(false);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const startXRef = useRef(0);
   const startIndexRef = useRef(0);
   const lastTouchDistRef = useRef(0);
+  const autoPlayRef = useRef<number | null>(null);
 
-  const sensitivity = 5; // pixels per frame change
+  const sensitivity = 5;
 
   // Preload all images
   useEffect(() => {
@@ -42,6 +44,36 @@ export function ProductViewer360({ images, alt, currentIndex: externalIndex, onI
     });
   }, [images]);
 
+  // Auto-rotate on load to indicate interactivity
+  useEffect(() => {
+    if (!imagesLoaded || autoPlayed || images.length <= 1) return;
+    setAutoPlayed(true);
+
+    const maxFrame = Math.min(4, images.length - 1);
+    let frame = 0;
+    let direction = 1;
+    const interval = setInterval(() => {
+      frame += direction;
+      if (frame >= maxFrame) direction = -1;
+      if (frame <= 0) {
+        clearInterval(interval);
+        frame = 0;
+      }
+      setInternalIndex(frame);
+      onImageIndexChange?.(frame);
+    }, 120);
+
+    autoPlayRef.current = interval as unknown as number;
+    return () => clearInterval(interval);
+  }, [imagesLoaded, autoPlayed, images.length, onImageIndexChange]);
+
+  // Auto-hide hint after 3s
+  useEffect(() => {
+    if (!showHint) return;
+    const timer = setTimeout(() => setShowHint(false), 3000);
+    return () => clearTimeout(timer);
+  }, [showHint]);
+
   const updateIndex = useCallback((deltaX: number) => {
     const steps = Math.floor(deltaX / sensitivity);
     let newIndex = (startIndexRef.current - steps) % images.length;
@@ -50,7 +82,6 @@ export function ProductViewer360({ images, alt, currentIndex: externalIndex, onI
     onImageIndexChange?.(newIndex);
   }, [images.length, onImageIndexChange]);
 
-  // Mouse events
   const handleMouseDown = (e: React.MouseEvent) => {
     e.preventDefault();
     setIsDragging(true);
@@ -64,11 +95,8 @@ export function ProductViewer360({ images, alt, currentIndex: externalIndex, onI
     updateIndex(e.clientX - startXRef.current);
   };
 
-  const handleMouseUp = () => {
-    setIsDragging(false);
-  };
+  const handleMouseUp = () => setIsDragging(false);
 
-  // Touch events
   const handleTouchStart = (e: React.TouchEvent) => {
     if (e.touches.length === 1) {
       setShowHint(false);
@@ -100,7 +128,6 @@ export function ProductViewer360({ images, alt, currentIndex: externalIndex, onI
     lastTouchDistRef.current = 0;
   };
 
-  // Wheel zoom
   const handleWheel = (e: React.WheelEvent) => {
     e.preventDefault();
     setScale((prev) => Math.min(3, Math.max(1, prev - e.deltaY * 0.002)));
@@ -144,7 +171,7 @@ export function ProductViewer360({ images, alt, currentIndex: externalIndex, onI
       <img
         src={images[currentIndex] || '/placeholder.svg'}
         alt={`${alt} - ângulo ${currentIndex + 1}`}
-        className="h-full w-full object-cover transition-transform duration-75"
+        className="h-full w-full object-cover transition-transform duration-100 ease-out"
         style={{
           transform: `scale(${scale})`,
           willChange: 'transform',
@@ -158,15 +185,18 @@ export function ProductViewer360({ images, alt, currentIndex: externalIndex, onI
         360°
       </div>
 
-      {/* Zoom indicator */}
+      {/* Zoom indicator + reset */}
       {scale > 1 && (
-        <div className="absolute top-3 right-3 flex items-center gap-1 bg-background/80 backdrop-blur-sm text-foreground px-2 py-1 rounded-full text-xs">
-          <ZoomIn className="h-3.5 w-3.5" />
-          {Math.round(scale * 100)}%
-        </div>
+        <button
+          onClick={(e) => { e.stopPropagation(); setScale(1); }}
+          className="absolute top-3 right-3 flex items-center gap-1 bg-background/80 backdrop-blur-sm text-foreground px-2.5 py-1.5 rounded-full text-xs font-medium hover:bg-background/95 transition-colors cursor-pointer"
+        >
+          <ZoomOut className="h-3.5 w-3.5" />
+          Reset {Math.round(scale * 100)}%
+        </button>
       )}
 
-      {/* Drag hint */}
+      {/* Drag hint - auto-hides after 3s */}
       {showHint && !isDragging && (
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none animate-fade-in">
           <div className="flex items-center gap-2 bg-background/80 backdrop-blur-sm text-foreground px-4 py-2.5 rounded-full text-sm font-medium shadow-lg">
@@ -176,9 +206,19 @@ export function ProductViewer360({ images, alt, currentIndex: externalIndex, onI
         </div>
       )}
 
-      {/* Frame counter */}
-      <div className="absolute bottom-3 right-3 bg-background/80 backdrop-blur-sm text-foreground px-2 py-1 rounded-full text-xs">
-        {currentIndex + 1}/{images.length}
+      {/* Navigation dots */}
+      <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-1">
+        {images.map((_, i) => (
+          <div
+            key={i}
+            className={cn(
+              'rounded-full transition-all duration-200',
+              i === currentIndex
+                ? 'w-2 h-2 bg-foreground/90'
+                : 'w-1.5 h-1.5 bg-foreground/30'
+            )}
+          />
+        ))}
       </div>
     </div>
   );
