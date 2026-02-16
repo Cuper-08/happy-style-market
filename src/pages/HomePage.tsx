@@ -6,6 +6,7 @@ import { useProducts, useCategories } from '@/hooks/useProducts';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useMemo } from 'react';
 import { Tag, ChevronRight } from 'lucide-react';
+import { BenefitsMarquee } from '@/components/home/BenefitsMarquee';
 
 const DESIRED_CATEGORY_SLUGS = [
   'tenis', 'bone', 'meias', 'bolsas', 'cintos', 'malas', 'chinelo', 'importados', 'tenis-infantil',
@@ -25,6 +26,11 @@ export default function HomePage() {
     <Layout>
       <div className="container py-6 md:py-10 space-y-10 md:space-y-14">
         <HeroBanner className="animate-fade-in" />
+
+        {/* Benefits Marquee - full bleed */}
+        <div className="-mx-4 md:-mx-4">
+          <BenefitsMarquee />
+        </div>
 
         {/* Product Type Chips */}
         {categories.length > 0 && (
