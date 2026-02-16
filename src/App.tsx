@@ -40,6 +40,7 @@ import {
 
 // PWA Components
 import { InstallBanner } from "./components/pwa/InstallBanner";
+import { ScrollToTop } from "./components/ScrollToTop";
 
 const queryClient = new QueryClient();
 
@@ -52,6 +53,7 @@ const App = () => (
             <Toaster />
             <Sonner />
             <BrowserRouter>
+              <ScrollToTop />
               <Routes>
                 {/* Store Routes */}
                 <Route path="/" element={<HomePage />} />
