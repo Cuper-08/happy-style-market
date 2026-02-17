@@ -7,6 +7,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useMemo } from 'react';
 import { Tag, ChevronRight } from 'lucide-react';
 import { BenefitsMarquee } from '@/components/home/BenefitsMarquee';
+import { CategoryMarquee } from '@/components/home/CategoryMarquee';
 
 const DESIRED_CATEGORY_SLUGS = [
   'tenis', 'bone', 'meias', 'bolsas', 'cintos', 'malas', 'chinelo', 'importados', 'tenis-infantil',
@@ -30,6 +31,11 @@ export default function HomePage() {
         {/* Benefits Marquee - full bleed */}
         <div className="-mx-4 md:-mx-4">
           <BenefitsMarquee />
+        </div>
+
+        {/* Category Marquee - full bleed */}
+        <div className="-mx-4 md:-mx-4">
+          <CategoryMarquee />
         </div>
 
         {/* Product Type Chips */}
