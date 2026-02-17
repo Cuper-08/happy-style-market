@@ -44,6 +44,47 @@ interface PaymentRequest {
 }
 
 async function asaasFetch(endpoint: string, options: RequestInit = {}) {
+    // SIMULATION MODE: If no API Key is set, return mock data
+    if (!ASAAS_API_KEY) {
+        console.log('[ASAAS] No API Key found. Using SIMULATION MODE.');
+
+        // Mock responses based on endpoint
+        if (options.method === 'POST' && endpoint === '/customers') {
+            return {
+                id: `cus_${Math.random().toString(36).substring(7)}`,
+                name: 'Simulated Customer',
+                email: 'customer@example.com'
+            };
+        }
+
+        if (options.method === 'POST' && endpoint === '/payments') {
+            return {
+                id: `pay_${Math.random().toString(36).substring(7)}`,
+                status: 'PENDING',
+                value: 100.00,
+                invoiceUrl: 'https://sandbox.asaas.com/sandbox/invoice',
+                bankSlipUrl: 'https://sandbox.asaas.com/doc/boleto',
+                encodedImage: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKwftQAAAABJRU5ErkJggg==',
+                payload: '00020126580014br.gov.bcb.pix0136123e4567-e12b-12d1-a456...',
+                expirationDate: new Date(Date.now() + 3600 * 1000).toISOString()
+            };
+        }
+
+        if (endpoint.includes('/pixQrCode')) {
+            return {
+                encodedImage: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKwftQAAAABJRU5ErkJggg==',
+                payload: '00020126580014br.gov.bcb.pix0136123e4567-e12b-12d1-a456...',
+                expirationDate: new Date(Date.now() + 3600 * 1000).toISOString()
+            };
+        }
+
+        if (endpoint.includes('/customers?cpfCnpj=')) {
+            return { data: [] }; // No customer found, create new
+        }
+
+        return {};
+    }
+
     const response = await fetch(`${ASAAS_BASE_URL}${endpoint}`, {
         ...options,
         headers: {

@@ -77,6 +77,22 @@ serve(async (req: Request) => {
             weight: Math.max(totalWeight, 0.1),
         };
 
+        // Check if token exists, otherwise use Mock Mode
+        if (!MELHOR_ENVIO_TOKEN) {
+            console.log('[Shipping] No Token found. Using SIMULATION MODE.');
+            return new Response(JSON.stringify({
+                options: [
+                    { id: 1, name: 'PAC (Simulado)', company: 'Correios', price: 25.50, delivery_time: 8, delivery_range: { min: 5, max: 10 } },
+                    { id: 2, name: 'SEDEX (Simulado)', company: 'Correios', price: 45.90, delivery_time: 3, delivery_range: { min: 2, max: 4 } },
+                    { id: 3, name: 'JadLog (Simulado)', company: 'JadLog', price: 38.00, delivery_time: 4, delivery_range: { min: 3, max: 5 } }
+                ],
+                fallback: false
+            }), {
+                headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+                status: 200,
+            });
+        }
+
         // Calculate shipping via Melhor Envio API
         const response = await fetch(`${MELHOR_ENVIO_BASE_URL}/me/shipment/calculate`, {
             method: 'POST',
