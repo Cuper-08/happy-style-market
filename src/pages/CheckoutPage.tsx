@@ -311,7 +311,7 @@ export default function CheckoutPage() {
         discount: discount,
         total: total,
         payment_method: paymentMethod,
-        shipping_method: shippingMethodName.toLowerCase().includes('sedex') ? 'sedex' : 'pac',
+        shipping_method: (shippingMethodName.toLowerCase().includes('sedex') ? 'sedex' : 'pac') as 'sedex' | 'pac' | 'express',
         shipping_address: {
           full_name: shippingData.fullName,
           email: shippingData.email,
@@ -329,7 +329,7 @@ export default function CheckoutPage() {
 
       const { data: order, error: orderError } = await supabase
         .from('orders')
-        .insert(orderData)
+        .insert([orderData])
         .select()
         .single();
 

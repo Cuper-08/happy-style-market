@@ -62,7 +62,7 @@ export default function OrderDetailPage() {
     );
   }
 
-  const shippingAddress = order.shipping_address as Record<string, unknown>;
+  const shippingAddress = order.shipping_address as Record<string, string | null | undefined> | null;
 
   return (
     <AdminLayout>
