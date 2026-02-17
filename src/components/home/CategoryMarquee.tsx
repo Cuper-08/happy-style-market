@@ -25,11 +25,11 @@ export function CategoryMarquee() {
               to={cat.link}
               className="flex-shrink-0 flex flex-col items-center mx-3 md:mx-5 group"
             >
-              <div className="w-32 h-32 md:w-44 md:h-44 rounded-2xl overflow-hidden border border-border bg-card shadow-sm group-hover:shadow-md transition-shadow">
+              <div className="w-32 h-32 md:w-44 md:h-44 flex items-center justify-center">
                 <img
                   src={cat.image}
                   alt={cat.name}
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                  className="max-w-full max-h-full object-contain group-hover:scale-105 transition-transform duration-300"
                   loading="lazy"
                 />
               </div>
