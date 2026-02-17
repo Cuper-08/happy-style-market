@@ -146,6 +146,33 @@ export type Database = {
         }
         Relationships: []
       }
+      chat_history: {
+        Row: {
+          contact_phone: string
+          created_at: string
+          id: string
+          message: string
+          metadata: Json | null
+          role: string
+        }
+        Insert: {
+          contact_phone: string
+          created_at?: string
+          id?: string
+          message: string
+          metadata?: Json | null
+          role: string
+        }
+        Update: {
+          contact_phone?: string
+          created_at?: string
+          id?: string
+          message?: string
+          metadata?: Json | null
+          role?: string
+        }
+        Relationships: []
+      }
       coupons: {
         Row: {
           code: string
