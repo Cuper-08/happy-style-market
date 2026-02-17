@@ -10,7 +10,7 @@ const categories = [
 ];
 
 export function CategoryMarquee() {
-  const items = [...categories, ...categories];
+  const items = [...categories, ...categories, ...categories];
 
   return (
     <section className="py-6 md:py-8 space-y-4">
@@ -30,7 +30,7 @@ export function CategoryMarquee() {
                   src={cat.image}
                   alt={cat.name}
                   className="max-w-full max-h-full object-contain mix-blend-multiply group-hover:scale-105 transition-transform duration-300"
-                  loading="lazy"
+                  loading="eager"
                 />
               </div>
               <span className="mt-2 text-sm md:text-base font-semibold text-foreground">
