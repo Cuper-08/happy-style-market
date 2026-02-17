@@ -33,7 +33,7 @@ interface OrderRow {
   total: number;
   payment_method: string | null;
   shipping_method: string | null;
-  shipping_address: any;
+  shipping_address: Record<string, unknown>;
   tracking_code: string | null;
   created_at: string;
   order_items: {
@@ -66,7 +66,7 @@ export default function OrdersPage() {
         .select('*, order_items(*)')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
-      setOrders((data as any) || []);
+      setOrders((data as unknown as OrderRow[]) || []);
       setLoading(false);
     };
     fetchOrders();

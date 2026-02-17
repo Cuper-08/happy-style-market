@@ -53,7 +53,7 @@ export function useAdminCustomers() {
           full_name: profile.full_name,
           phone: profile.phone,
           cpf: profile.cpf,
-          customer_type: (profile as any).customer_type || 'retail',
+          customer_type: (profile as { customer_type?: string }).customer_type || 'retail',
           created_at: profile.created_at,
           totalOrders: orderData.count,
           totalSpent: orderData.total,

@@ -90,16 +90,16 @@ function parseNumber(val: string): number {
 
 export interface VariantDiff {
   variant_id?: string; // empty = new variant
-  changes: Record<string, any>;
-  oldValues: Record<string, any>;
+  changes: Record<string, unknown>;
+  oldValues: Record<string, unknown>;
   label: string; // e.g. "Tam 42 / Preto"
 }
 
 export interface ProductDiff {
   id: string;
   name: string;
-  changes: Record<string, any>;
-  oldValues: Record<string, any>;
+  changes: Record<string, unknown>;
+  oldValues: Record<string, unknown>;
   variantDiffs: VariantDiff[];
   newVariants: { size: string; color?: string; color_hex?: string; stock_quantity: number; sku?: string }[];
 }
@@ -157,8 +157,8 @@ export function parseUpdateCSV(
   for (const [id, rows] of rowsByProduct) {
     const current = productMap.get(id)!;
     const firstRow = rows[0];
-    const changes: Record<string, any> = {};
-    const oldValues: Record<string, any> = {};
+    const changes: Record<string, unknown> = {};
+    const oldValues: Record<string, unknown> = {};
 
     // Product-level diffs (from first row)
     const csvRetail = parseNumber(col(firstRow, 'preco_varejo'));
@@ -226,8 +226,8 @@ export function parseUpdateCSV(
           continue;
         }
 
-        const vChanges: Record<string, any> = {};
-        const vOld: Record<string, any> = {};
+        const vChanges: Record<string, unknown> = {};
+        const vOld: Record<string, unknown> = {};
 
         if (csvSize && csvSize !== curVariant.size) {
           vChanges.size = csvSize;

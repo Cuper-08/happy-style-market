@@ -8,16 +8,19 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from '@/hooks/use-toast';
-import { Eye, EyeOff, Loader2 } from 'lucide-react';
+import { Eye, EyeOff, Loader2, Chrome, AlertCircle } from 'lucide-react';
+import { Separator } from '@/components/ui/separator';
 
 export default function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { signIn, user, isLoading: authLoading } = useAuth();
+  const { signIn, resendConfirmation, user, isLoading: authLoading } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [showEmailNotConfirmed, setShowEmailNotConfirmed] = useState(false);
+  const [isResending, setIsResending] = useState(false);
 
   // Get the return path from location state (e.g., from checkout)
   const from = (location.state as { from?: string })?.from;
@@ -30,7 +33,7 @@ export default function LoginPage() {
         navigate(from);
         return;
       }
-      
+
       // Otherwise, check role for appropriate redirect
       supabase
         .from('user_roles')
@@ -47,18 +50,52 @@ export default function LoginPage() {
     }
   }, [user, authLoading, navigate, from]);
 
+  const handleGoogleSignIn = async () => {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: `${window.location.origin}${from || '/minha-conta'}`,
+      },
+    });
+    if (error) {
+      toast({ title: 'Erro ao conectar com Google', description: error.message, variant: 'destructive' });
+    }
+  };
+
+  const handleResendEmail = async () => {
+    if (!email) {
+      toast({ title: 'Digite seu e-mail acima', variant: 'destructive' });
+      return;
+    }
+    setIsResending(true);
+    try {
+      await resendConfirmation(email);
+      toast({
+        title: 'E-mail reenviado! ✉️',
+        description: 'Verifique sua caixa de entrada e spam.'
+      });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Erro ao reenviar';
+      toast({ title: 'Erro', description: message, variant: 'destructive' });
+    } finally {
+      setIsResending(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!email || !password) {
       toast({ title: 'Preencha todos os campos', variant: 'destructive' });
       return;
     }
 
     setIsLoading(true);
+    setShowEmailNotConfirmed(false);
+
     try {
       await signIn(email, password);
-      
+
       // Check user role after login
       const { data: session } = await supabase.auth.getSession();
       if (session?.session?.user) {
@@ -67,15 +104,15 @@ export default function LoginPage() {
           .select('role')
           .eq('user_id', session.session.user.id)
           .maybeSingle();
-        
-        toast({ title: 'Login realizado com sucesso!' });
-        
+
+        toast({ title: 'Login realizado com sucesso! 🎉' });
+
         // If there's a return path (like /checkout), use it
         if (from) {
           navigate(from);
           return;
         }
-        
+
         // Redirect based on role
         if (roleData?.role === 'admin' || roleData?.role === 'manager') {
           navigate('/admin');
@@ -87,6 +124,12 @@ export default function LoginPage() {
       }
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Erro ao fazer login';
+
+      // Detectar erro de email não confirmado e mostrar opção de reenvio
+      if (message.includes('não foi confirmado') || message.includes('not confirmed')) {
+        setShowEmailNotConfirmed(true);
+      }
+
       toast({ title: 'Erro no login', description: message, variant: 'destructive' });
     } finally {
       setIsLoading(false);
@@ -100,10 +143,30 @@ export default function LoginPage() {
           <CardHeader className="text-center">
             <CardTitle className="text-2xl">Entrar</CardTitle>
             <CardDescription>
-              Entre na sua conta para continuar
+              {from === '/checkout'
+                ? 'Faça login para finalizar sua compra'
+                : 'Entre na sua conta para continuar'}
             </CardDescription>
           </CardHeader>
           <CardContent>
+            {/* Google Sign In Button */}
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full gap-2 h-12 mb-4 border-border hover:bg-secondary"
+              onClick={handleGoogleSignIn}
+            >
+              <Chrome className="h-5 w-5" />
+              Continuar com Google
+            </Button>
+
+            <div className="relative my-4">
+              <Separator />
+              <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-card px-2 text-xs text-muted-foreground uppercase">
+                ou
+              </span>
+            </div>
+
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="email">E-mail</Label>
@@ -142,7 +205,30 @@ export default function LoginPage() {
                 </div>
               </div>
 
-              <Button type="submit" className="w-full" disabled={isLoading}>
+              {/* Aviso de email não confirmado */}
+              {showEmailNotConfirmed && (
+                <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg p-3 space-y-2">
+                  <div className="flex items-start gap-2 text-sm text-amber-800 dark:text-amber-200">
+                    <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+                    <span>Seu e-mail ainda não foi confirmado. Verifique sua caixa de entrada e spam.</span>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="w-full text-amber-700 border-amber-300 hover:bg-amber-100 dark:text-amber-300 dark:border-amber-700 dark:hover:bg-amber-900/50"
+                    onClick={handleResendEmail}
+                    disabled={isResending}
+                  >
+                    {isResending ? (
+                      <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                    ) : null}
+                    Reenviar E-mail de Confirmação
+                  </Button>
+                </div>
+              )}
+
+              <Button type="submit" className="w-full h-12" disabled={isLoading}>
                 {isLoading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
                 Entrar
               </Button>

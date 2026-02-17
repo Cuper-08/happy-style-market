@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 
 type Theme = 'dark' | 'light' | 'system';
@@ -28,14 +29,14 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const root = window.document.documentElement;
-    
+
     const getSystemTheme = (): 'dark' | 'light' => {
       return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
     };
 
     const applyTheme = (newTheme: Theme) => {
       let resolved: 'dark' | 'light';
-      
+
       if (isAdminTheme) {
         // Admin area respects theme preference
         resolved = newTheme === 'system' ? getSystemTheme() : newTheme;
@@ -44,9 +45,9 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
         // Header/footer/mobile-nav handle their own dark styling via CSS classes
         resolved = 'light';
       }
-      
+
       setResolvedTheme(resolved);
-      
+
       root.classList.remove('light', 'dark');
       root.classList.add(resolved);
     };

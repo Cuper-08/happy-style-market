@@ -24,10 +24,10 @@ export function usePWA(): UsePWAReturn {
   // Detect platform
   const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
   const isAndroid = /Android/.test(navigator.userAgent);
-  
+
   // Check if running as standalone (installed)
   const isStandalone = window.matchMedia('(display-mode: standalone)').matches ||
-    (window.navigator as any).standalone === true ||
+    (window.navigator as Navigator & { standalone?: boolean }).standalone === true ||
     document.referrer.includes('android-app://');
 
   useEffect(() => {

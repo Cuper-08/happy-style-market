@@ -62,7 +62,7 @@ export default function OrderDetailPage() {
     );
   }
 
-  const shippingAddress = order.shipping_address as any;
+  const shippingAddress = order.shipping_address as Record<string, unknown>;
 
   return (
     <AdminLayout>
@@ -98,7 +98,7 @@ export default function OrderDetailPage() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-3 sm:space-y-4">
-                  {order.order_items?.map((item: any) => (
+                  {order.order_items?.map((item: { id: string; product_name: string; variant_info?: string; quantity: number; unit_price: number }) => (
                     <div
                       key={item.id}
                       className="flex items-center justify-between py-2 sm:py-3 border-b last:border-0"
@@ -267,10 +267,10 @@ export default function OrderDetailPage() {
                   {order.payment_method === 'pix'
                     ? 'PIX'
                     : order.payment_method === 'card'
-                    ? 'Cartão de Crédito'
-                    : order.payment_method === 'boleto'
-                    ? 'Boleto'
-                    : 'Não informado'}
+                      ? 'Cartão de Crédito'
+                      : order.payment_method === 'boleto'
+                        ? 'Boleto'
+                        : 'Não informado'}
                 </p>
               </CardContent>
             </Card>

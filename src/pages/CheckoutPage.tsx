@@ -9,11 +9,13 @@ import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from '@/hooks/use-toast';
-import { Loader2, CreditCard, QrCode, FileText, Truck, Zap, ArrowLeft, CheckCircle, Search } from 'lucide-react';
+import { Loader2, CreditCard, QrCode, FileText, Truck, Zap, ArrowLeft, CheckCircle, Search, Package } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { Skeleton } from '@/components/ui/skeleton';
 import { fetchCEP } from '@/lib/cepUtils';
+import { createPayment, calculateShipping, type ShippingOption, type PaymentResponse } from '@/services/paymentService';
+import { PixQRCodeModal } from '@/components/checkout/PixQRCodeModal';
 
 // Máscaras de formatação
 const formatCPF = (value: string) => {
@@ -33,7 +35,7 @@ const formatPhone = (value: string) => {
     .slice(0, 15);
 };
 
-const formatCEP = (value: string) => {
+const formatCEP_mask = (value: string) => {
   return value
     .replace(/\D/g, '')
     .replace(/(\d{5})(\d)/, '$1-$2')
@@ -65,13 +67,34 @@ export default function CheckoutPage() {
     state: '',
   });
 
-  const [shippingMethod, setShippingMethod] = useState<'pac' | 'sedex'>('pac');
+  // Dynamic shipping options
+  const [shippingOptions, setShippingOptions] = useState<ShippingOption[]>([]);
+  const [isLoadingShipping, setIsLoadingShipping] = useState(false);
+  const [selectedShippingId, setSelectedShippingId] = useState<number | null>(null);
+  const [shippingFallback, setShippingFallback] = useState(false);
+
   const [paymentMethod, setPaymentMethod] = useState<'pix' | 'card' | 'boleto'>('pix');
 
-  const shippingOptions = {
-    pac: { name: 'PAC', price: 29.90, days: '8-12 dias úteis', icon: Truck },
-    sedex: { name: 'SEDEX', price: 49.90, days: '3-5 dias úteis', icon: Zap },
-  };
+  // Credit card state
+  const [cardData, setCardData] = useState({
+    number: '',
+    holderName: '',
+    expiryMonth: '',
+    expiryYear: '',
+    ccv: '',
+  });
+
+  // PIX Modal state
+  const [showPixModal, setShowPixModal] = useState(false);
+  const [pixData, setPixData] = useState<{ qrCode: string; payload: string; orderId: string; value: number }>({
+    qrCode: '',
+    payload: '',
+    orderId: '',
+    value: 0,
+  });
+
+  // Completed order ID for confirmation
+  const [completedOrderId, setCompletedOrderId] = useState<string>('');
 
   const paymentOptions = {
     pix: { name: 'PIX', description: '10% de desconto', icon: QrCode, discount: 0.1 },
@@ -86,14 +109,16 @@ export default function CheckoutPage() {
     }).format(price);
   };
 
-  const shippingCost = shippingOptions[shippingMethod].price;
+  // Calculate costs
+  const selectedShipping = shippingOptions.find(o => o.id === selectedShippingId);
+  const shippingCost = selectedShipping?.price || 0;
   const discount = subtotal * paymentOptions[paymentMethod].discount;
   const total = subtotal + shippingCost - discount;
 
   // Require login BEFORE filling checkout form
   useEffect(() => {
     if (!authLoading && !user && step !== 'confirmation') {
-      toast({ 
+      toast({
         title: 'Faça login para continuar',
         description: 'Você precisa estar logado para finalizar a compra.'
       });
@@ -101,19 +126,52 @@ export default function CheckoutPage() {
     }
   }, [user, authLoading, navigate, step]);
 
+  // Load shipping options from Melhor Envio API
+  const loadShippingOptions = useCallback(async (cep: string) => {
+    const cleanCep = cep.replace(/\D/g, '');
+    if (cleanCep.length !== 8) return;
+
+    setIsLoadingShipping(true);
+    try {
+      const cartItems = items.map(item => ({
+        quantity: item.quantity,
+        weight: 0.5, // Default weight for sneakers ~500g
+        insurance_value: getItemPrice(item),
+      }));
+
+      const result = await calculateShipping(cleanCep, cartItems);
+      setShippingOptions(result.options);
+      setShippingFallback(result.fallback);
+
+      // Auto-select cheapest option
+      if (result.options.length > 0) {
+        setSelectedShippingId(result.options[0].id);
+      }
+    } catch (error) {
+      console.error('Shipping calculation error:', error);
+      // Fallback options
+      setShippingOptions([
+        { id: 1, name: 'PAC', company: 'Correios', price: 29.90, delivery_time: 10 },
+        { id: 2, name: 'SEDEX', company: 'Correios', price: 49.90, delivery_time: 5 },
+      ]);
+      setSelectedShippingId(1);
+      setShippingFallback(true);
+    } finally {
+      setIsLoadingShipping(false);
+    }
+  }, [items, getItemPrice]);
+
   // Pre-load profile and default address
   useEffect(() => {
     if (!user) return;
-    
+
     const loadUserData = async () => {
-      // Load profile data
       const { data: profileData } = await supabase
         .from('profiles')
         .select('full_name, phone, cpf')
         .eq('user_id', user.id)
         .maybeSingle();
 
-      // Load default address
       const { data: addressData } = await supabase
         .from('addresses')
         .select('*')
@@ -137,18 +195,27 @@ export default function CheckoutPage() {
           state: addressData.state,
         } : {}),
       }));
+
+      // If address has CEP, load shipping options
+      if (addressData?.cep) {
+        loadShippingOptions(addressData.cep);
+      }
     };
 
     loadUserData();
-  }, [user]);
+  }, [user, loadShippingOptions]);
 
-  // Busca automática de CEP via ViaCEP
+
+
+  // Busca automática de CEP via ViaCEP + calcula frete
   const handleCepSearch = useCallback(async (cep: string) => {
     try {
       const result = await fetchCEP(cep);
       if (result) {
         setShippingData(prev => ({ ...prev, ...result }));
         toast({ title: 'Endereço encontrado!' });
+        // Also calculate shipping
+        loadShippingOptions(cep);
       } else {
         toast({ title: 'CEP não encontrado', variant: 'destructive' });
       }
@@ -156,7 +223,7 @@ export default function CheckoutPage() {
       console.error('CEP lookup error:', error);
       toast({ title: 'Erro ao buscar CEP', variant: 'destructive' });
     }
-  }, []);
+  }, [loadShippingOptions]);
 
   // Redirect if cart is empty
   if (items.length === 0 && step !== 'confirmation') {
@@ -195,12 +262,17 @@ export default function CheckoutPage() {
 
   const handleShippingSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     const required = ['fullName', 'email', 'phone', 'cpf', 'cep', 'street', 'number', 'neighborhood', 'city', 'state'];
     const missing = required.filter(field => !shippingData[field as keyof typeof shippingData]);
-    
+
     if (missing.length > 0) {
       toast({ title: 'Preencha todos os campos obrigatórios', variant: 'destructive' });
+      return;
+    }
+
+    if (!selectedShippingId) {
+      toast({ title: 'Selecione um método de envio', variant: 'destructive' });
       return;
     }
 
@@ -208,21 +280,29 @@ export default function CheckoutPage() {
   };
 
   const handlePaymentSubmit = async () => {
-    // Require user to be logged in
     if (!user) {
-      toast({ 
-        title: 'Faça login para finalizar', 
+      toast({
+        title: 'Faça login para finalizar',
         description: 'Você precisa estar logado para concluir o pedido.',
-        variant: 'destructive' 
+        variant: 'destructive'
       });
       navigate('/login', { state: { from: '/checkout' } });
       return;
     }
 
+    // Validate card data if paying by card
+    if (paymentMethod === 'card') {
+      if (!cardData.number || !cardData.holderName || !cardData.expiryMonth || !cardData.expiryYear || !cardData.ccv) {
+        toast({ title: 'Preencha todos os dados do cartão', variant: 'destructive' });
+        return;
+      }
+    }
+
     setIsProcessing(true);
-    
+
     try {
       // 1. Create order in database
+      const shippingMethodName = selectedShipping?.name || 'PAC';
       const orderData = {
         user_id: user.id,
         status: 'pending' as const,
@@ -231,7 +311,7 @@ export default function CheckoutPage() {
         discount: discount,
         total: total,
         payment_method: paymentMethod,
-        shipping_method: shippingMethod,
+        shipping_method: shippingMethodName.toLowerCase().includes('sedex') ? 'sedex' : 'pac',
         shipping_address: {
           full_name: shippingData.fullName,
           email: shippingData.email,
@@ -246,35 +326,35 @@ export default function CheckoutPage() {
           state: shippingData.state,
         },
       };
-      
+
       const { data: order, error: orderError } = await supabase
         .from('orders')
         .insert(orderData)
         .select()
         .single();
-        
+
       if (orderError) {
         console.error('Order creation error:', orderError);
         throw new Error('Erro ao criar pedido');
       }
-      
+
       // 2. Insert order items
       const orderItems = items.map(item => ({
         order_id: order.id,
         product_id: item.product.id,
         variant_id: item.variant?.id || null,
         product_name: item.product.title,
-        variant_info: item.variant 
+        variant_info: item.variant
           ? `Tam ${item.variant.size}`
           : null,
         quantity: item.quantity,
         unit_price: getItemPrice(item),
       }));
-      
+
       const { error: itemsError } = await supabase
         .from('order_items')
         .insert(orderItems);
-        
+
       if (itemsError) {
         console.error('Order items error:', itemsError);
         throw new Error('Erro ao salvar itens do pedido');
@@ -299,8 +379,8 @@ export default function CheckoutPage() {
           throw new Error('Estoque insuficiente para um ou mais itens. Por favor, revise seu carrinho.');
         }
       }
-      
-      // 3. Save profile data (name, phone, cpf)
+
+      // 4. Save profile data
       await supabase
         .from('profiles')
         .update({
@@ -310,7 +390,7 @@ export default function CheckoutPage() {
         })
         .eq('user_id', user.id);
 
-      // 4. Save address if not already exists
+      // 5. Save address if not already exists
       const { data: existingAddr } = await supabase
         .from('addresses')
         .select('id')
@@ -334,25 +414,114 @@ export default function CheckoutPage() {
         });
       }
 
-      // 5. Clear cart and show confirmation
-      clearCart();
-      setStep('confirmation');
-      
-      toast({ 
-        title: 'Pedido realizado com sucesso!',
-        description: `Pedido #${order.id.slice(0, 8).toUpperCase()} criado.`
-      });
-      
+      // 6. Create payment via ASAAS
+      const cleanCpf = shippingData.cpf.replace(/\D/g, '');
+      const cleanPhone = shippingData.phone.replace(/\D/g, '');
+
+      try {
+        const paymentResponse: PaymentResponse = await createPayment({
+          orderId: order.id,
+          paymentMethod,
+          customer: {
+            name: shippingData.fullName,
+            email: shippingData.email,
+            cpfCnpj: cleanCpf,
+            phone: cleanPhone,
+          },
+          value: total,
+          description: `Pedido Happy Style #${order.id.slice(0, 8).toUpperCase()}`,
+          ...(paymentMethod === 'card' ? {
+            creditCard: {
+              holderName: cardData.holderName,
+              number: cardData.number.replace(/\s/g, ''),
+              expiryMonth: cardData.expiryMonth,
+              expiryYear: cardData.expiryYear,
+              ccv: cardData.ccv,
+            },
+            creditCardHolderInfo: {
+              name: shippingData.fullName,
+              email: shippingData.email,
+              cpfCnpj: cleanCpf,
+              postalCode: shippingData.cep.replace(/\D/g, ''),
+              addressNumber: shippingData.number,
+              phone: cleanPhone,
+            },
+          } : {}),
+        });
+
+        // Handle response based on payment method
+        if (paymentMethod === 'pix' && paymentResponse.pixQrCode) {
+          // Show PIX QR Code modal
+          setPixData({
+            qrCode: paymentResponse.pixQrCode,
+            payload: paymentResponse.pixPayload || '',
+            orderId: order.id,
+            value: total,
+          });
+          setShowPixModal(true);
+          setCompletedOrderId(order.id);
+        } else if (paymentMethod === 'card') {
+          // Card payment processed instantly
+          clearCart();
+          setCompletedOrderId(order.id);
+          setStep('confirmation');
+          toast({
+            title: 'Pagamento aprovado! 🎉',
+            description: 'Seu cartão foi cobrado com sucesso.'
+          });
+        } else if (paymentMethod === 'boleto' && paymentResponse.bankSlipUrl) {
+          // Open boleto URL and show confirmation
+          window.open(paymentResponse.bankSlipUrl, '_blank');
+          clearCart();
+          setCompletedOrderId(order.id);
+          setStep('confirmation');
+          toast({
+            title: 'Boleto gerado! 📄',
+            description: 'O boleto foi aberto em uma nova aba.'
+          });
+        } else {
+          // Fallback: if ASAAS doesn't return expected data, still confirm
+          clearCart();
+          setCompletedOrderId(order.id);
+          setStep('confirmation');
+          toast({
+            title: 'Pedido realizado! ✅',
+            description: paymentResponse.invoiceUrl
+              ? 'Use o link de pagamento enviado por email.'
+              : 'Aguarde a confirmação do pagamento.'
+          });
+        }
+
+      } catch (paymentError) {
+        console.warn('ASAAS payment error (order created):', paymentError);
+        // Order was created successfully, even if ASAAS fails
+        // Show confirmation with pending payment status
+        clearCart();
+        setCompletedOrderId(order.id);
+        setStep('confirmation');
+        toast({
+          title: 'Pedido criado com sucesso! ✅',
+          description: 'Houve um erro ao processar o pagamento automaticamente. Nossa equipe entrará em contato.',
+        });
+      }
+
     } catch (error) {
       console.error('Checkout error:', error);
-      toast({ 
-        title: 'Erro ao finalizar pedido', 
+      toast({
+        title: 'Erro ao finalizar pedido',
         description: error instanceof Error ? error.message : 'Tente novamente ou entre em contato.',
-        variant: 'destructive' 
+        variant: 'destructive'
       });
     } finally {
       setIsProcessing(false);
     }
+  };
+
+  // PIX payment confirmed callback
+  const handlePixConfirmed = () => {
+    setShowPixModal(false);
+    clearCart();
+    setStep('confirmation');
   };
 
   if (step === 'confirmation') {
@@ -361,9 +530,14 @@ export default function CheckoutPage() {
         <div className="container py-12 text-center max-w-md mx-auto">
           <CheckCircle className="h-16 w-16 text-green-500 mx-auto mb-4" />
           <h1 className="text-2xl font-bold mb-2">Pedido Confirmado!</h1>
-          <p className="text-muted-foreground mb-6">
-            Seu pedido foi recebido e está sendo processado. Você receberá um e-mail com os detalhes.
+          <p className="text-muted-foreground mb-2">
+            Seu pedido foi recebido e está sendo processado.
           </p>
+          {completedOrderId && (
+            <p className="text-sm font-mono bg-muted px-3 py-1 rounded inline-block mb-6">
+              Pedido #{completedOrderId.slice(0, 8).toUpperCase()}
+            </p>
+          )}
           <div className="space-y-3">
             <Button asChild className="w-full">
               <Link to="/minha-conta/pedidos">Ver Meus Pedidos</Link>
@@ -473,7 +647,7 @@ export default function CheckoutPage() {
                           <Input
                             value={shippingData.cep}
                             onChange={(e) => {
-                              const formatted = formatCEP(e.target.value);
+                              const formatted = formatCEP_mask(e.target.value);
                               setShippingData({ ...shippingData, cep: formatted });
                               if (formatted.replace(/\D/g, '').length === 8) {
                                 handleCepSearch(formatted);
@@ -539,36 +713,71 @@ export default function CheckoutPage() {
                   </CardContent>
                 </Card>
 
+                {/* Dynamic Shipping Options */}
                 <Card>
                   <CardHeader>
-                    <CardTitle>Método de Envio</CardTitle>
+                    <CardTitle className="flex items-center gap-2">
+                      <Package className="h-5 w-5" />
+                      Método de Envio
+                    </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <RadioGroup value={shippingMethod} onValueChange={(v) => setShippingMethod(v as 'pac' | 'sedex')}>
-                      {Object.entries(shippingOptions).map(([key, option]) => (
-                        <label
-                          key={key}
-                          className={cn(
-                            'flex items-center justify-between p-4 rounded-lg border cursor-pointer transition-colors',
-                            shippingMethod === key ? 'border-primary bg-primary/5' : 'border-border hover:border-foreground/30'
-                          )}
+                    {isLoadingShipping ? (
+                      <div className="space-y-3">
+                        <Skeleton className="h-16 rounded-lg" />
+                        <Skeleton className="h-16 rounded-lg" />
+                      </div>
+                    ) : shippingOptions.length === 0 ? (
+                      <div className="text-center py-6 text-muted-foreground">
+                        <Truck className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                        <p>Digite seu CEP para calcular o frete</p>
+                      </div>
+                    ) : (
+                      <>
+                        {shippingFallback && (
+                          <p className="text-xs text-amber-600 mb-3">
+                            ⚠️ Valores estimados. O valor final pode variar.
+                          </p>
+                        )}
+                        <RadioGroup
+                          value={selectedShippingId?.toString() || ''}
+                          onValueChange={(v) => setSelectedShippingId(Number(v))}
                         >
-                          <div className="flex items-center gap-3">
-                            <RadioGroupItem value={key} />
-                            <option.icon className="h-5 w-5 text-muted-foreground" />
-                            <div>
-                              <span className="font-medium">{option.name}</span>
-                              <p className="text-sm text-muted-foreground">{option.days}</p>
-                            </div>
-                          </div>
-                          <span className="font-bold">{formatPrice(option.price)}</span>
-                        </label>
-                      ))}
-                    </RadioGroup>
+                          {shippingOptions.map((option) => (
+                            <label
+                              key={option.id}
+                              className={cn(
+                                'flex items-center justify-between p-4 rounded-lg border cursor-pointer transition-colors',
+                                selectedShippingId === option.id ? 'border-primary bg-primary/5' : 'border-border hover:border-foreground/30'
+                              )}
+                            >
+                              <div className="flex items-center gap-3">
+                                <RadioGroupItem value={option.id.toString()} />
+                                {option.name.toLowerCase().includes('sedex') ? (
+                                  <Zap className="h-5 w-5 text-muted-foreground" />
+                                ) : (
+                                  <Truck className="h-5 w-5 text-muted-foreground" />
+                                )}
+                                <div>
+                                  <span className="font-medium">{option.name}</span>
+                                  {option.company && (
+                                    <span className="text-xs text-muted-foreground ml-1">({option.company})</span>
+                                  )}
+                                  <p className="text-sm text-muted-foreground">
+                                    {option.delivery_time} dias úteis
+                                  </p>
+                                </div>
+                              </div>
+                              <span className="font-bold">{formatPrice(option.price)}</span>
+                            </label>
+                          ))}
+                        </RadioGroup>
+                      </>
+                    )}
                   </CardContent>
                 </Card>
 
-                <Button type="submit" size="lg" className="w-full">
+                <Button type="submit" size="lg" className="w-full" disabled={!selectedShippingId}>
                   Continuar para Pagamento
                 </Button>
               </form>
@@ -612,8 +821,12 @@ export default function CheckoutPage() {
                 {paymentMethod === 'pix' && (
                   <Card>
                     <CardContent className="p-6 text-center">
+                      <QrCode className="h-12 w-12 mx-auto mb-3 text-primary/60" />
                       <p className="text-muted-foreground">
                         O QR Code do PIX será gerado após a confirmação do pedido.
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Você terá 30 minutos para realizar o pagamento.
                       </p>
                     </CardContent>
                   </Card>
@@ -627,21 +840,48 @@ export default function CheckoutPage() {
                     <CardContent className="grid gap-4">
                       <div className="space-y-2">
                         <Label>Número do Cartão</Label>
-                        <Input placeholder="0000 0000 0000 0000" />
+                        <Input
+                          placeholder="0000 0000 0000 0000"
+                          value={cardData.number}
+                          onChange={(e) => setCardData({ ...cardData, number: e.target.value })}
+                        />
                       </div>
-                      <div className="grid grid-cols-2 gap-4">
+                      <div className="grid grid-cols-3 gap-4">
                         <div className="space-y-2">
-                          <Label>Validade</Label>
-                          <Input placeholder="MM/AA" />
+                          <Label>Mês</Label>
+                          <Input
+                            placeholder="MM"
+                            maxLength={2}
+                            value={cardData.expiryMonth}
+                            onChange={(e) => setCardData({ ...cardData, expiryMonth: e.target.value })}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Ano</Label>
+                          <Input
+                            placeholder="AAAA"
+                            maxLength={4}
+                            value={cardData.expiryYear}
+                            onChange={(e) => setCardData({ ...cardData, expiryYear: e.target.value })}
+                          />
                         </div>
                         <div className="space-y-2">
                           <Label>CVV</Label>
-                          <Input placeholder="000" maxLength={4} />
+                          <Input
+                            placeholder="000"
+                            maxLength={4}
+                            value={cardData.ccv}
+                            onChange={(e) => setCardData({ ...cardData, ccv: e.target.value })}
+                          />
                         </div>
                       </div>
                       <div className="space-y-2">
                         <Label>Nome no Cartão</Label>
-                        <Input placeholder="Como está no cartão" />
+                        <Input
+                          placeholder="Como está impresso no cartão"
+                          value={cardData.holderName}
+                          onChange={(e) => setCardData({ ...cardData, holderName: e.target.value.toUpperCase() })}
+                        />
                       </div>
                     </CardContent>
                   </Card>
@@ -650,21 +890,25 @@ export default function CheckoutPage() {
                 {paymentMethod === 'boleto' && (
                   <Card>
                     <CardContent className="p-6 text-center">
+                      <FileText className="h-12 w-12 mx-auto mb-3 text-primary/60" />
                       <p className="text-muted-foreground">
                         O boleto será gerado após a confirmação do pedido.
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Vencimento em 3 dias úteis. O pedido será processado após a compensação.
                       </p>
                     </CardContent>
                   </Card>
                 )}
 
-                <Button 
-                  size="lg" 
-                  className="w-full" 
+                <Button
+                  size="lg"
+                  className="w-full"
                   onClick={handlePaymentSubmit}
                   disabled={isProcessing}
                 >
                   {isProcessing && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                  Finalizar Pedido
+                  {isProcessing ? 'Processando...' : `Finalizar Pedido — ${formatPrice(total)}`}
                 </Button>
               </div>
             )}
@@ -713,8 +957,10 @@ export default function CheckoutPage() {
                     </div>
                   )}
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">Frete ({shippingOptions[shippingMethod].name})</span>
-                    <span>{formatPrice(shippingCost)}</span>
+                    <span className="text-muted-foreground">
+                      Frete {selectedShipping ? `(${selectedShipping.name})` : ''}
+                    </span>
+                    <span>{shippingCost > 0 ? formatPrice(shippingCost) : 'A calcular'}</span>
                   </div>
                   {discount > 0 && (
                     <div className="flex justify-between text-green-500">
@@ -735,6 +981,21 @@ export default function CheckoutPage() {
           </div>
         </div>
       </div>
+
+      {/* PIX QR Code Modal */}
+      <PixQRCodeModal
+        isOpen={showPixModal}
+        orderId={pixData.orderId}
+        pixQrCode={pixData.qrCode}
+        pixPayload={pixData.payload}
+        value={pixData.value}
+        onPaymentConfirmed={handlePixConfirmed}
+        onClose={() => {
+          setShowPixModal(false);
+          clearCart();
+          setStep('confirmation');
+        }}
+      />
     </Layout>
   );
 }

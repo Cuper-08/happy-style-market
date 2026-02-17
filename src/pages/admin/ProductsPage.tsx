@@ -55,9 +55,9 @@ export default function ProductsPage() {
     setCurrentPage(1);
   };
 
-  const getStockLabel = (variants: any[]) => {
+  const getStockLabel = (variants: { stock?: boolean }[]) => {
     if (!variants || variants.length === 0) return '-';
-    const inStock = variants.filter((v: any) => v.stock !== false).length;
+    const inStock = variants.filter((v) => v.stock !== false).length;
     return `${inStock}/${variants.length}`;
   };
 

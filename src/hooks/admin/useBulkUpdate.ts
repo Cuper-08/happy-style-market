@@ -4,12 +4,12 @@ import { useToast } from '@/hooks/use-toast';
 
 export interface VariantChange {
   variant_id?: string;
-  changes: Record<string, any>;
+  changes: Record<string, unknown>;
 }
 
 export interface ProductChange {
   id: string;
-  changes: Record<string, any>;
+  changes: Record<string, unknown>;
   variantChanges?: VariantChange[];
   newVariants?: { size: string; stock?: boolean }[];
 }
@@ -21,53 +21,56 @@ export function useBulkUpdateProducts() {
   return useMutation({
     mutationFn: async (items: ProductChange[]) => {
       const batchSize = 10;
-      let updated = 0;
+      let updatedCount = 0;
 
       for (let i = 0; i < items.length; i += batchSize) {
         const batch = items.slice(i, i + batchSize);
-        const promises: Promise<any>[] = [];
+        const batchPromises: PromiseLike<unknown>[] = [];
 
-        for (const { id, changes, variantChanges, newVariants } of batch) {
+        for (const item of batch) {
+          const { id, changes, variantChanges, newVariants } = item;
+
+          // 1. Update Product
           if (Object.keys(changes).length > 0) {
-            promises.push(
-              supabase.from('products').update(changes).eq('id', id).then(r => {
+            batchPromises.push(
+              supabase.from('products').update(changes).eq('id', id).then((r) => {
                 if (r.error) throw r.error;
-              }) as Promise<any>
+              })
             );
           }
 
+          // 2. Update Variants
           if (variantChanges) {
             for (const vc of variantChanges) {
               if (vc.variant_id) {
-                promises.push(
-                  supabase.from('product_variants').update(vc.changes).eq('id', vc.variant_id).then(r => {
+                batchPromises.push(
+                  supabase.from('product_variants').update(vc.changes).eq('id', vc.variant_id).then((r) => {
                     if (r.error) throw r.error;
-                  }) as Promise<any>
+                  })
                 );
               }
             }
           }
 
+          // 3. New Variants
           if (newVariants && newVariants.length > 0) {
-            const inserts = newVariants.map(v => ({
+            const inserts = newVariants.map((v) => ({
               product_id: id,
               size: v.size,
               stock: v.stock !== false,
             }));
-            promises.push(
-              supabase.from('product_variants').insert(inserts).then(r => {
+            batchPromises.push(
+              supabase.from('product_variants').insert(inserts).then((r) => {
                 if (r.error) throw r.error;
-              }) as Promise<any>
+              })
             );
           }
-
-          updated++;
+          updatedCount++;
         }
-
-        await Promise.all(promises);
+        await Promise.all(batchPromises);
       }
 
-      return updated;
+      return updatedCount;
     },
     onSuccess: (count) => {
       queryClient.invalidateQueries({ queryKey: ['admin-products'] });

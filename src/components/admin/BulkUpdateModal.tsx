@@ -91,9 +91,9 @@ export function BulkUpdateModal({ open, onOpenChange, products }: BulkUpdateModa
     });
   };
 
-  const formatValue = (key: string, val: any) => {
+  const formatValue = (key: string, val: unknown) => {
     if (typeof val === 'boolean') return val ? 'Sim' : 'Não';
-    if (key.includes('price')) return `R$ ${Number(val).toFixed(2)}`;
+    if (key.includes('price')) return `R$ ${Number(val as number).toFixed(2)}`;
     return String(val);
   };
 
