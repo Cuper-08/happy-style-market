@@ -48,6 +48,8 @@ export function ProductCard({ product, className, index = 0 }: ProductCardProps)
         <img
           src={product.images?.[0] || '/placeholder.svg'}
           alt={product.title}
+          loading="lazy"
+          decoding="async"
           className={cn(
             "h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-110",
             isOutOfStock && "opacity-50 grayscale"
