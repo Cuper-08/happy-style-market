@@ -1,63 +1,61 @@
 
+## Corrigir Erros de Build TypeScript
 
-## Corrigir Carrossel Infinito de Categorias e Carregamento de Imagens
+Existem 2 erros independentes que precisam ser corrigidos:
 
-### Problema 1: Marquee corta no mobile
+---
 
-O marquee atual duplica os 6 itens apenas 1 vez (total 12). No mobile, com itens de ~140px de largura + margens, o conteudo total e de aproximadamente 1000px. Quando a animacao translateX(-50%) chega ao meio, o conteudo visivel acaba antes de completar o loop, causando um "pulo" visivel. A solucao e triplicar (ou quadruplicar) os itens para garantir que sempre haja conteudo suficiente para preencher a tela enquanto a animacao roda.
+### Erro 1 — `CheckoutPage.tsx` linha 332: `.insert()` recebe objeto em vez de array
 
-### Problema 2: Imagens dos produtos demoram para carregar
+O Supabase tipado espera que `.insert()` receba um **array** de objetos (tipo `Insert[]`), mas o código passa um objeto simples `{}`. O TypeScript está rejeitando porque o tipo esperado inclui métodos de array como `length`, `push`, `pop`, etc.
 
-As imagens dos produtos vem do Supabase Storage e nao possuem nenhuma otimizacao de carregamento. Nao ha placeholder, skeleton, nem lazy loading eficiente. Alem disso, o ProductCard nao tem `loading="lazy"` no img.
+**Correção**: Envolver `orderData` em um array `[orderData]`.
 
-### Mudancas Planejadas
+```typescript
+// ANTES (linha 332)
+.insert(orderData)
 
-**1. `src/components/home/CategoryMarquee.tsx`**
-- Triplicar os itens em vez de duplicar (3 copias = 18 itens) para garantir cobertura total no mobile
-- Remover `loading="lazy"` das imagens do marquee (sao poucas e precisam estar visiveis imediatamente)
-- Adicionar `will-change: transform` via CSS para performance mais suave no mobile
-
-**2. `src/index.css`**
-- Alterar a animacao `animate-marquee-categories` para usar `translateX(-33.33%)` (ja que agora sao 3 copias, o ponto de reset e 1/3)
-- Adicionar `will-change: transform` na classe do marquee
-
-**3. `src/components/product/ProductCard.tsx`**
-- Adicionar `loading="lazy"` na tag img dos produtos
-- Adicionar `decoding="async"` para nao bloquear o render
-- Usar um placeholder de cor de fundo (`bg-gray-100`) enquanto a imagem carrega, com transicao de opacidade
-
-### Detalhes Tecnicos
-
-```text
-// CategoryMarquee.tsx - triplicar itens
-const items = [...categories, ...categories, ...categories]; // 18 itens
-
-// index.css - ajustar keyframe para 3 copias
-.animate-marquee-categories {
-  animation: marquee-categories 30s linear infinite;
-  will-change: transform;
-}
-
-@keyframes marquee-categories {
-  0% { transform: translateX(0); }
-  100% { transform: translateX(-33.33%); }
-}
-
-// ProductCard.tsx - otimizar carregamento de imagem
-<img
-  src={product.images?.[0] || '/placeholder.svg'}
-  alt={product.title}
-  loading="lazy"
-  decoding="async"
-  className="..."
-/>
+// DEPOIS
+.insert([orderData])
 ```
 
-### Resumo
+---
 
-| Arquivo | Mudanca |
-|---------|---------|
-| `src/components/home/CategoryMarquee.tsx` | Triplicar itens, remover lazy loading |
-| `src/index.css` | Nova keyframe com translateX(-33.33%), will-change |
-| `src/components/product/ProductCard.tsx` | Adicionar loading=lazy e decoding=async |
+### Erro 2 — `OrderDetailPage.tsx` linhas 156-164: `shippingAddress` tipado como `Record<string, unknown>`
 
+O objeto `shippingAddress` é declarado assim:
+
+```typescript
+const shippingAddress = order.shipping_address as Record<string, unknown>;
+```
+
+O tipo `unknown` não é atribuível a `ReactNode` diretamente. Ao usar `{shippingAddress.label}`, `{shippingAddress.street}`, etc., o TypeScript não sabe que esses valores são strings.
+
+**Correção**: Fazer um cast mais específico para um tipo com os campos de endereço como `string | undefined`:
+
+```typescript
+// ANTES
+const shippingAddress = order.shipping_address as Record<string, unknown>;
+
+// DEPOIS
+const shippingAddress = order.shipping_address as Record<string, string | null | undefined> | null;
+```
+
+Assim, os valores extraídos serão `string | null | undefined`, que é um `ReactNode` válido.
+
+---
+
+### Resumo dos arquivos a alterar
+
+| Arquivo | Linha | Mudança |
+|---------|-------|---------|
+| `src/pages/CheckoutPage.tsx` | 332 | `.insert(orderData)` → `.insert([orderData])` |
+| `src/pages/admin/OrderDetailPage.tsx` | ~58 | Cast de `Record<string, unknown>` para `Record<string, string \| null \| undefined> \| null` |
+
+São 2 mudanças pontuais, sem impacto em lógica ou comportamento do app.
+
+---
+
+### Nota sobre atualizações do GitHub
+
+O Lovable sincroniza automaticamente com o GitHub em tempo real — não é necessário "puxar" manualmente. Qualquer commit feito no repositório já está refletido no código atual. Os erros de build acima já estavam presentes antes das suas edições no GitHub ou foram introduzidos por elas.
