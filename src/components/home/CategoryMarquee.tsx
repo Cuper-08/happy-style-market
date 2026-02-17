@@ -29,7 +29,7 @@ export function CategoryMarquee() {
                 <img
                   src={cat.image}
                   alt={cat.name}
-                  className="max-w-full max-h-full object-contain group-hover:scale-105 transition-transform duration-300"
+                  className="max-w-full max-h-full object-contain mix-blend-multiply group-hover:scale-105 transition-transform duration-300"
                   loading="lazy"
                 />
               </div>
