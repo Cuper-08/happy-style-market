@@ -204,19 +204,22 @@ Itens individuais de cada pedido.
 ---
 
 ### 7. **profiles** (Perfis de Usuários)
+Armazena informações adicionais dos usuários.
 
-Informações adicionais dos usuários.
+| Coluna | Tipo | Descrição |
+| :--- | :--- | :--- |
+| `id` | UUID | Chave primária |
+| `user_id` | UUID | Referência a `auth.users` |
+| `full_name` | TEXT | Nome completo |
+| `phone` | TEXT | Telefone/WhatsApp |
+| `cpf` | TEXT | CPF do cliente |
+| `avatar_url` | TEXT | URL da foto de perfil (Google/Social) |
+| `customer_type` | TEXT | 'retail' ou 'wholesale' |
+| `created_at` | TIMESTAMPTZ | Data de criação |
+| `updated_at` | TIMESTAMPTZ | Data de atualização |
 
-| Coluna | Tipo | Nullable | Descrição |
-|--------|------|----------|-----------|
-| `id` | UUID | NOT NULL | ID único (PK) |
-| `user_id` | UUID | NOT NULL | Referência ao usuário Supabase |
-| `full_name` | TEXT | NULL | Nome completo |
-| `cpf` | TEXT | NULL | CPF |
-| `phone` | TEXT | NULL | Telefone |
-| `customer_type` | TEXT | NULL | Tipo de cliente (pessoa física/jurídica) |
-| `created_at` | TIMESTAMP | NOT NULL | Data de criação |
-| `updated_at` | TIMESTAMP | NOT NULL | Data de atualização |
+**Triggers:**
+* `on_auth_user_created`: Cria automaticamente um perfil quando um novo usuário se cadastra em `auth.users`, salvando nome e foto se disponíveis.
 
 ---
 

@@ -63,6 +63,10 @@ export interface Profile {
   full_name?: string;
   phone?: string;
   cpf?: string;
+  avatar_url?: string;
+  customer_type?: string;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export type OrderStatus = 'pending' | 'paid' | 'processing' | 'shipped' | 'delivered' | 'cancelled';

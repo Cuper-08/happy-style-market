@@ -10,7 +10,7 @@ import logo from '@/assets/logo.webp';
 import { cn } from '@/lib/utils';
 
 export function Header() {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const { totalItems } = useCart();
   const navigate = useNavigate();
   const [searchOpen, setSearchOpen] = useState(false);
@@ -38,20 +38,20 @@ export function Header() {
   }, [totalItems, prevTotalItems]);
 
   return (
-    <header 
+    <header
       className={cn(
         'header-dark sticky top-0 z-50 w-full border-b transition-all duration-300',
-        scrolled 
-          ? 'shadow-lg' 
+        scrolled
+          ? 'shadow-lg'
           : 'border-transparent'
       )}
     >
       <div className="container flex h-18 md:h-20 items-center justify-between gap-4">
         {/* Logo */}
         <Link to="/" className="flex items-center group">
-          <img 
-            src={logo} 
-            alt="Brás Conceito" 
+          <img
+            src={logo}
+            alt="Brás Conceito"
             className="h-14 md:h-16 w-auto object-contain drop-shadow-[0_0_8px_rgba(201,169,98,0.4)] transition-all duration-300 group-hover:drop-shadow-[0_0_16px_rgba(201,169,98,0.6)]"
           />
         </Link>
@@ -83,8 +83,18 @@ export function Header() {
 
           {/* User */}
           <Link to={user ? '/minha-conta' : '/login'}>
-            <Button variant="ghost" size="icon" className="text-[hsl(0,0%,85%)] hover:bg-[hsl(0,0%,15%)] hover:text-primary transition-colors">
-              <User className="h-5 w-5" />
+            <Button variant="ghost" size="icon" className="text-[hsl(0,0%,85%)] hover:bg-[hsl(0,0%,15%)] hover:text-primary transition-colors overflow-hidden">
+              {profile?.avatar_url ? (
+                <div className="h-7 w-7 rounded-full border border-primary/30 overflow-hidden flex items-center justify-center bg-muted">
+                  <img
+                    src={profile.avatar_url}
+                    alt={profile.full_name || 'Usuário'}
+                    className="h-full w-full object-cover"
+                  />
+                </div>
+              ) : (
+                <User className="h-5 w-5" />
+              )}
             </Button>
           </Link>
 

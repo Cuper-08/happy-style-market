@@ -47,6 +47,9 @@ function translateAuthError(error: AuthError): string {
   if (message.includes('network') || message.includes('fetch')) {
     return 'Erro de conexão. Verifique sua internet e tente novamente.';
   }
+  if (message.includes('error sending confirmation email')) {
+    return 'Erro ao enviar e-mail de confirmação. Isso geralmente ocorre por instabilidade no servidor de e-mail ou configuração incorreta do SMTP no Supabase Dashboard.';
+  }
 
   // Fallback: retorna a mensagem original
   return error.message || 'Ocorreu um erro inesperado. Tente novamente.';
@@ -75,17 +78,52 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         console.log('[Auth] State changed:', event, session?.user?.email);
         setSession(session);
         setUser(session?.user ?? null);
-        
+
         if (session?.user) {
           // Fetch profile using setTimeout to avoid deadlock
           setTimeout(async () => {
             try {
-              const { data } = await supabase
+              const { data: profile, error } = await supabase
                 .from('profiles')
                 .select('*')
                 .eq('user_id', session.user.id)
                 .maybeSingle();
-              setProfile(data);
+
+              if (error) throw error;
+
+              // Synchronize name and avatar from social metadata if missing or changed
+              const meta = session.user.user_metadata;
+              const metaName = meta?.full_name || meta?.name;
+              const metaAvatar = meta?.avatar_url || meta?.picture;
+
+              if (profile) {
+                // If profile exists but missing data that we have in metadata, update it
+                const updates: any = {};
+                if (!profile.full_name && metaName) updates.full_name = metaName;
+                if (!profile.avatar_url && metaAvatar) updates.avatar_url = metaAvatar;
+
+                if (Object.keys(updates).length > 0) {
+                  await supabase
+                    .from('profiles')
+                    .update(updates)
+                    .eq('user_id', session.user.id);
+                  setProfile({ ...profile, ...updates });
+                } else {
+                  setProfile(profile);
+                }
+              } else {
+                // Profile doesn't exist yet (might be a slight delay from trigger)
+                // We'll set it temporarily from metadata to avoid闪烁 (flicker)
+                setProfile({
+                  id: '', // Temporary
+                  user_id: session.user.id,
+                  full_name: metaName,
+                  avatar_url: metaAvatar
+                });
+
+                // Try to create it if it really doesn't exist after a moment
+                // although the trigger usually handles this.
+              }
             } catch (err) {
               console.error('[Auth] Error fetching profile:', err);
             }
@@ -93,7 +131,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         } else {
           setProfile(null);
         }
-        
+
         setIsLoading(false);
       }
     );
@@ -111,9 +149,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({ 
-      email: email.trim().toLowerCase(), 
-      password 
+    const { error } = await supabase.auth.signInWithPassword({
+      email: email.trim().toLowerCase(),
+      password
     });
     if (error) {
       throw new Error(translateAuthError(error));
@@ -144,7 +182,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Verifica se precisa de confirmação por email
     // Se session é null mas user existe, significa que precisa confirmar email
     const needsConfirmation = !data.session && !!data.user;
-    
+
     return { needsConfirmation };
   };
 
@@ -157,14 +195,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const updateProfile = async (data: Partial<Profile>) => {
     if (!user) throw new Error('Você precisa estar logado para atualizar o perfil.');
-    
+
     const { error } = await supabase
       .from('profiles')
       .update(data)
       .eq('user_id', user.id);
-    
+
     if (error) throw new Error('Erro ao atualizar perfil. Tente novamente.');
-    
+
     setProfile(prev => prev ? { ...prev, ...data } : null);
   };
 
