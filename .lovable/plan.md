@@ -1,61 +1,38 @@
 
-## Corrigir Erros de Build TypeScript
+## Corrigir Logo Quebrada e Remover Login com Google
 
-Existem 2 erros independentes que precisam ser corrigidos:
+### Problema 1: Logo quebrada no Header
 
----
+A logo está importada como `import logo from '@/assets/logo.webp'`. O arquivo `logo.webp` existe na pasta `src/assets/`, mas como você fez atualizações via GitHub, é possível que o arquivo `.webp` tenha sido corrompido ou substituído. A solução mais robusta é mudar o import para usar `logo.png` (que também existe em `src/assets/`), pois PNG tem suporte universal garantido em todos os navegadores e ambientes de build.
 
-### Erro 1 — `CheckoutPage.tsx` linha 332: `.insert()` recebe objeto em vez de array
+### Problema 2: Botão "Continuar com Google" na tela de login
 
-O Supabase tipado espera que `.insert()` receba um **array** de objetos (tipo `Insert[]`), mas o código passa um objeto simples `{}`. O TypeScript está rejeitando porque o tipo esperado inclui métodos de array como `length`, `push`, `pop`, etc.
+O `LoginPage.tsx` renderiza:
+- Um botão "Continuar com Google" (linhas 152–161)
+- Um separador "ou" (linhas 163–168)
+- A função `handleGoogleSignIn` (linhas 50–63)
+- O import do ícone `Chrome` do lucide-react (linha 11)
+- O import do `Separator` (linha 12)
 
-**Correção**: Envolver `orderData` em um array `[orderData]`.
+Todos esses elementos serão removidos. O `Separator` pode ser mantido importado caso seja usado em outro lugar — verificar antes de remover o import.
 
-```typescript
-// ANTES (linha 332)
-.insert(orderData)
+### Mudanças Planejadas
 
-// DEPOIS
-.insert([orderData])
-```
+**1. `src/components/layout/Header.tsx`**
+- Trocar `import logo from '@/assets/logo.webp'` por `import logo from '@/assets/logo.png'`
+- Isso garante compatibilidade máxima e evita problemas de build com `.webp`
 
----
+**2. `src/pages/LoginPage.tsx`**
+- Remover o bloco do botão Google (linhas 152–161)
+- Remover o separador "ou" (linhas 163–168)
+- Remover a função `handleGoogleSignIn` (linhas 50–63)
+- Remover os imports não utilizados: `Chrome` do lucide-react e `Separator` do ui/separator
 
-### Erro 2 — `OrderDetailPage.tsx` linhas 156-164: `shippingAddress` tipado como `Record<string, unknown>`
+### Resumo
 
-O objeto `shippingAddress` é declarado assim:
+| Arquivo | Mudança |
+|---------|---------|
+| `src/components/layout/Header.tsx` | Import `logo.webp` → `logo.png` |
+| `src/pages/LoginPage.tsx` | Remover botão Google, separador, função e imports não utilizados |
 
-```typescript
-const shippingAddress = order.shipping_address as Record<string, unknown>;
-```
-
-O tipo `unknown` não é atribuível a `ReactNode` diretamente. Ao usar `{shippingAddress.label}`, `{shippingAddress.street}`, etc., o TypeScript não sabe que esses valores são strings.
-
-**Correção**: Fazer um cast mais específico para um tipo com os campos de endereço como `string | undefined`:
-
-```typescript
-// ANTES
-const shippingAddress = order.shipping_address as Record<string, unknown>;
-
-// DEPOIS
-const shippingAddress = order.shipping_address as Record<string, string | null | undefined> | null;
-```
-
-Assim, os valores extraídos serão `string | null | undefined`, que é um `ReactNode` válido.
-
----
-
-### Resumo dos arquivos a alterar
-
-| Arquivo | Linha | Mudança |
-|---------|-------|---------|
-| `src/pages/CheckoutPage.tsx` | 332 | `.insert(orderData)` → `.insert([orderData])` |
-| `src/pages/admin/OrderDetailPage.tsx` | ~58 | Cast de `Record<string, unknown>` para `Record<string, string \| null \| undefined> \| null` |
-
-São 2 mudanças pontuais, sem impacto em lógica ou comportamento do app.
-
----
-
-### Nota sobre atualizações do GitHub
-
-O Lovable sincroniza automaticamente com o GitHub em tempo real — não é necessário "puxar" manualmente. Qualquer commit feito no repositório já está refletido no código atual. Os erros de build acima já estavam presentes antes das suas edições no GitHub ou foram introduzidos por elas.
+São mudanças pontuais e seguras, sem impacto em nenhuma outra funcionalidade do app.
