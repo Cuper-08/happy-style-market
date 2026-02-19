@@ -6,7 +6,7 @@ import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { useAuth } from '@/hooks/useAuth';
 import { useCart } from '@/contexts/CartContext';
 import { useState, useEffect } from 'react';
-import logo from '@/assets/logo.webp';
+import logo from '@/assets/logo.png';
 import { cn } from '@/lib/utils';
 
 export function Header() {
