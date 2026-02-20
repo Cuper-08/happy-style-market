@@ -1,4 +1,6 @@
 import { Link } from 'react-router-dom';
+import useEmblaCarousel from 'embla-carousel-react';
+import AutoScroll from 'embla-carousel-auto-scroll';
 
 const categories = [
   { name: 'Malas', image: '/categories/malas.png', link: '/categoria/malas' },
@@ -10,18 +12,21 @@ const categories = [
 ];
 
 export function CategoryMarquee() {
-  const items = [...categories, ...categories, ...categories];
+  const [emblaRef] = useEmblaCarousel(
+    { loop: true, dragFree: true, align: 'start' },
+    [AutoScroll({ speed: 1, stopOnInteraction: true })]
+  );
 
   return (
     <section className="py-6 md:py-8 space-y-4">
       <h2 className="text-center text-lg md:text-xl font-bold tracking-wide text-foreground">
         NAVEGUE POR CATEGORIAS
       </h2>
-      <div className="overflow-hidden">
-        <div className="flex animate-marquee-categories">
-          {items.map((cat, i) => (
+      <div className="overflow-hidden" ref={emblaRef}>
+        <div className="flex">
+          {categories.map((cat) => (
             <Link
-              key={i}
+              key={cat.name}
               to={cat.link}
               className="flex-shrink-0 flex flex-col items-center mx-3 md:mx-5 group"
             >

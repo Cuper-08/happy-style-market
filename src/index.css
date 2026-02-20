@@ -439,16 +439,6 @@
     animation: marquee 25s linear infinite;
   }
 
-  .animate-marquee-categories {
-    animation: marquee-categories 30s linear infinite;
-    will-change: transform;
-  }
-
-  @keyframes marquee-categories {
-    0% { transform: translateX(0); }
-    100% { transform: translateX(-33.33%); }
-  }
-
   @keyframes marquee {
     0% { transform: translateX(0); }
     100% { transform: translateX(-50%); }
