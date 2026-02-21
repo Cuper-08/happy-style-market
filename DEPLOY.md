@@ -62,10 +62,51 @@ npx supabase functions deploy calculate-shipping --no-verify-jwt
 
 ## 5. Ativação do Workflow do WhatsApp (n8n)
 
-1. Acesse seu n8n em `https://n8n.hsbmarketing.com.br`.
-2. Abra o workflow **"Happy Style Market - Assistente WhatsApp IA"**.
-3. Clique no botão de **Ativar** (toggle no canto superior direito).
-4. O Webhook da Evolution API já foi configurado automaticamente para apontar para este workflow.
+### Configuração do n8n
+
+1. Crie um novo workflow no n8n com **3 nós**:
+
+   **Nó 1: Webhook (Trigger)**
+   - Tipo: Webhook
+   - Método: POST
+   - Path: `/whatsapp-incoming`
+   - Este webhook receberá as mensagens da Evolution API
+
+   **Nó 2: HTTP Request (Chama o Supabase)**
+   - Método: POST
+   - URL: `https://zcoixlvbkssvuxamzwvs.supabase.co/functions/v1/whatsapp-bot`
+   - Headers:
+     - `Content-Type`: `application/json`
+     - `x-bot-token`: `<seu WHATSAPP_BOT_TOKEN configurado no passo 2>`
+   - Body (JSON):
+     ```json
+     {
+       "phone": "{{ $json.data.key.remoteJid.replace('@s.whatsapp.net','') }}",
+       "message": "{{ $json.data.message.conversation || $json.data.message.extendedTextMessage?.text }}"
+     }
+     ```
+
+   **Nó 3: HTTP Request (Responde via Evolution API)**
+   - Método: POST
+   - URL: `https://<sua-evolution-api>/message/sendText/<instance-name>`
+   - Headers:
+     - `apikey`: `<sua API key da Evolution>`
+   - Body (JSON):
+     ```json
+     {
+       "number": "{{ $('Webhook').item.json.data.key.remoteJid }}",
+       "text": "{{ $json.reply }}"
+     }
+     ```
+
+2. Ative o workflow (toggle no canto superior direito).
+
+### Configuração da Evolution API
+
+1. No painel da Evolution API, configure o webhook da instância:
+   - **URL**: `https://<seu-n8n>/webhook/whatsapp-incoming`
+   - **Events**: `MESSAGES_UPSERT`
+2. Envie "Oi" para o número do bot e verifique se a resposta chega.
 
 ## 6. Testes Finais
 
