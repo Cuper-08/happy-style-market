@@ -1,83 +1,141 @@
 
-## Transformar o Marquee de Categorias em Carrossel Interativo
+## Integração WhatsApp + Supabase + Evolution API: Bot Inteligente para o App
 
-### O que será mudado
+### Visão Geral
 
-O componente `CategoryMarquee` hoje é um marquee automático, sem interação do usuário. O objetivo é:
+Sim, é totalmente possível — e o seu app já tem toda a infraestrutura necessária para isso. O Supabase já armazena produtos, pedidos, clientes e configurações. O que falta é criar uma **ponte entre o WhatsApp e o seu banco de dados** via Evolution API + n8n (ou diretamente via Edge Functions).
 
-1. **Tornar clicável** — já está com `<Link>` mas a animação contínua dificulta o clique. A solução é **pausar a animação ao passar o mouse/toque** (já possível com CSS) e garantir que o toque rápido seja interpretado como clique e não como scroll.
+A arquitetura completa ficaria assim:
 
-2. **Permitir arrastar/deslizar** — o usuário deve poder puxar o carrossel para os lados com o dedo (mobile) ou mouse (desktop), navegando entre as categorias de forma manual, como um carrossel real.
+```text
+Cliente envia mensagem no WhatsApp
+        |
+        v
+Evolution API (recebe e envia mensagens WhatsApp)
+        |
+        v
+n8n (orquestra a lógica do bot: interpreta a mensagem, chama APIs)
+        |
+        v
+Supabase Edge Function: "whatsapp-bot"
+  - Busca produtos por texto (title, category)
+  - Consulta estoque (product_variants.stock)
+  - Histórico de conversa (chat_history já existe!)
+  - Formata link mascarado: https://happy-style-market.lovable.app/produto/{slug}
+        |
+        v
+n8n retorna resposta formatada → Evolution API → Cliente no WhatsApp
+```
 
-### Abordagem: Substituir o marquee CSS por um scroll horizontal com drag/swipe
+---
 
-Em vez de manter a animação CSS infinita com triplicação de items, converteremos para um **scroll horizontal com Embla Carousel** (já instalado no projeto como `embla-carousel-react`). Isso entrega:
+### O que o Bot Consegue Fazer (Capacidades)
 
-- Swipe nativo no mobile
-- Drag com mouse no desktop
-- Loop infinito real (via `loop: true` do Embla)
-- Autoplay desativável ao interagir (via plugin `AutoScroll` do Embla, já disponível na lib)
-- Todos os items continuam clicáveis como `<Link>`
+O bot pode dominar praticamente tudo que está no banco de dados do seu app:
 
-### Detalhes Técnicos
+**Busca de Produtos**
+- "Tem tênis Nike?" → busca por título/categoria e retorna nome, preço, disponibilidade e link direto
+- "Quais bolsas vocês têm?" → lista todos os produtos da categoria "bolsas"
+- "Tem esse produto no tamanho 42?" → consulta `product_variants` com size + stock = true
 
-**`src/components/home/CategoryMarquee.tsx`**
+**Link Mascarado Direto ao Produto**
+- O bot envia: `https://happy-style-market.lovable.app/produto/tenis-nike-air-max`
+- Ao clicar, o cliente cai direto na página do produto no app
+- A rota `/produto/:slug` já existe e funciona perfeitamente
 
-Substituir o marquee CSS por Embla Carousel:
+**Consulta de Pedidos**
+- "Qual o status do meu pedido?" → consulta tabela `orders` pelo telefone cadastrado no perfil
+- "Meu pedido foi enviado?" → retorna `tracking_code` se disponível
 
-```tsx
-import useEmblaCarousel from 'embla-carousel-react';
-import AutoScroll from 'embla-carousel-auto-scroll';
+**Informações da Loja**
+- Endereço, WhatsApp, horário → via tabela `store_settings`
 
-export function CategoryMarquee() {
-  const [emblaRef] = useEmblaCarousel(
-    { loop: true, dragFree: true, align: 'start' },
-    [AutoScroll({ speed: 1, stopOnInteraction: true })]
-  );
+**Histórico de Conversa**
+- A tabela `chat_history` já existe no banco com campos `contact_phone`, `role`, `message`
+- O bot pode ter memória de conversa por número de telefone
 
-  return (
-    <section className="py-6 md:py-8 space-y-4">
-      <h2>NAVEGUE POR CATEGORIAS</h2>
-      <div className="overflow-hidden" ref={emblaRef}>
-        <div className="flex">
-          {categories.map((cat) => (
-            <Link key={cat.name} to={cat.link} className="flex-shrink-0 ...">
-              <img src={cat.image} ... />
-              <span>{cat.name}</span>
-            </Link>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
+---
+
+### Arquitetura Técnica Detalhada
+
+#### Peças necessárias
+
+| Componente | O que é | Custo |
+|-----------|---------|-------|
+| **Evolution API** | Conecta seu número WhatsApp a uma API HTTP | Open source, self-hosted ou pago (Railway, etc.) |
+| **n8n** | Orquestrador visual de automações (como Zapier, mas poderoso) | Open source / cloud gratuito parcial |
+| **Supabase Edge Function** | Lógica do bot: busca produtos, formata respostas | Já existe no projeto |
+| **App React** | Já tem todas as páginas de produto com slugs únicos | Já pronto |
+
+#### O que será criado no Lovable
+
+**Edge Function: `whatsapp-bot`**
+
+Esta função é o "cérebro" do bot. Receberá do n8n:
+```json
+{
+  "phone": "5511999999999",
+  "message": "tem tênis nike?"
 }
 ```
 
-- `loop: true` — cria loop infinito nativo sem duplicar items
-- `dragFree: true` — scroll livre ao arrastar (sem snap agressivo)
-- `AutoScroll` — auto-desliza automaticamente como o marquee, mas **para ao interagir**
-- `stopOnInteraction: true` — pausa o autoplay quando o usuário toca/arrasta
-- O clique no Link funciona normalmente pois o Embla distingue drag de tap
+E retornará:
+```json
+{
+  "reply": "Encontrei 3 produtos:\n\n👟 *Tênis Nike Air Max*\nPreço: R$ 299,90\n🔗 https://happy-style-market.lovable.app/produto/tenis-nike-air-max\n\n..."
+}
+```
 
-**`src/index.css`**
+A função vai:
+1. Buscar produtos no Supabase com `ilike` por `title` e `category`
+2. Verificar se há variantes com `stock = true`
+3. Salvar a conversa na tabela `chat_history`
+4. Gerar os links mascarados com o slug do produto
+5. Retornar resposta formatada em texto para o WhatsApp
 
-Remover as classes `animate-marquee-categories` e o keyframe `marquee-categories`, que não serão mais usados.
+**Fluxo no n8n (simples)**
+```text
+Webhook (recebe mensagem da Evolution API)
+    → Chama Edge Function whatsapp-bot
+    → Evolution API envia resposta ao cliente
+```
 
-**Instalação de plugin**
+---
 
-O pacote `embla-carousel-auto-scroll` precisará ser instalado. É o plugin oficial do Embla para autoplay suave, compatível com a versão já instalada no projeto (`embla-carousel-react ^8.6.0`).
+### O que será entregue pelo Lovable
 
-### Resumo das mudanças
+1. **Edge Function `whatsapp-bot`** — endpoint HTTP que o n8n chama
+   - Recebe `{ phone, message }`
+   - Interpreta a intenção (busca por produto, consulta de pedido, info da loja)
+   - Busca no Supabase com busca textual flexível
+   - Grava na `chat_history`
+   - Retorna texto formatado com link do produto
 
-| Arquivo | Mudança |
-|---------|---------|
-| `src/components/home/CategoryMarquee.tsx` | Substituir marquee CSS por Embla Carousel com loop, drag e autoplay |
-| `src/index.css` | Remover keyframe e classe `animate-marquee-categories` |
-| `package.json` | Adicionar `embla-carousel-auto-scroll` |
+2. **Proteger o endpoint com token** — o n8n envia um header secreto para autenticar
 
-### Resultado Final
+3. **Documentação do fluxo n8n** — como configurar os nós no n8n para fechar o ciclo com a Evolution API
 
-- No mobile: o usuário arrasta o carrossel com o dedo e clica na categoria desejada
-- No desktop: o carrossel desliza automaticamente; o usuário pode arrastar com o mouse ou clicar
-- A navegação para `/categoria/...` continua funcionando normalmente ao clicar/tocar
+---
 
+### O que NÃO precisa mudar no App
+
+- Nada nas páginas React
+- Nada nas rotas
+- Nada no banco de dados (a tabela `chat_history` já existe)
+- Os links dos produtos já funcionam: `/produto/{slug}`
+
+---
+
+### Limitações Importantes
+
+- **Inteligência do bot**: Para entender linguagem natural avançada (ex: "quero algo bonito pra presente feminino até R$200"), seria necessário integrar uma LLM como OpenAI GPT. Para buscas diretas por palavra-chave, a Edge Function resolve sozinha.
+- **Evolution API**: Precisa ser configurada externamente (self-hosted ou serviço pago). O Lovable cria a ponta do Supabase; a configuração do WhatsApp em si é feita fora.
+- **n8n**: Também é configurado externamente, mas é simples — apenas 2 nós no fluxo.
+
+---
+
+### Próximo Passo
+
+O Lovable criaria agora a **Edge Function `whatsapp-bot`** com toda a lógica de busca, formatação de links e gravação de histórico. Você então configura o n8n para apontar para ela e conecta com sua Evolution API.
+
+Quer prosseguir com a criação da Edge Function?
