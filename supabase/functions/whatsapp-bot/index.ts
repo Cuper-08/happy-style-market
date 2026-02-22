@@ -145,6 +145,18 @@ Deno.serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  const expectedToken = Deno.env.get("WHATSAPP_BOT_TOKEN");
+  const providedToken = req.headers.get("x-bot-token");
+
+  // Se o token foi configurado nas variáveis de ambiente, obriga que venha no header
+  if (expectedToken && providedToken !== expectedToken) {
+    console.warn("[LUNA] Bloqueado: x-bot-token inválido ou não fornecido.");
+    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      status: 401,
+      headers: { ...corsHeaders, "Content-Type": "application/json" }
+    });
+  }
+
   try {
     const body = await req.json();
     const data = body.data || {};

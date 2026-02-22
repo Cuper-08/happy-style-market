@@ -40,9 +40,14 @@ serve(async (req: Request) => {
     }
 
     try {
-        // Optional: Validate webhook token
+        // Strict Validation: Server MUST have WEBHOOK_TOKEN configured
+        if (!WEBHOOK_TOKEN) {
+            console.error('[Webhook] Crítico: ASAAS_WEBHOOK_TOKEN ausente nas variáveis de ambiente. Recusando processar p/ segurança.');
+            return new Response('Internal Server Error', { status: 500 });
+        }
+
         const receivedToken = req.headers.get('asaas-access-token');
-        if (WEBHOOK_TOKEN && receivedToken !== WEBHOOK_TOKEN) {
+        if (receivedToken !== WEBHOOK_TOKEN) {
             console.warn('[Webhook] Invalid token received');
             return new Response('Unauthorized', { status: 401 });
         }

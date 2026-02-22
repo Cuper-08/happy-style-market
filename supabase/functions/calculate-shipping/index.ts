@@ -42,6 +42,16 @@ serve(async (req: Request) => {
         return new Response('ok', { headers: corsHeaders });
     }
 
+    // Basic anti-abuse origin validation
+    const origin = req.headers.get('origin');
+    const allowedExactOrigins = ['http://localhost:8080', 'http://localhost:5173'];
+
+    // Se tiver origem e não for um dos permitidos e nem conter lovable/happy-style
+    if (origin && !allowedExactOrigins.includes(origin) && !origin.includes('lovable.app') && !origin.includes('brasc')) {
+        console.warn(`[Shipping] Origem bloqueada: ${origin}`);
+        return new Response('Forbidden', { status: 403 });
+    }
+
     try {
         const body: ShippingRequest = await req.json();
         const { cepDestino, items } = body;
