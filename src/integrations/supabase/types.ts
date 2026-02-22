@@ -218,6 +218,54 @@ export type Database = {
         }
         Relationships: []
       }
+      extracted_projects: {
+        Row: {
+          authors: string | null
+          chunk_id: string | null
+          created_at: string | null
+          document_id: string
+          emails: string | null
+          id: string
+          project_title: string | null
+          raw_extraction: Json | null
+        }
+        Insert: {
+          authors?: string | null
+          chunk_id?: string | null
+          created_at?: string | null
+          document_id: string
+          emails?: string | null
+          id?: string
+          project_title?: string | null
+          raw_extraction?: Json | null
+        }
+        Update: {
+          authors?: string | null
+          chunk_id?: string | null
+          created_at?: string | null
+          document_id?: string
+          emails?: string | null
+          id?: string
+          project_title?: string | null
+          raw_extraction?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "extracted_projects_chunk_id_fkey"
+            columns: ["chunk_id"]
+            isOneToOne: false
+            referencedRelation: "pdf_chunks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "extracted_projects_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "pdf_documents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       favorites: {
         Row: {
           created_at: string
@@ -335,6 +383,80 @@ export type Database = {
           tracking_code?: string | null
           updated_at?: string
           user_id?: string | null
+        }
+        Relationships: []
+      }
+      pdf_chunks: {
+        Row: {
+          chunk_index: number
+          chunk_text: string
+          created_at: string | null
+          document_id: string
+          estimated_pages: string | null
+          id: string
+          processing_status: string
+          retry_count: number
+          updated_at: string | null
+        }
+        Insert: {
+          chunk_index: number
+          chunk_text: string
+          created_at?: string | null
+          document_id: string
+          estimated_pages?: string | null
+          id?: string
+          processing_status?: string
+          retry_count?: number
+          updated_at?: string | null
+        }
+        Update: {
+          chunk_index?: number
+          chunk_text?: string
+          created_at?: string | null
+          document_id?: string
+          estimated_pages?: string | null
+          id?: string
+          processing_status?: string
+          retry_count?: number
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pdf_chunks_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "pdf_documents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pdf_documents: {
+        Row: {
+          created_at: string | null
+          filename: string
+          id: string
+          status: string
+          total_chunks: number | null
+          total_pages: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          filename: string
+          id?: string
+          status?: string
+          total_chunks?: number | null
+          total_pages?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          filename?: string
+          id?: string
+          status?: string
+          total_chunks?: number | null
+          total_pages?: number | null
+          updated_at?: string | null
         }
         Relationships: []
       }
