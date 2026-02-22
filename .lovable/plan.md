@@ -1,141 +1,112 @@
 
-## Integração WhatsApp + Supabase + Evolution API: Bot Inteligente para o App
 
-### Visão Geral
+## Melhorias na Luna (whatsapp-bot) -- Plano de Implementacao
 
-Sim, é totalmente possível — e o seu app já tem toda a infraestrutura necessária para isso. O Supabase já armazena produtos, pedidos, clientes e configurações. O que falta é criar uma **ponte entre o WhatsApp e o seu banco de dados** via Evolution API + n8n (ou diretamente via Edge Functions).
+### Resumo das melhorias
 
-A arquitetura completa ficaria assim:
+Todas as melhorias identificadas na analise anterior serao aplicadas diretamente no arquivo `supabase/functions/whatsapp-bot/index.ts`.
+
+---
+
+### 1. Corrigir campo `first_name` para `full_name`
+
+O campo `first_name` nao existe na tabela `profiles`. O campo correto e `full_name`. Sera corrigido no SELECT e em todas as referencias.
+
+### 2. Busca dinamica de produtos por palavras-chave
+
+Antes de montar o prompt para a IA, a Luna vai extrair palavras-chave da mensagem do usuario e fazer uma busca `ilike` no banco. Isso permite que quando o cliente perguntar "tem tenis Nike?", a Luna busque produtos reais no catalogo de 1295 itens e injete os resultados no contexto da IA.
+
+Logica:
+- Extrair palavras com 3+ caracteres da mensagem (excluindo stopwords como "tem", "voce", "qual", etc.)
+- Buscar com `or(title.ilike.%palavra%,category.ilike.%palavra%)` limitado a 8 resultados
+- Incluir slug e preco no contexto para a IA gerar links corretos
+
+### 3. Aumentar base de produtos em destaque de 5 para 20
+
+Em vez de enviar apenas 5 produtos aleatorios, enviar 20 produtos variados (misturando categorias) para dar mais repertorio a Luna. As 8 categorias existentes sao: Bolsas, Bone, Chinelo, Importados, Malas, Meias, Tenis, Tenis Infantil.
+
+### 4. Aumentar `max_tokens` de 300 para 500
+
+Para evitar respostas cortadas, especialmente quando a Luna lista varios produtos com links.
+
+### 5. Filtro de seguranca contra mensagens de grupo e loops
+
+- Ignorar mensagens onde o telefone contenha `@g.us` (grupos do WhatsApp)
+- Ignorar mensagens vazias ou muito curtas (menos de 2 caracteres)
+
+### 6. Melhorar o prompt da IA
+
+Adicionar no prompt:
+- Instrucao explicita para usar os links dos produtos encontrados na busca dinamica
+- Lista de categorias disponiveis para a Luna poder sugerir
+- Instrucao para nao inventar produtos que nao estejam no contexto
+
+---
+
+### Detalhes Tecnicos
+
+**Arquivo modificado:** `supabase/functions/whatsapp-bot/index.ts`
+
+Mudancas principais no codigo:
 
 ```text
-Cliente envia mensagem no WhatsApp
-        |
-        v
-Evolution API (recebe e envia mensagens WhatsApp)
-        |
-        v
-n8n (orquestra a lógica do bot: interpreta a mensagem, chama APIs)
-        |
-        v
-Supabase Edge Function: "whatsapp-bot"
-  - Busca produtos por texto (title, category)
-  - Consulta estoque (product_variants.stock)
-  - Histórico de conversa (chat_history já existe!)
-  - Formata link mascarado: https://happy-style-market.lovable.app/produto/{slug}
-        |
-        v
-n8n retorna resposta formatada → Evolution API → Cliente no WhatsApp
+1. Linha 63: "first_name" -> "full_name" (SELECT e todas as refs)
+2. Linha 54-57: Aumentar limit de 5 para 20 produtos em destaque
+3. Novo bloco: Busca dinamica por palavras-chave antes da chamada OpenAI
+4. Linha 134: max_tokens de 300 -> 500
+5. Novo bloco: Filtro de grupo (@g.us) e mensagens vazias no inicio
+6. Linhas 104-106: Prompt melhorado com categorias e instrucoes de link
 ```
 
----
+**Stopwords para filtro de busca:**
+```
+tem, voce, quero, qual, como, onde, quando, para, esse, essa,
+isso, aqui, ali, uma, uns, umas, que, com, sem, por, dos, das,
+nos, nas, mais, muito, pode, queria, gostaria, preciso, olha,
+boa, bom, tarde, noite, dia, oi, ola, obrigado, obrigada
+```
 
-### O que o Bot Consegue Fazer (Capacidades)
+**Busca dinamica (pseudo-codigo):**
+```typescript
+const stopwords = new Set([...]);
+const keywords = message.toLowerCase()
+  .split(/\s+/)
+  .filter(w => w.length >= 3 && !stopwords.has(w));
 
-O bot pode dominar praticamente tudo que está no banco de dados do seu app:
-
-**Busca de Produtos**
-- "Tem tênis Nike?" → busca por título/categoria e retorna nome, preço, disponibilidade e link direto
-- "Quais bolsas vocês têm?" → lista todos os produtos da categoria "bolsas"
-- "Tem esse produto no tamanho 42?" → consulta `product_variants` com size + stock = true
-
-**Link Mascarado Direto ao Produto**
-- O bot envia: `https://happy-style-market.lovable.app/produto/tenis-nike-air-max`
-- Ao clicar, o cliente cai direto na página do produto no app
-- A rota `/produto/:slug` já existe e funciona perfeitamente
-
-**Consulta de Pedidos**
-- "Qual o status do meu pedido?" → consulta tabela `orders` pelo telefone cadastrado no perfil
-- "Meu pedido foi enviado?" → retorna `tracking_code` se disponível
-
-**Informações da Loja**
-- Endereço, WhatsApp, horário → via tabela `store_settings`
-
-**Histórico de Conversa**
-- A tabela `chat_history` já existe no banco com campos `contact_phone`, `role`, `message`
-- O bot pode ter memória de conversa por número de telefone
-
----
-
-### Arquitetura Técnica Detalhada
-
-#### Peças necessárias
-
-| Componente | O que é | Custo |
-|-----------|---------|-------|
-| **Evolution API** | Conecta seu número WhatsApp a uma API HTTP | Open source, self-hosted ou pago (Railway, etc.) |
-| **n8n** | Orquestrador visual de automações (como Zapier, mas poderoso) | Open source / cloud gratuito parcial |
-| **Supabase Edge Function** | Lógica do bot: busca produtos, formata respostas | Já existe no projeto |
-| **App React** | Já tem todas as páginas de produto com slugs únicos | Já pronto |
-
-#### O que será criado no Lovable
-
-**Edge Function: `whatsapp-bot`**
-
-Esta função é o "cérebro" do bot. Receberá do n8n:
-```json
-{
-  "phone": "5511999999999",
-  "message": "tem tênis nike?"
+let searchResults = [];
+if (keywords.length > 0) {
+  const searchTerm = keywords.join(" ");
+  // Busca por cada keyword individualmente com OR
+  const orFilter = keywords
+    .map(k => `title.ilike.%${k}%,category.ilike.%${k}%`)
+    .join(",");
+  const { data } = await supabase
+    .from("products")
+    .select("title, slug, price_retail_display, category")
+    .or(orFilter)
+    .limit(8);
+  searchResults = data || [];
 }
 ```
 
-E retornará:
-```json
-{
-  "reply": "Encontrei 3 produtos:\n\n👟 *Tênis Nike Air Max*\nPreço: R$ 299,90\n🔗 https://happy-style-market.lovable.app/produto/tenis-nike-air-max\n\n..."
-}
+**Prompt melhorado (trecho):**
+```
+Categorias disponiveis na loja: Tenis, Bolsas, Bone, Chinelo, 
+Importados, Malas, Meias, Tenis Infantil.
+
+Produtos encontrados pela busca do cliente: [resultados dinamicos]
+
+IMPORTANTE: Sempre use os links no formato exato: 
+${APP_URL}/produto/[slug-do-produto]
+Nunca invente produtos. Se nao encontrou na busca, sugira 
+categorias ou o site.
 ```
 
-A função vai:
-1. Buscar produtos no Supabase com `ilike` por `title` e `category`
-2. Verificar se há variantes com `stock = true`
-3. Salvar a conversa na tabela `chat_history`
-4. Gerar os links mascarados com o slug do produto
-5. Retornar resposta formatada em texto para o WhatsApp
+### Resultado esperado
 
-**Fluxo no n8n (simples)**
-```text
-Webhook (recebe mensagem da Evolution API)
-    → Chama Edge Function whatsapp-bot
-    → Evolution API envia resposta ao cliente
-```
+- Luna conhece o catalogo inteiro (busca dinamica) em vez de apenas 5 produtos
+- Respostas nunca sao cortadas (500 tokens)
+- Campo correto `full_name` no perfil
+- Sem loops com grupos ou mensagens do proprio bot
+- Links sempre corretos e baseados em produtos reais do banco
 
----
-
-### O que será entregue pelo Lovable
-
-1. **Edge Function `whatsapp-bot`** — endpoint HTTP que o n8n chama
-   - Recebe `{ phone, message }`
-   - Interpreta a intenção (busca por produto, consulta de pedido, info da loja)
-   - Busca no Supabase com busca textual flexível
-   - Grava na `chat_history`
-   - Retorna texto formatado com link do produto
-
-2. **Proteger o endpoint com token** — o n8n envia um header secreto para autenticar
-
-3. **Documentação do fluxo n8n** — como configurar os nós no n8n para fechar o ciclo com a Evolution API
-
----
-
-### O que NÃO precisa mudar no App
-
-- Nada nas páginas React
-- Nada nas rotas
-- Nada no banco de dados (a tabela `chat_history` já existe)
-- Os links dos produtos já funcionam: `/produto/{slug}`
-
----
-
-### Limitações Importantes
-
-- **Inteligência do bot**: Para entender linguagem natural avançada (ex: "quero algo bonito pra presente feminino até R$200"), seria necessário integrar uma LLM como OpenAI GPT. Para buscas diretas por palavra-chave, a Edge Function resolve sozinha.
-- **Evolution API**: Precisa ser configurada externamente (self-hosted ou serviço pago). O Lovable cria a ponta do Supabase; a configuração do WhatsApp em si é feita fora.
-- **n8n**: Também é configurado externamente, mas é simples — apenas 2 nós no fluxo.
-
----
-
-### Próximo Passo
-
-O Lovable criaria agora a **Edge Function `whatsapp-bot`** com toda a lógica de busca, formatação de links e gravação de histórico. Você então configura o n8n para apontar para ela e conecta com sua Evolution API.
-
-Quer prosseguir com a criação da Edge Function?
