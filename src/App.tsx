@@ -23,6 +23,16 @@ import AccountProfilePage from "./pages/account/ProfilePage";
 import InstallPage from "./pages/InstallPage";
 import NotFound from "./pages/NotFound";
 
+// Institutional Pages
+import DeliveryPage from "./pages/institutional/DeliveryPage";
+import FaqPage from "./pages/institutional/FaqPage";
+import HowToBuyPage from "./pages/institutional/HowToBuyPage";
+import ContactPage from "./pages/institutional/ContactPage";
+import TermsPage from "./pages/institutional/TermsPage";
+import PrivacyPolicyPage from "./pages/institutional/PrivacyPolicyPage";
+import ExchangePolicyPage from "./pages/institutional/ExchangePolicyPage";
+import ShippingPolicyPage from "./pages/institutional/ShippingPolicyPage";
+
 // Admin Pages
 import {
   DashboardPage,
@@ -70,6 +80,16 @@ const App = () => (
                 <Route path="/minha-conta/enderecos" element={<AccountAddressesPage />} />
                 <Route path="/minha-conta/perfil" element={<AccountProfilePage />} />
                 <Route path="/instalar" element={<InstallPage />} />
+                
+                {/* Institutional Routes */}
+                <Route path="/prazos-e-entregas" element={<DeliveryPage />} />
+                <Route path="/perguntas-frequentes" element={<FaqPage />} />
+                <Route path="/como-comprar" element={<HowToBuyPage />} />
+                <Route path="/contato" element={<ContactPage />} />
+                <Route path="/termos" element={<TermsPage />} />
+                <Route path="/politica-privacidade" element={<PrivacyPolicyPage />} />
+                <Route path="/politica-trocas" element={<ExchangePolicyPage />} />
+                <Route path="/politica-frete" element={<ShippingPolicyPage />} />
                 
                 {/* Admin Routes */}
                 <Route path="/admin" element={<DashboardPage />} />
