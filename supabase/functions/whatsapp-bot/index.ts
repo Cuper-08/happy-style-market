@@ -2,20 +2,143 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type, x-bot-token",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-bot-token",
 };
 
 const APP_URL = "https://happy-style-market.lovable.app";
 
 const STOPWORDS = new Set([
-  "tem","voce","você","quero","qual","como","onde","quando","para","esse","essa",
-  "isso","aqui","ali","uma","uns","umas","que","com","sem","por","dos","das",
-  "nos","nas","mais","muito","pode","queria","gostaria","preciso","olha",
-  "boa","bom","tarde","noite","dia","oi","ola","olá","obrigado","obrigada",
-  "tudo","bem","sim","nao","não","por","favor","the","and","meu","minha",
-  "seu","sua","dele","dela","ter","ser","esta","está","são","sao","foi",
+  "tem", "voce", "você", "quero", "qual", "como", "onde", "quando", "para", "esse", "essa",
+  "isso", "aqui", "ali", "uma", "uns", "umas", "que", "com", "sem", "por", "dos", "das",
+  "nos", "nas", "mais", "muito", "pode", "queria", "gostaria", "preciso", "olha",
+  "boa", "bom", "tarde", "noite", "dia", "oi", "ola", "olá", "obrigado", "obrigada",
+  "tudo", "bem", "sim", "nao", "não", "por", "favor", "the", "and", "meu", "minha",
+  "seu", "sua", "dele", "dela", "ter", "ser", "esta", "está", "são", "sao", "foi",
 ]);
+
+const EVOLUTION_URL = "https://evo.hsbmarketing.com.br";
+const EVOLUTION_INSTANCE = Deno.env.get("EVOLUTION_INSTANCE") || "BuggyPro";
+const EVOLUTION_API_KEY = Deno.env.get("EVOLUTION_API_KEY") || "";
+const OPENAI_KEY = Deno.env.get("OPENAI_API_KEY") || "";
+
+// Número do vendedor humano para transferência (WhatsApp com DDD)
+const VENDEDOR_NUMBER = Deno.env.get("VENDEDOR_NUMBER") || "5511913357383";
+
+// Palavras-chave que indicam pedido de transferência para humano
+const TRANSFER_KEYWORDS = [
+  'falar com humano', 'falar com algu', 'quero falar com',
+  'chamada de vídeo', 'chamada de video', 'vídeo chamada', 'video chamada',
+  'videochamada', 'videochamada', 'falar com o dono', 'falar com vendedor',
+  'atendente humano', 'pessoa real', 'pessoa de verdade',
+  'me passa', 'transferir atendimento', 'falar com a equipe'
+];
+
+// Conhecimento base dos produtos (atualizado com dados reais do banco)
+const PRODUTOS_CONHECIMENTO = `
+📦 PRODUTOS QUE VENDEMOS (CONHECIMENTO COMPLETO):
+
+👟 TÊnis (867+ modelos | R$250 a R$2.500)
+  - Marcas: Amiri, Louis Vuitton, Nike, Adidas, Jordan, Mizuno, Asics, Fila, New Balance, Gucci, Prada e mais
+  - Exemplos de destaque:
+    * TêNis Amiri MA-1 → R$2.500
+    * TêNis Louis Vuitton → R$2.100
+    * Nike Air Jordan, Adidas, Mizuno, Asics, Fila, New Balance → R$250 em diante
+  - Temos têNis masculinos e femininos, diversos modelos e cores
+
+👟 TÊnis INFANTIL (81 modelos | R$600 a R$800)
+  - Modelos: Nike Air Jordan 1, Travis Scott x Air Jordan 1, Air Jordan 3 Retrô, Jordan Jumpman Jack, Nike Jordan Low
+  - Preco fixo: R$800 a maioria dos modelos
+
+👜 BOLSAS (32 modelos | R$1.100 a R$1.800)
+  - Marcas: Louis Vuitton, Gucci, Prada, Dior
+  - Exemplos:
+    * Pochete Prada → R$1.800
+    * Bolsa Gucci Messenger GG Canvas → R$1.800
+    * Gucci GG Supreme Belt Bag → R$1.800
+    * Bolsa Louis Vuitton Neverfull Monogram → R$1.700
+    * Bolsa Louis Vuitton Keepall → R$1.700
+    * Bolsa Dior → R$1.600
+    * Bolsa Prada Nylon Preta → R$1.600
+    * Bolsa Mini Gucci (várias cores) → R$1.500
+    * Bolsa Coussin PM Louis Vuitton → R$1.600
+👡 CHINELOS (10 modelos | R$900 a R$1.000)
+  - Louis Vuitton Chinelo Slide (branco, preto, colorido) → R$1.000
+  - Amiri Chinelo White → R$900 | Amiri Preto e Branco → R$900
+
+🌍 IMPORTADOS PREMIUM (29 modelos | R$1.000 a R$2.500)
+  - Mochila Prada Nylon → R$2.500
+  - Mochila Louis Vuitton Christopher → R$2.500
+  - Louis Vuitton x Air Force 1 (Virgil Abloh - diversas cores) → R$1.800
+  - Alexander McQueen Prata/Preto → R$1.800
+  - Louis Vuitton Runner Tatic → R$1.800
+  - Gucci x Disney Donald Duck Duffle → R$2.000
+  - New Gucci Off White / Bege → R$1.300
+
+🧢 BONÉS (45 modelos | R$250 fixo)
+  - New Era (azul, bege/preto, rosa, branco, verde, Mickey) → R$250
+  - Gucci → R$250 | Prada → R$250 | Louis Vuitton → R$250 | Miu Miu → R$250
+
+🧦 MEIAS (102 modelos | R$50 cada)
+  - Nike, Adidas, Jordan, Mizuno → R$50 | Canalé, tobinho, curta
+
+🧳 MALAS DE VIAGEM (| R$4.500)
+  - Mala de Bordo Louis Vuitton MD29
+`;
+
+const SYSTEM_PROMPT_BASE = `Você é a Luna, vendedora simpática e atenciosa da Brás Conceito.
+
+🏪 SOBRE A LOJA BRÁS CONCEITO (MUITO IMPORTANTE - MEMORIZE):
+- LOJA FÍSICA: R. Conselheiro Belísario, 41 - Brás, São Paulo
+  Google Maps: https://share.google/4D4ge33FoKaNMvU2
+- Modalidade: ATACADO E VAREJO (vendemos para pessoa física E revendedor)
+- Horário: 07:00 às 16:00 (Segunda a Sábado)
+- Instagram: @bras.conceit.o_00 | https://www.instagram.com/bras.conceit.o_00/
+- App Online: ${APP_URL} (catálogo completo com fotos e preços)
+- Pagamento: Cartão de Crédito parcelado e PIX ✅
+- Atacado: a partir de 6 peças tem desconto especial 💰
+- A loja FÍSICA existe e funciona normalmente! Clientes podem ir presencialmente.
+
+${PRODUTOS_CONHECIMENTO}
+
+PERSONALIDADE:
+- Simpática, jovem, brasileira. Emojis com moderação 😊
+- Fale como uma amiga acessível, nunca robôtica
+- Mensagens curtas e diretas (WhatsApp, não e-mail!)
+- Faça perguntas para entender o que o cliente precisa
+
+REGRAS DE OURO:
+
+1. LOJA FÍSICA: Quando perguntarem se tem loja, diga SIM! Fornece o endereço e horário. NÃO diga que só é online.
+
+2. ATACADO/VAREJO: Atendemos os dois! Varejo = qualquer cliente. Atacado = a partir de 6 peças com desconto.
+
+3. APP: Só envie o link ${APP_URL} quando o cliente pedir catálogo/fotos/preços ou quiser comprar. Ao enviar diga: "não ocupa memória, pode parcelar no Cartão e aceita PIX!"
+
+4. HISTÓRICO: Se já cumprimentou antes, NÃO repita 'Oi'. Responda direto.
+
+5. PRODUTOS: Com base no conhecimento acima, NUNCA diga que não temos um produto que está na lista. Em caso de dúvida, diga que pode verificar com a equipe.
+
+6. TRANSFERÊNCIA: Se o cliente mencionar chamada de vídeo, falar com humano/vendedor/dono/pessoa, responda APENAS:
+[TRANSFERIR_HUMANO:NOME_CLIENTE:NECESSIDADE]
+Só isso, o sistema faz o resto.
+
+7. TAMANHO: Máx 3 parágrafos por resposta.`;
+
+async function sendEvolutionMessage(number: string, text: string, instance: string): Promise<number> {
+  try {
+    const res = await fetch(`${EVOLUTION_URL}/message/sendText/${instance}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'apikey': EVOLUTION_API_KEY },
+      body: JSON.stringify({ number, text }),
+    });
+    const status = res.status;
+    console.log(`[LUNA] Evolution -> ${number}: status=${status}`);
+    return status;
+  } catch (err) {
+    console.error('[LUNA] Erro Evolution:', err);
+    return 500;
+  }
+}
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -23,36 +146,43 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // Autenticação via token secreto
-    const botToken = req.headers.get("x-bot-token");
-    const expectedToken = Deno.env.get("WHATSAPP_BOT_TOKEN");
-    if (!botToken || botToken !== expectedToken) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    const body = await req.json();
+    const data = body.data || {};
+    const key = data.key || {};
+    const message = data.message || {};
 
-    const { phone, message } = await req.json();
+    // Log detalhado para entender exatamente o payload recebido do Webhook
+    console.log("[WEBHOOK] Recebido:", JSON.stringify(body).slice(0, 300));
 
-    // Filtro de segurança: grupos e mensagens vazias
-    if (!phone || !message) {
-      return new Response(
-        JSON.stringify({ error: "phone e message são obrigatórios" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-    if (phone.includes("@g.us")) {
-      return new Response(
-        JSON.stringify({ reply: null, skipped: "group_message" }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-    if (message.trim().length < 2) {
-      return new Response(
-        JSON.stringify({ reply: null, skipped: "message_too_short" }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    const remoteJid: string = key.remoteJid || '';
+    const fromMe: boolean = key.fromMe || false;
+    const pushName: string = data.pushName || 'Cliente';
+    const instance: string = body.instance || EVOLUTION_INSTANCE;
+    const messageText: string = (
+      message.conversation || message.extendedTextMessage?.text || ''
+    ).trim();
+
+    // 1. Ignorar auto-respostas (fromMe), grupos, status, e sem texto
+    if (fromMe) return new Response(JSON.stringify({ skipped: 'fromMe' }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    if (remoteJid.includes('@g.us') || remoteJid.includes('@broadcast')) return new Response(JSON.stringify({ skipped: 'group/status' }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    if (!messageText) return new Response(JSON.stringify({ skipped: 'empty' }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+
+    // formatação de telefone e limpeza
+    const phone = remoteJid.replace('@s.whatsapp.net', '');
+    const msgLower = messageText.toLowerCase();
+
+    // 2. Transferência para humano
+    const querTransferir = TRANSFER_KEYWORDS.some(k => msgLower.includes(k));
+    if (querTransferir) {
+      const internalMsg = `🚨 *TRANSFERÊNCIA SOLICITADA* 🚨\nCliente: ${pushName} (${phone})\nMensagem: "${messageText}"\nLink WhatsApp: wa.me/${phone}`;
+      console.log(`[TRANSFER] Acionado para ${phone}`);
+
+      // Envia alerta pro Lojista
+      await sendEvolutionMessage(VENDEDOR_NUMBER, internalMsg, instance);
+      // Envia reposta da Luna avisando
+      await sendEvolutionMessage(phone, "Estou transferindo você para um dos nossos vendedores. Já, já alguém te atende! 😊", instance);
+
+      return new Response(JSON.stringify({ reply: "transferido" }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
     const supabase = createClient(
@@ -60,28 +190,17 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    // Salva a mensagem do usuário no histórico
+    // 3. Salva a msg do usuario
     await supabase.from("chat_history").insert([
-      { contact_phone: phone, role: "user", message: message },
+      { contact_phone: phone, role: "user", message: messageText },
     ]);
 
-    // === CONTEXTO DO BANCO DE DADOS ===
+    // ==============================================
+    // MELHORIAS INTELIGENTES DO LOVABLE INCORPORADAS
+    // ==============================================
 
-    // 1. Dados da Loja
-    const { data: storeSettings } = await supabase
-      .from("store_settings")
-      .select("*")
-      .limit(1)
-      .single();
-
-    // 2. Produtos em destaque (20 variados)
-    const { data: recentProducts } = await supabase
-      .from("products")
-      .select("title, price_retail_display, category, slug")
-      .limit(20);
-
-    // 3. Busca dinâmica por palavras-chave da mensagem
-    const keywords = message
+    // A. Busca Dinâmica de Produtos por Palavras-Chave
+    const keywords = messageText
       .toLowerCase()
       .split(/\s+/)
       .filter((w: string) => w.length >= 3 && !STOPWORDS.has(w));
@@ -99,12 +218,12 @@ Deno.serve(async (req) => {
       searchResults = data || [];
     }
 
-    // 4. Verifica se o usuário tem conta/pedidos
-    const cleanPhone = phone.replace(/\D/g, "").slice(-8);
-    let userOrdersInfo = "O usuário ainda não tem pedidos recentes ou não foi encontrado cadastro.";
+    // B. Contexto de Pedidos do Usuário Ativo
+    const cleanPhone = phone.replace(/\D/g, "").slice(-8); // extrai ultimos 8 digitos
+    let userOrdersInfo = "O usuário ainda não tem pedidos recentes ou não foi encontrado cadastro ativo.";
     const { data: profile } = await supabase
       .from("profiles")
-      .select("user_id, full_name")
+      .select("user_id, full_name") // Tenta name em full_name
       .ilike("phone", `%${cleanPhone}%`)
       .limit(1)
       .single();
@@ -118,13 +237,14 @@ Deno.serve(async (req) => {
         .limit(2);
 
       if (orders && orders.length > 0) {
-        userOrdersInfo = `Contexto de Pedidos de ${profile.full_name || 'Cliente'}: ${orders.map(o => `Pedido ID: ${o.id.slice(0, 6)} - Status: ${o.status} - Total: R$ ${o.total} - Rastreio: ${o.tracking_code || 'N/A'}`).join(' | ')}`;
+        userOrdersInfo = `Contexto de Pedidos de ${profile.full_name || 'Cliente'}: ${orders.map((o: any) => `ID: ${o.id.slice(0, 6)} - Status: ${o.status} - Total: R$ ${o.total} - Rastreio: ${o.tracking_code || 'N/A'}`).join(' | ')}`;
       } else {
-        userOrdersInfo = `${profile.full_name || 'Cliente'} está cadastrado, mas sem pedidos.`;
+        userOrdersInfo = `${profile.full_name || 'Cliente'} está cadastrado, mas sem pedidos finalizados.`;
       }
     }
+    // ==============================================
 
-    // 5. Histórico de Conversa (Últimas 6 mensagens)
+    // 4. Busca histórico de conversas passadas na mesma thread
     const { data: chatHistory } = await supabase
       .from("chat_history")
       .select("role, message")
@@ -132,95 +252,76 @@ Deno.serve(async (req) => {
       .order("created_at", { ascending: false })
       .limit(6);
 
-    // === CHAMADA OPENAI ===
-    const openAIKey = Deno.env.get("OPENAI_API_KEY");
-    let reply = "";
+    // 5. Gera prompt para OpenAI com a Inteligência mesclada
+    const messages = [];
 
-    if (!openAIKey) {
-      reply = "Oiê! 💖 Sou a Luna! Meu cérebro de inteligência artificial está sendo configurado no momento. Mas logo estarei super humana pra te atender!";
-    } else {
-      const messages = [];
+    // Injeção de Buscas e Pedidos na mente da Luna
+    const searchContext = searchResults.length > 0
+      ? `\n\n🔎 Produtos encontrados na Busca Inteligente (a cliente tem interesse neles): ${searchResults.map(p => `${p.title} (${p.category}) - ${p.price_retail_display} - Link: ${APP_URL}/produto/${p.slug}`).join(' | ')}`
+      : "";
 
-      // Contexto de busca dinâmica
-      const searchContext = searchResults.length > 0
-        ? `\n\nProdutos encontrados pela busca do cliente: ${searchResults.map(p => `${p.title} (${p.category}) - ${p.price_retail_display} - Link: ${APP_URL}/produto/${p.slug}`).join(' | ')}`
-        : "\n\nNenhum produto específico encontrado na busca do cliente.";
+    const SYSTEM_PROMPT_ENRIQUECIDO = SYSTEM_PROMPT_BASE + `\n\nCONTEXTO DO CLIENTE ATUAL (Telefone: ${phone}):\n${userOrdersInfo}${searchContext}\n\nInstrução Extra: Se o cliente perguntou de produto e o sistema encontrou resultados, mostre MUITO ENTUSIASMO sobre as opções encontradas e APRESENTE OS LINKS NO CHAT AGORA MESMO.`;
 
-      messages.push({
-        role: "system",
-        content: `Você é Luna, a assistente virtual e vendedora simpática, atenciosa e apaixonada por moda da ${storeSettings?.company_name || 'Happy Style Market'} (loja premium).
+    messages.push({ role: "system", content: SYSTEM_PROMPT_ENRIQUECIDO });
 
-Sua personalidade:
-- Humana, amigável, acolhedora e fofa. Use emojis moderadamente (✨, 💖, 👟, 👗, etc).
-- Atendimento humanizado, como se estivesse conversando com uma amiga.
-- Você gosta de usar palavras doces e cordiais.
-
-Contexto da Loja:
-- Nome: ${storeSettings?.company_name || 'Happy Style Market'}
-- Contato: ${storeSettings?.whatsapp || ''} / ${storeSettings?.email || ''}
-- Site Oficial: ${APP_URL}
-- Categorias disponíveis: Tênis, Bolsas, Boné, Chinelo, Importados, Malas, Meias, Tênis Infantil.
-- Produtos em destaque: ${JSON.stringify((recentProducts || []).map(p => ({ title: p.title, category: p.category, price: p.price_retail_display, link: `${APP_URL}/produto/${p.slug}` })))}
-${searchContext}
-
-Contexto do Cliente Atual (Telefone: ${phone}):
-${userOrdersInfo}
-
-Instruções de Resposta:
-1. Se o cliente perguntar sobre produtos, PRIMEIRO use os "Produtos encontrados pela busca do cliente" acima. Se houver resultados, mostre-os com entusiasmo e inclua os links.
-2. Se não houver resultados na busca, sugira categorias disponíveis ou guie para o site: ${APP_URL}
-3. IMPORTANTE: Sempre use os links no formato exato: ${APP_URL}/produto/[slug-do-produto]. Nunca invente produtos que não estejam no contexto acima.
-4. Se o cliente perguntar de pedido, use as informações em "Contexto de Pedidos". Se não houver pedido, informe educadamente.
-5. Sempre seja breve, clara e mande textos confortáveis de ler no WhatsApp.
-6. Para categorias, use o link: ${APP_URL}/produtos?category=[categoria]`
-      });
-
-      // Inclui mensagens antigas
-      if (chatHistory && chatHistory.length > 0) {
-        const past = chatHistory.reverse();
-        past.pop();
-        for (const msg of past) {
-          messages.push({ role: msg.role === 'assistant' ? 'assistant' : 'user', content: msg.message });
-        }
+    if (chatHistory && chatHistory.length > 0) {
+      const past = chatHistory.reverse();
+      past.pop(); // Remove the current message that was just inserted
+      for (const msg of past) {
+        messages.push({ role: msg.role === 'assistant' ? 'assistant' : 'user', content: msg.message });
       }
+    }
+    messages.push({ role: "user", content: messageText });
 
-      messages.push({ role: "user", content: message });
-
+    // 6. Chama OpenAI
+    let reply = "";
+    if (!OPENAI_KEY) {
+      reply = "Luna está configurando o cérebro! (Chave API faltante).";
+    } else {
+      console.log(`[OPENAI] Gerando resposta para ${phone}...`);
       const aiResponse = await fetch("https://api.openai.com/v1/chat/completions", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${openAIKey}`
-        },
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${OPENAI_KEY}` },
         body: JSON.stringify({
           model: "gpt-4o-mini",
           messages: messages,
           temperature: 0.7,
-          max_tokens: 500,
+          max_tokens: 300,
         })
       });
 
       if (!aiResponse.ok) {
-        console.error("Erro OpenAI:", await aiResponse.text());
-        throw new Error("Erro ao chamar Inteligência Artificial");
+        throw new Error("Erro OpenAI: " + await aiResponse.text());
       }
-
       const aiData = await aiResponse.json();
       reply = aiData.choices[0].message.content.trim();
     }
 
-    // Salva a resposta da Luna no histórico
+    // 7. Salva a resposta gerada
     await supabase.from("chat_history").insert([
       { contact_phone: phone, role: "assistant", message: reply },
     ]);
 
-    return new Response(JSON.stringify({ reply }), {
+    // 8. Trata Retorno Especial da IA (Transferência decidida pela IA)
+    if (reply.includes("[TRANSFERIR_HUMANO")) {
+      const internalMsg = `🚨 *TRANSFERÊNCIA SOLICITADA PELA IA* 🚨\nCliente: ${pushName} (${phone})\nMensagem Original: "${messageText}"\nLink WhatsApp: wa.me/${phone}`;
+      await sendEvolutionMessage(VENDEDOR_NUMBER, internalMsg, instance);
+      const friendlyReply = "Já repassei para um dos nossos vendedores atender você por aqui! Logo menos ele manda um oizinho 😊";
+      await sendEvolutionMessage(phone, friendlyReply, instance);
+      return new Response(JSON.stringify({ reply: "transferido via prompt" }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+
+    // 9. Envia a resposta Final da IA pro cliente via Evolution
+    console.log(`[LUNA] Respondendo para ${phone}: ${reply.slice(0, 50)}...`);
+    const evoStatus = await sendEvolutionMessage(phone, reply, instance);
+
+    return new Response(JSON.stringify({ reply, evoStatus }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
-  } catch (err) {
-    console.error("whatsapp-bot erro:", err);
+  } catch (err: any) {
+    console.error("whatsapp-bot erro crítico:", err);
     return new Response(
-      JSON.stringify({ error: "Internal server error" }),
+      JSON.stringify({ error: err.message }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
