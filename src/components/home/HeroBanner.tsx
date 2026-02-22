@@ -23,19 +23,19 @@ const defaultBanners: Banner[] = [
     id: 'default-1',
     image_mobile: '/banners/slide-1-mobile.webp',
     image_desktop: '/banners/slide-1-desktop.webp',
-    title: 'Coleção Streetwear',
+    title: 'Sneakers Culture',
   },
   {
     id: 'default-2',
     image_mobile: '/banners/slide-2-mobile.webp',
     image_desktop: '/banners/slide-2-desktop.webp',
-    title: 'Acessórios',
+    title: 'Grifes de Luxo',
   },
   {
     id: 'default-3',
     image_mobile: '/banners/slide-3-mobile.webp',
     image_desktop: '/banners/slide-3-desktop.webp',
-    title: 'Frete Grátis',
+    title: 'Street Style',
   },
 ];
 
