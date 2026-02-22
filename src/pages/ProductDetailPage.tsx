@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ProductSection } from '@/components/home';
-import { Heart, Minus, Plus, ShoppingBag, Tag, Info } from 'lucide-react';
+import { ArrowLeft, Heart, Minus, Plus, ShoppingBag, Tag, Info } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ProductViewer360 } from '@/components/product/ProductViewer360';
 import { toast } from '@/hooks/use-toast';
@@ -116,6 +116,13 @@ export default function ProductDetailPage() {
   return (
     <Layout>
       <div className="container py-4 space-y-8">
+        <button
+          onClick={() => navigate(-1)}
+          className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Voltar
+        </button>
         <div className="grid md:grid-cols-2 gap-8">
           {/* Images - 360 Viewer */}
           <div className="space-y-4">
@@ -145,13 +152,6 @@ export default function ProductDetailPage() {
 
           {/* Details */}
           <div className="space-y-6">
-            {/* Badges */}
-            <div className="flex items-center gap-2 flex-wrap">
-              {hasWholesale && (
-                <Badge variant="secondary">ATACADO</Badge>
-              )}
-            </div>
-
             {/* Name */}
             <h1 className="text-2xl md:text-3xl font-bold">{product.title}</h1>
 
