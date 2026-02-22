@@ -8,6 +8,8 @@ interface Banner {
   id: string;
   image_url?: string;
   image?: string;
+  image_mobile?: string;
+  image_desktop?: string;
   title: string;
   subtitle?: string | null;
   button_text?: string | null;
@@ -19,17 +21,20 @@ interface Banner {
 const defaultBanners: Banner[] = [
   {
     id: 'default-1',
-    image: '/banners/slide-artistas.webp',
-    title: 'A Loja Que Veste Os Artistas',
+    image_mobile: '/banners/slide-1-mobile.webp',
+    image_desktop: '/banners/slide-1-desktop.webp',
+    title: 'Coleção Streetwear',
   },
   {
     id: 'default-2',
-    image: '/banners/slide-loja-fisica.webp',
-    title: 'Loja Física',
+    image_mobile: '/banners/slide-2-mobile.webp',
+    image_desktop: '/banners/slide-2-desktop.webp',
+    title: 'Acessórios',
   },
   {
     id: 'default-3',
-    image: '/banners/slide-frete-gratis.webp',
+    image_mobile: '/banners/slide-3-mobile.webp',
+    image_desktop: '/banners/slide-3-desktop.webp',
     title: 'Frete Grátis',
   },
 ];
@@ -82,7 +87,14 @@ export function HeroBanner({ className }: HeroBannerProps) {
                 : 'opacity-0 pointer-events-none'
             )}
           >
-            <img src={getImage(banner)} alt={banner.title} className="h-full w-full object-cover object-center" />
+            {isUsingDefaults && banner.image_mobile && banner.image_desktop ? (
+              <picture>
+                <source media="(min-width: 640px)" srcSet={banner.image_desktop} />
+                <img src={banner.image_mobile} alt={banner.title} className="h-full w-full object-cover object-center" />
+              </picture>
+            ) : (
+              <img src={getImage(banner)} alt={banner.title} className="h-full w-full object-cover object-center" />
+            )}
             {!isUsingDefaults && (
               <>
                 <div className="absolute inset-0 bg-gradient-to-r from-black/60 via-black/20 to-transparent" />
