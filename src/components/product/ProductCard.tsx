@@ -61,11 +61,6 @@ export function ProductCard({ product, className, index = 0 }: ProductCardProps)
         
         {/* Badges */}
         <div className="absolute top-3 left-3 flex flex-col gap-1.5">
-          {hasWholesale && (
-            <Badge variant="secondary" className="text-[10px] px-2.5 py-0.5 bg-gray-800 text-white">
-              ATACADO
-            </Badge>
-          )}
           {isOutOfStock && (
             <Badge variant="destructive" className="text-[10px] px-2.5 py-0.5">
               ESGOTADO
