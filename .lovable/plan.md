@@ -1,50 +1,39 @@
 
 
-## Banners Responsivos com Imagens Mobile + Desktop
+## Banners Estilosos para Publico Jovem
 
-### Problema atual
+### Conceito
 
-O banner usa `aspect-square` (1:1) no mobile e `aspect-[3/1]` no desktop. As imagens atuais sao 3:1 (1920x640), entao no mobile a imagem e cortada drasticamente pelo `object-cover`, mostrando apenas uma faixa central -- o conteudo principal fica cortado.
+3 banners com estetica premium streetwear/luxury, fundo escuro, impactantes para jovens. Baseados nos produtos reais da loja: Air Jordan, Yeezy, Travis Scott, Nike, Adidas, Louis Vuitton, Gucci, Prada.
 
-### Solucao
+### Os 3 Banners
 
-Usar o elemento `<picture>` com duas versoes de cada banner:
-- **Mobile** (1080x1080, 1:1) -- otimizada para telas pequenas, conteudo centralizado e visivel
-- **Desktop** (1920x640, 3:1) -- panoramica para telas grandes
+**Banner 1 - Sneakers Culture (manter estilo similar ao atual que ficou bom)**
+Tema: Par de tenis estilo Air Jordan/Yeezy em destaque, iluminacao dramatica neon, fundo escuro com fumaça/particulas. Estetica "sneakerhead" premium.
 
-O navegador automaticamente escolhe a imagem correta baseado no tamanho da tela.
+**Banner 2 - Grifes de Luxo**
+Tema: Composicao elegante com bolsa Louis Vuitton ou Gucci em ambiente luxuoso, iluminacao dourada sutil, fundo escuro sofisticado. Estetica editorial de moda.
 
-### Imagens a gerar (6 total)
+**Banner 3 - Street Style / Jordan Culture**
+Tema: Tenis Jordan em cena urbana noturna com neon, estetica "hype" de cultura de rua. Visual que remete a drops exclusivos e cultura sneaker.
+
+### Imagens geradas (6 total)
 
 | Banner | Mobile (1080x1080) | Desktop (1920x640) |
 |--------|-------------------|-------------------|
-| 1 - Tenis/Streetwear | `slide-1-mobile.webp` | `slide-1-desktop.webp` |
-| 2 - Acessorios | `slide-2-mobile.webp` | `slide-2-desktop.webp` |
-| 3 - Frete Gratis | `slide-3-mobile.webp` | `slide-3-desktop.webp` |
+| 1 - Sneakers | `slide-1-mobile.webp` | `slide-1-desktop.webp` |
+| 2 - Grifes Luxo | `slide-2-mobile.webp` | `slide-2-desktop.webp` |
+| 3 - Street/Jordan | `slide-3-mobile.webp` | `slide-3-desktop.webp` |
 
-Cada par tera o mesmo tema visual, mas com composicao adaptada ao formato.
+Todas com composicao adaptada: mobile centralizado, desktop panoramico.
+
+### Sem texto nas imagens
+
+Nenhuma imagem tera texto como "free shipping" ou nomes de marca. O foco e puramente visual -- produto em destaque com iluminacao e atmosfera impactantes.
 
 ### Alteracoes
 
-**`src/components/home/HeroBanner.tsx`:**
-- Atualizar `defaultBanners` para incluir campos `image_mobile` e `image_desktop` em vez de um unico `image`
-- Trocar a tag `<img>` por `<picture>` com `<source media="(min-width: 640px)">` para desktop e fallback mobile
-- Manter toda a logica existente de carrossel, transicoes e auto-play
+**6 imagens novas** em `public/banners/` substituindo as atuais.
 
-**`public/banners/`:**
-- Gerar e salvar 6 novas imagens (3 mobile + 3 desktop)
-- As imagens antigas podem ser mantidas como backup
+**`src/components/home/HeroBanner.tsx`** -- atualizar titulos dos `defaultBanners` para refletir os novos temas (sem mudanca estrutural, a logica de `<picture>` ja esta implementada).
 
-### Detalhes tecnicos
-
-Estrutura do `<picture>`:
-```text
-<picture>
-  <source media="(min-width: 640px)" srcSet={desktopImage} />
-  <img src={mobileImage} alt={title} class="h-full w-full object-cover" />
-</picture>
-```
-
-O breakpoint `640px` corresponde ao `sm:` do Tailwind, que e onde o aspect ratio muda de 1:1 para 2:1.
-
-Os banners do banco de dados (quando existirem 2+) continuam usando o campo `image_url` unico como antes -- a logica de `<picture>` se aplica apenas aos banners de fallback.
