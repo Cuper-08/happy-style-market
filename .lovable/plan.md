@@ -1,76 +1,50 @@
 
 
-## Replicar Conteudo Institucional do brasconceito.com no App
+## Tres Alteracoes no App
 
-### Resumo
+### 1. Remover badge "ATACADO" dos cards de produto
 
-Vou criar 8 paginas institucionais no app com o conteudo real do site brasconceito.com, atualizar o Footer com os dados reais de contato e links corretos, e registrar todas as rotas no App.tsx.
+Remover o badge "ATACADO" que aparece sobre a imagem nos cards de produto (ProductCard) e tambem na pagina de detalhe do produto (ProductDetailPage). O preco de atacado continua visivel no texto abaixo do card -- apenas o badge visual sobre a imagem sera removido.
 
----
+**Arquivos:**
+- `src/components/product/ProductCard.tsx` -- remover linhas 63-68 (badge ATACADO)
+- `src/pages/ProductDetailPage.tsx` -- remover linhas 148-153 (badge ATACADO na pagina de detalhe)
 
-### Paginas a criar
+### 2. Botao "Voltar" na pagina de produto
 
-| Pagina | Rota | Arquivo |
-|--------|------|---------|
-| Prazos e Entregas | `/prazos-e-entregas` | `src/pages/institutional/DeliveryPage.tsx` |
-| Perguntas Frequentes | `/perguntas-frequentes` | `src/pages/institutional/FaqPage.tsx` |
-| Como Comprar | `/como-comprar` | `src/pages/institutional/HowToBuyPage.tsx` |
-| Contato | `/contato` | `src/pages/institutional/ContactPage.tsx` |
-| Termos e Condicoes | `/termos` | `src/pages/institutional/TermsPage.tsx` |
-| Politica de Privacidade | `/politica-privacidade` | `src/pages/institutional/PrivacyPolicyPage.tsx` |
-| Politica de Trocas | `/politica-trocas` | `src/pages/institutional/ExchangePolicyPage.tsx` |
-| Politica de Frete | `/politica-frete` | `src/pages/institutional/ShippingPolicyPage.tsx` |
+Adicionar um botao "Voltar" no topo da pagina de detalhe do produto que usa `navigate(-1)` para voltar a pagina anterior do historico (funciona tanto vindo da home, catalogo, ou qualquer outra pagina).
 
-### Conteudo de cada pagina
+**Arquivo:** `src/pages/ProductDetailPage.tsx` -- adicionar botao com icone ArrowLeft antes do grid de imagem/detalhes
 
-Cada pagina tera o conteudo **identico** ao copiado do brasconceito.com, adaptado com a marca "Bras Conceito" e os dados reais:
-- WhatsApp: 5511985459206
-- Email: brasconceito@gmail.com
-- Endereco: Rua Conselheiro Belisario, Sao Paulo - SP
+### 3. Gerar 3 novas imagens de banner com IA
 
-As paginas que ja existem no banco (`privacy_policy`, `terms_of_service`, `exchange_policy` via `store_settings`) continuam funcionando -- mas as novas paginas terao o conteudo completo hardcoded como fallback, com prioridade para o conteudo do banco quando disponivel.
+As 3 imagens de fallback atuais em `public/banners/` nao ficam boas no layout responsivo. Vou criar uma Edge Function temporaria que usa a API de geracao de imagens (Nano banana via `LOVABLE_API_KEY`) para gerar 3 banners tematicos de loja de tenis/moda urbana em alta qualidade, faz upload para o bucket `banners` no Supabase Storage, e retorna as URLs publicas. Depois atualizo o `HeroBanner.tsx` com as novas URLs.
 
-### Alteracoes no Footer
+**Temas dos 3 banners:**
+1. Colecao de tenis esportivos/streetwear em fundo escuro elegante
+2. Acessorios (bones, bolsas, meias) em composicao lifestyle
+3. Promocao/frete gratis com visual moderno e vibrante
 
-Atualizar `src/components/layout/Footer.tsx`:
-- Substituir os links de "Categorias" e "Institucional" pelas 8 paginas reais
-- Atualizar dados de contato reais (WhatsApp, email, endereco)
-- Organizar em 4 colunas: Marca, Institucional, Ajuda, Contato
-
-### Alteracoes no App.tsx
-
-Adicionar 8 novas rotas para as paginas institucionais.
+**Arquivos:**
+- `supabase/functions/generate-banners/index.ts` -- nova edge function (temporaria)
+- `src/components/home/HeroBanner.tsx` -- atualizar URLs dos defaultBanners com as imagens geradas
 
 ---
 
 ### Detalhes tecnicos
 
-**Arquivos novos (8):**
-- `src/pages/institutional/DeliveryPage.tsx` -- conteudo de Prazos e Entregas
-- `src/pages/institutional/FaqPage.tsx` -- conteudo de Perguntas Frequentes
-- `src/pages/institutional/HowToBuyPage.tsx` -- conteudo de Como Comprar
-- `src/pages/institutional/ContactPage.tsx` -- conteudo de Contato com formulario basico e link WhatsApp
-- `src/pages/institutional/TermsPage.tsx` -- Termos e Condicoes de Uso (conteudo completo)
-- `src/pages/institutional/PrivacyPolicyPage.tsx` -- Politica de Privacidade (13 secoes completas)
-- `src/pages/institutional/ExchangePolicyPage.tsx` -- Politica de Trocas (baseada nos Termos, secao TROCAS)
-- `src/pages/institutional/ShippingPolicyPage.tsx` -- Politica de Frete (conteudo completo)
+**ProductCard.tsx (remocao do badge):**
+Remover o bloco do badge ATACADO dentro da div de badges (linhas 64-68). Manter o badge ESGOTADO intacto.
 
-Todas as paginas seguirao o mesmo padrao:
-- Usam o `Layout` existente (Header + Footer)
-- Titulo com icone
-- Conteudo em `prose` styling com Tailwind
-- Link para WhatsApp no final
+**ProductDetailPage.tsx (remocao do badge + botao voltar):**
+- Remover o bloco de badges ATACADO (linhas 148-153)
+- Importar `ArrowLeft` do lucide-react
+- Adicionar antes do grid: `<button onClick={() => navigate(-1)}` com icone ArrowLeft e texto "Voltar"
 
-**Arquivos modificados (2):**
-- `src/components/layout/Footer.tsx` -- links e dados de contato atualizados
-- `src/App.tsx` -- 8 novas rotas institucionais
-
-**Estrutura de cada pagina institucional:**
-```text
-Layout
-  Container (max-w-4xl, py-12)
-    Titulo (h1)
-    Conteudo (secoes com h2, listas, paragrafos)
-    CTA WhatsApp no final
-```
+**Edge Function generate-banners:**
+- Chama `https://ai.gateway.lovable.dev/v1/chat/completions` com model `google/gemini-2.5-flash-image`
+- Gera 3 imagens com prompts descritivos para banners de loja de tenis/streetwear, proporcao 3:1 (1920x640)
+- Faz upload de cada imagem base64 para o bucket `banners` no Supabase Storage
+- Retorna as 3 URLs publicas
+- Apos execucao e confirmacao, atualizo os defaultBanners no HeroBanner.tsx com as URLs geradas
 
