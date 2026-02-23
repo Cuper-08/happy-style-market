@@ -1,39 +1,75 @@
 
 
-## Banners Estilosos para Publico Jovem
+## Otimizacao de Performance e Correcao de Overflow de Imagens
 
-### Conceito
+### Problemas Identificados
 
-3 banners com estetica premium streetwear/luxury, fundo escuro, impactantes para jovens. Baseados nos produtos reais da loja: Air Jordan, Yeezy, Travis Scott, Nike, Adidas, Louis Vuitton, Gucci, Prada.
+**1. Imagem ultrapassando a margem do app (visivel no print)**
+O screenshot mostra a imagem do produto "Gucci X Disney Donald Duck Duffle" com zoom aplicado (105%) ultrapassando os limites do container. O `ProductViewer360` aplica `transform: scale()` na imagem, mas o container pai nao tem protecao contra o conteudo escalado vazar para fora. Alem disso, a fila de miniaturas (thumbnails) abaixo da imagem principal tambem pode vazar horizontalmente em telas pequenas.
 
-### Os 3 Banners
+**2. Carregamento lento de imagens**
+O app carrega ate 36 imagens por produto sem nenhum tipo de lazy loading progressivo. O `ProductViewer360` pre-carrega TODAS as imagens ao mesmo tempo no `useEffect`, o que bloqueia a rede. Os cards de produto na home carregam 28 produtos de uma vez, cada um com uma imagem.
 
-**Banner 1 - Sneakers Culture (manter estilo similar ao atual que ficou bom)**
-Tema: Par de tenis estilo Air Jordan/Yeezy em destaque, iluminacao dramatica neon, fundo escuro com fumaça/particulas. Estetica "sneakerhead" premium.
+---
 
-**Banner 2 - Grifes de Luxo**
-Tema: Composicao elegante com bolsa Louis Vuitton ou Gucci em ambiente luxuoso, iluminacao dourada sutil, fundo escuro sofisticado. Estetica editorial de moda.
+### Correcoes
 
-**Banner 3 - Street Style / Jordan Culture**
-Tema: Tenis Jordan em cena urbana noturna com neon, estetica "hype" de cultura de rua. Visual que remete a drops exclusivos e cultura sneaker.
+#### A. Corrigir overflow da imagem com zoom (ProductViewer360.tsx)
 
-### Imagens geradas (6 total)
+O problema principal e que `overflow-hidden` ja esta no container, mas `transform: scale()` com valores acima de 1 pode vazar visualmente dependendo do contexto de stacking. A correcao:
 
-| Banner | Mobile (1080x1080) | Desktop (1920x640) |
-|--------|-------------------|-------------------|
-| 1 - Sneakers | `slide-1-mobile.webp` | `slide-1-desktop.webp` |
-| 2 - Grifes Luxo | `slide-2-mobile.webp` | `slide-2-desktop.webp` |
-| 3 - Street/Jordan | `slide-3-mobile.webp` | `slide-3-desktop.webp` |
+- Adicionar `will-change: transform` e `transform-origin: center` no container
+- Limitar o zoom maximo de 3x para 2x (mais que isso nao faz sentido em mobile)
+- Resetar o zoom automaticamente ao trocar de imagem (evita o estado confuso mostrado no print)
+- Garantir que o container da imagem com zoom tenha `isolation: isolate` para criar um novo stacking context
 
-Todas com composicao adaptada: mobile centralizado, desktop panoramico.
+**Arquivo:** `src/components/product/ProductViewer360.tsx`
 
-### Sem texto nas imagens
+#### B. Corrigir overflow das miniaturas (ProductDetailPage.tsx)
 
-Nenhuma imagem tera texto como "free shipping" ou nomes de marca. O foco e puramente visual -- produto em destaque com iluminacao e atmosfera impactantes.
+A fila de miniaturas ja tem `overflow-x-auto`, mas precisa de `max-w-full` no container pai para garantir que nao ultrapasse a margem do app em telas estreitas.
 
-### Alteracoes
+**Arquivo:** `src/pages/ProductDetailPage.tsx`
 
-**6 imagens novas** em `public/banners/` substituindo as atuais.
+#### C. Otimizar carregamento de imagens no ProductViewer360
 
-**`src/components/home/HeroBanner.tsx`** -- atualizar titulos dos `defaultBanners` para refletir os novos temas (sem mudanca estrutural, a logica de `<picture>` ja esta implementada).
+Em vez de pre-carregar todas as 36 imagens de uma vez:
+- Carregar apenas a primeira imagem imediatamente
+- Pre-carregar as proximas 2-3 imagens adjacentes ao indice atual (lazy preload)
+- Carregar o restante sob demanda conforme o usuario arrasta
+
+**Arquivo:** `src/components/product/ProductViewer360.tsx`
+
+#### D. Otimizar renderizacao dos cards de produto
+
+- Adicionar `loading="lazy"` e `decoding="async"` nas miniaturas da pagina de detalhe (ja existe nos cards, mas nao nas thumbs)
+- Adicionar `will-change: auto` nos cards para evitar criacao excessiva de GPU layers
+
+**Arquivos:** `src/pages/ProductDetailPage.tsx`, `src/components/product/ProductCard.tsx`
+
+#### E. Otimizar a HomePage
+
+A home carrega 28 produtos de uma vez com `useProducts({ limit: 28 })`. Reduzir para 16 no carregamento inicial para diminuir o payload e o numero de imagens carregadas simultaneamente.
+
+**Arquivo:** `src/pages/HomePage.tsx`
+
+---
+
+### Detalhes tecnicos
+
+**ProductViewer360.tsx -- mudancas principais:**
+- Container: adicionar `style={{ isolation: 'isolate' }}` para conter o zoom
+- Imagem: limitar `scale` maximo para 2 (`Math.min(2, ...)` em vez de `Math.min(3, ...)`)
+- Resetar zoom ao mudar `currentIndex`: `useEffect` que seta `scale(1)` quando o indice muda externamente
+- Preload inteligente: substituir o preload de todas as imagens por um preload de janela deslizante (current -2 a current +2)
+
+**ProductDetailPage.tsx -- mudancas:**
+- Container das miniaturas: adicionar `max-w-full` e `overflow-hidden` no wrapper
+- Miniaturas: adicionar `loading="lazy"` e `decoding="async"`
+
+**HomePage.tsx:**
+- Mudar `useProducts({ limit: 28 })` para `useProducts({ limit: 16 })`
+
+**ProductCard.tsx:**
+- Remover `will-change` implicito do hover (a animacao `group-hover:scale-110` cria GPU layers desnecessarias em 28+ cards). Trocar por uma transicao mais leve ou usar `will-change: auto`.
 
