@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { RotateCw, ZoomIn, ZoomOut, Move } from 'lucide-react';
+import { RotateCw, ZoomOut, Move } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface ProductViewer360Props {
@@ -15,57 +15,66 @@ export function ProductViewer360({ images, alt, currentIndex: externalIndex, onI
   const [scale, setScale] = useState(1);
   const [isDragging, setIsDragging] = useState(false);
   const [showHint, setShowHint] = useState(true);
-  const [imagesLoaded, setImagesLoaded] = useState(false);
   const [autoPlayed, setAutoPlayed] = useState(false);
+  const [preloadedSet, setPreloadedSet] = useState<Set<number>>(new Set([0]));
 
   const containerRef = useRef<HTMLDivElement>(null);
   const startXRef = useRef(0);
   const startIndexRef = useRef(0);
   const lastTouchDistRef = useRef(0);
-  const autoPlayRef = useRef<number | null>(null);
 
   const sensitivity = 5;
 
-  // Preload all images
+  // Reset zoom when image changes externally
+  useEffect(() => {
+    setScale(1);
+  }, [currentIndex]);
+
+  // Smart preload: only adjacent images (window of ±3)
   useEffect(() => {
     if (images.length <= 1) return;
-    let loaded = 0;
-    images.forEach((src) => {
+    const toPreload: number[] = [];
+    for (let offset = -3; offset <= 3; offset++) {
+      let idx = (currentIndex + offset) % images.length;
+      if (idx < 0) idx += images.length;
+      if (!preloadedSet.has(idx)) toPreload.push(idx);
+    }
+    if (toPreload.length === 0) return;
+
+    toPreload.forEach((idx) => {
       const img = new Image();
-      img.onload = () => {
-        loaded++;
-        if (loaded === images.length) setImagesLoaded(true);
-      };
-      img.onerror = () => {
-        loaded++;
-        if (loaded === images.length) setImagesLoaded(true);
-      };
-      img.src = src;
+      img.src = images[idx];
     });
-  }, [images]);
+    setPreloadedSet(prev => {
+      const next = new Set(prev);
+      toPreload.forEach(idx => next.add(idx));
+      return next;
+    });
+  }, [currentIndex, images, preloadedSet]);
 
   // Auto-rotate on load to indicate interactivity
   useEffect(() => {
-    if (!imagesLoaded || autoPlayed || images.length <= 1) return;
-    setAutoPlayed(true);
-
-    const maxFrame = Math.min(4, images.length - 1);
-    let frame = 0;
-    let direction = 1;
-    const interval = setInterval(() => {
-      frame += direction;
-      if (frame >= maxFrame) direction = -1;
-      if (frame <= 0) {
-        clearInterval(interval);
-        frame = 0;
-      }
-      setInternalIndex(frame);
-      onImageIndexChange?.(frame);
-    }, 120);
-
-    autoPlayRef.current = interval as unknown as number;
-    return () => clearInterval(interval);
-  }, [imagesLoaded, autoPlayed, images.length, onImageIndexChange]);
+    if (autoPlayed || images.length <= 1) return;
+    // Small delay to let first image render
+    const timeout = setTimeout(() => {
+      setAutoPlayed(true);
+      const maxFrame = Math.min(4, images.length - 1);
+      let frame = 0;
+      let direction = 1;
+      const interval = setInterval(() => {
+        frame += direction;
+        if (frame >= maxFrame) direction = -1;
+        if (frame <= 0) {
+          clearInterval(interval);
+          frame = 0;
+        }
+        setInternalIndex(frame);
+        onImageIndexChange?.(frame);
+      }, 120);
+      return () => clearInterval(interval);
+    }, 300);
+    return () => clearTimeout(timeout);
+  }, [autoPlayed, images.length, onImageIndexChange]);
 
   // Auto-hide hint after 3s
   useEffect(() => {
@@ -117,7 +126,7 @@ export function ProductViewer360({ images, alt, currentIndex: externalIndex, onI
       const dist = getTouchDistance(e.touches);
       if (lastTouchDistRef.current > 0) {
         const delta = dist / lastTouchDistRef.current;
-        setScale((prev) => Math.min(3, Math.max(1, prev * delta)));
+        setScale((prev) => Math.min(2, Math.max(1, prev * delta)));
       }
       lastTouchDistRef.current = dist;
     }
@@ -130,7 +139,7 @@ export function ProductViewer360({ images, alt, currentIndex: externalIndex, onI
 
   const handleWheel = (e: React.WheelEvent) => {
     e.preventDefault();
-    setScale((prev) => Math.min(3, Math.max(1, prev - e.deltaY * 0.002)));
+    setScale((prev) => Math.min(2, Math.max(1, prev - e.deltaY * 0.002)));
   };
 
   function getTouchDistance(touches: React.TouchList) {
@@ -159,6 +168,7 @@ export function ProductViewer360({ images, alt, currentIndex: externalIndex, onI
         'relative aspect-square rounded-lg overflow-hidden bg-card select-none',
         isDragging ? 'cursor-grabbing' : 'cursor-grab'
       )}
+      style={{ isolation: 'isolate', willChange: 'transform', transformOrigin: 'center' }}
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
@@ -174,7 +184,8 @@ export function ProductViewer360({ images, alt, currentIndex: externalIndex, onI
         className="h-full w-full object-cover transition-transform duration-100 ease-out"
         style={{
           transform: `scale(${scale})`,
-          willChange: 'transform',
+          transformOrigin: 'center',
+          willChange: scale > 1 ? 'transform' : 'auto',
         }}
         draggable={false}
       />
@@ -196,7 +207,7 @@ export function ProductViewer360({ images, alt, currentIndex: externalIndex, onI
         </button>
       )}
 
-      {/* Drag hint - auto-hides after 3s */}
+      {/* Drag hint */}
       {showHint && !isDragging && (
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none animate-fade-in">
           <div className="flex items-center gap-2 bg-background/80 backdrop-blur-sm text-foreground px-4 py-2.5 rounded-full text-sm font-medium shadow-lg">

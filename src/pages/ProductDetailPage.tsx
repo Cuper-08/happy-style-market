@@ -133,19 +133,21 @@ export default function ProductDetailPage() {
               onImageIndexChange={setSelectedImageIndex}
             />
             {product.images.length > 1 && (
-              <div className="flex gap-2 overflow-x-auto pb-2">
-                {product.images.map((image, index) => (
-                  <button
-                    key={index}
-                    onClick={() => setSelectedImageIndex(index)}
-                    className={cn(
-                      'flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 transition-colors',
-                      index === selectedImageIndex ? 'border-primary' : 'border-transparent'
-                    )}
-                  >
-                    <img src={image} alt="" className="h-full w-full object-cover" />
-                  </button>
-                ))}
+              <div className="max-w-full overflow-hidden">
+                <div className="flex gap-2 overflow-x-auto pb-2">
+                  {product.images.map((image, index) => (
+                    <button
+                      key={index}
+                      onClick={() => setSelectedImageIndex(index)}
+                      className={cn(
+                        'flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 transition-colors',
+                        index === selectedImageIndex ? 'border-primary' : 'border-transparent'
+                      )}
+                    >
+                      <img src={image} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover" />
+                    </button>
+                  ))}
+                </div>
               </div>
             )}
           </div>

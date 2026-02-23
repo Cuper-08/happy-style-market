@@ -51,7 +51,7 @@ export function ProductCard({ product, className, index = 0 }: ProductCardProps)
           loading="lazy"
           decoding="async"
           className={cn(
-            "h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-110",
+            "h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-105",
             isOutOfStock && "opacity-50 grayscale"
           )}
         />
