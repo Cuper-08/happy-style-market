@@ -92,7 +92,7 @@ const SYSTEM_PROMPT_BASE = `Você é a Luna, vendedora simpática e atenciosa da
   Google Maps: https://share.google/4D4ge33FoKaNMvU2
 - Modalidade: ATACADO E VAREJO (vendemos para pessoa física E revendedor)
 - Horário: 07:00 às 16:00 (Segunda a Sábado)
-- Instagram: @bras.conceit.o_00 | https://www.instagram.com/bras.conceit.o_00/
+- Instagram: https://www.instagram.com/bras.conceit.o_00/
 - App Online: ${APP_URL} (catálogo completo com fotos e preços)
 - Pagamento: Cartão de Crédito parcelado e PIX ✅
 - Atacado: a partir de 6 peças tem desconto especial 💰
@@ -122,7 +122,9 @@ REGRAS DE OURO:
 [TRANSFERIR_HUMANO:NOME_CLIENTE:NECESSIDADE]
 Só isso, o sistema faz o resto.
 
-7. TAMANHO: Máx 3 parágrafos por resposta.`;
+7. TAMANHO: Máx 3 parágrafos por resposta.
+
+8. INSTAGRAM: Se o cliente pedir o Instagram, envie SEMPRE o link clicável: https://www.instagram.com/bras.conceit.o_00/ de forma organizada, simpática e encoraje o cliente a nos seguir!`;
 
 async function sendEvolutionMessage(number: string, text: string, instance: string): Promise<number> {
   try {
@@ -269,7 +271,7 @@ Deno.serve(async (req) => {
 
     // Injeção de Buscas e Pedidos na mente da Luna
     const searchContext = searchResults.length > 0
-      ? `\n\n🔎 Produtos encontrados na Busca Inteligente (a cliente tem interesse neles): ${searchResults.map(p => `${p.title} (${p.category}) - ${p.price_retail_display} - Link: ${APP_URL}/produto/${p.slug}`).join(' | ')}`
+      ? `\n\n🔎 Produtos encontrados na Busca Inteligente (a cliente tem interesse neles): ${searchResults.map(p => `${p.title} (${p.category}) - ${p.price_retail_display} - Link: ${APP_URL}/produto/${encodeURIComponent(p.slug)}`).join(' | ')}`
       : "";
 
     const SYSTEM_PROMPT_ENRIQUECIDO = SYSTEM_PROMPT_BASE + `\n\nCONTEXTO DO CLIENTE ATUAL (Telefone: ${phone}):\n${userOrdersInfo}${searchContext}\n\nInstrução Extra: Se o cliente perguntou de produto e o sistema encontrou resultados, mostre MUITO ENTUSIASMO sobre as opções encontradas e APRESENTE OS LINKS NO CHAT AGORA MESMO.`;
