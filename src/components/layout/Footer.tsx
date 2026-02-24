@@ -18,7 +18,7 @@ export function Footer() {
               O melhor em tênis e moda esportiva com preços de atacado.
             </p>
             <div className="flex gap-3">
-              <a href="https://www.instagram.com/brasconceito" target="_blank" rel="noopener noreferrer" className="text-[hsl(0,0%,65%)] hover:text-primary hover:scale-110 transition-all duration-300">
+              <a href="https://www.instagram.com/bras.conceit.o_00/" target="_blank" rel="noopener noreferrer" className="text-[hsl(0,0%,65%)] hover:text-primary hover:scale-110 transition-all duration-300">
                 <Instagram className="h-5 w-5" />
               </a>
               <a href="https://www.facebook.com/brasconceito" target="_blank" rel="noopener noreferrer" className="text-[hsl(0,0%,65%)] hover:text-primary hover:scale-110 transition-all duration-300">
