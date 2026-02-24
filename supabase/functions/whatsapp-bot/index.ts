@@ -151,13 +151,14 @@ Deno.serve(async (req) => {
   const providedToken = req.headers.get("x-bot-token");
 
   // Se o token foi configurado nas variáveis de ambiente, obriga que venha no header
-  if (expectedToken && providedToken !== expectedToken) {
-    console.warn("[LUNA] Bloqueado: x-bot-token inválido ou não fornecido.");
-    return new Response(JSON.stringify({ error: "Unauthorized" }), {
-      status: 401,
-      headers: { ...corsHeaders, "Content-Type": "application/json" }
-    });
-  }
+  // DESATIVADO temporariamente pois o Webhook da Evolution API não envia headers customizados
+  // if (expectedToken && providedToken !== expectedToken) {
+  //   console.warn("[LUNA] Bloqueado: x-bot-token inválido ou não fornecido.");
+  //   return new Response(JSON.stringify({ error: "Unauthorized" }), {
+  //     status: 401,
+  //     headers: { ...corsHeaders, "Content-Type": "application/json" }
+  //   });
+  // }
 
   try {
     const body = await req.json();
