@@ -1,1 +1,0 @@
-DELETE FROM product_variants WHERE id = 'a65a78fe-d63c-4b4b-8c43-522d2dc2ec95';

@@ -275,7 +275,22 @@ Deno.serve(async (req) => {
       ? `\n\n🔎 Produtos encontrados na Busca Inteligente (a cliente tem interesse neles): ${searchResults.map(p => `${p.title} (${p.category}) - ${p.price_retail_display} - Link: ${APP_URL}/produto/${encodeURIComponent(p.slug)}`).join(' | ')}`
       : "";
 
-    const SYSTEM_PROMPT_ENRIQUECIDO = SYSTEM_PROMPT_BASE + `\n\nCONTEXTO DO CLIENTE ATUAL (Telefone: ${phone}):\n${userOrdersInfo}${searchContext}\n\nInstrução Extra: Se o cliente perguntou de produto e o sistema encontrou resultados, mostre MUITO ENTUSIASMO sobre as opções encontradas e APRESENTE OS LINKS NO CHAT AGORA MESMO.`;
+    const categoriesList = `\n\n📌 LINKS RÁPIDOS DAS CATEGORIAS DA LOJA:
+- Tênis: ${APP_URL}/categoria/tenis
+- Bolsas: ${APP_URL}/categoria/bolsas
+- Bonés: ${APP_URL}/categoria/bone
+- Meias: ${APP_URL}/categoria/meias
+- Chinelos: ${APP_URL}/categoria/chinelo
+- Importados: ${APP_URL}/categoria/importados
+- Tênis Infantil: ${APP_URL}/categoria/tenis-infantil
+- Malas: ${APP_URL}/categoria/malas
+- Cintos: ${APP_URL}/categoria/cintos`;
+
+    const extraInstruction = searchResults.length > 0
+      ? `\n\nInstrução Extra: Se o cliente perguntou de produto e o sistema encontrou resultados, mostre MUITO ENTUSIASMO sobre as opções encontradas e APRESENTE OS LINKS DOS PRODUTOS NO CHAT AGORA MESMO.`
+      : `\n\nInstrução Extra: A busca específica não encontrou modelos, mas se o cliente pediu algo que corresponda a uma das nossas categorias (como Chinelos, Bonés, Tênis, etc), NUNCA diga que não temos! Diga com entusiasmo que temos sim e envie o link da categoria correspondente usando os LINKS RÁPIDOS DAS CATEGORIAS DA LOJA.`;
+
+    const SYSTEM_PROMPT_ENRIQUECIDO = SYSTEM_PROMPT_BASE + `\n\nCONTEXTO DO CLIENTE ATUAL (Telefone: ${phone}):\n${userOrdersInfo}${searchContext}${categoriesList}${extraInstruction}`;
 
     messages.push({ role: "system", content: SYSTEM_PROMPT_ENRIQUECIDO });
 

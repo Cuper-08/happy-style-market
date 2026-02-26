@@ -8,6 +8,75 @@ import { useCart } from '@/contexts/CartContext';
 import { useState, useEffect } from 'react';
 import logo from '@/assets/logo.png';
 import { cn } from '@/lib/utils';
+import {
+  NavigationMenu,
+  NavigationMenuContent,
+  NavigationMenuItem,
+  NavigationMenuLink,
+  NavigationMenuList,
+  NavigationMenuTrigger,
+  navigationMenuTriggerStyle,
+} from "@/components/ui/navigation-menu";
+
+const MEGA_MENU = [
+  {
+    title: 'Toda a loja',
+    href: '/produtos',
+    items: []
+  },
+  {
+    title: 'Tênis',
+    href: '/categoria/tenis',
+    items: [
+      { title: 'Linha Premium (High Quality)', href: '/produtos?q=Linha+Premium' },
+      { title: 'Grifes Importadas', href: '/produtos?q=Grifes+Importadas' },
+      { title: 'Tênis Infantil', href: '/categoria/tenis-infantil' },
+      { title: 'Air Jordan', href: '/produtos?q=Jordan' },
+      { title: 'Nike', href: '/produtos?q=Nike' },
+      { title: 'Adidas', href: '/produtos?q=Adidas' },
+    ]
+  },
+  {
+    title: 'Bonés',
+    href: '/categoria/bone',
+    items: [
+      { title: 'New Era', href: '/produtos?q=Boné+New+Era' },
+      { title: 'Gucci', href: '/produtos?q=Boné+Gucci' },
+      { title: 'Prada', href: '/produtos?q=Boné+Prada' },
+      { title: 'Hugo Boss', href: '/produtos?q=Boné+Hugo+Boss' },
+      { title: 'Louis Vuitton', href: '/produtos?q=Boné+Louis+Vuitton' },
+      { title: 'Miu Miu', href: '/produtos?q=Boné+Miu+Miu' },
+    ]
+  },
+  {
+    title: 'Bolsas e Acessórios',
+    href: '/categoria/bolsas',
+    items: [
+      { title: 'Bolsas Importadas', href: '/produtos?q=Bolsa' },
+      { title: 'Malas de Viagem', href: '/categoria/malas' },
+      { title: 'Cintos', href: '/categoria/cintos' },
+      { title: 'Mochilas', href: '/produtos?q=Mochila' },
+    ]
+  },
+  {
+    title: 'Chinelos',
+    href: '/categoria/chinelo',
+    items: [
+      { title: 'Louis Vuitton', href: '/produtos?q=Chinelo+Louis+Vuitton' },
+      { title: 'Amiri', href: '/produtos?q=Chinelo+Amiri' },
+    ]
+  },
+  {
+    title: 'Meias',
+    href: '/categoria/meias',
+    items: [
+      { title: 'Meias Nike', href: '/produtos?q=Meia+Nike' },
+      { title: 'Meias Adidas', href: '/produtos?q=Meia+Adidas' },
+      { title: 'Meias Jordan', href: '/produtos?q=Meia+Jordan' },
+      { title: 'Meias Puma', href: '/produtos?q=Meia+Puma' },
+    ]
+  }
+];
 
 export function Header() {
   const { user, profile } = useAuth();
@@ -162,6 +231,49 @@ export function Header() {
               </nav>
             </SheetContent>
           </Sheet>
+        </div>
+      </div>
+
+      {/* Mega Menu - Desktop */}
+      <div className="hidden md:flex border-y border-[hsl(0,0%,18%)] bg-[hsl(0,0%,10%)] justify-center">
+        <div className="container flex h-12 items-center justify-center overflow-x-auto scrollbar-hide">
+          <NavigationMenu>
+            <NavigationMenuList className="gap-2">
+              {MEGA_MENU.map((category) => (
+                <NavigationMenuItem key={category.title}>
+                  {category.items.length > 0 ? (
+                    <>
+                      <NavigationMenuTrigger className="bg-transparent hover:bg-white/10 text-[hsl(0,0%,85%)] hover:text-white data-[state=open]:bg-white/10 data-[state=open]:text-white font-medium text-sm">
+                        {category.title}
+                      </NavigationMenuTrigger>
+                      <NavigationMenuContent>
+                        <ul className="grid w-[400px] gap-2 p-4 md:w-[500px] md:grid-cols-2 bg-[hsl(0,0%,10%)] border border-[hsl(0,0%,18%)] shadow-xl rounded-md">
+                          {category.items.map((item) => (
+                            <li key={item.title}>
+                              <NavigationMenuLink asChild>
+                                <Link
+                                  to={item.href}
+                                  className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-white/10 hover:text-primary text-[hsl(0,0%,85%)] focus:bg-white/10 focus:text-primary"
+                                >
+                                  <div className="text-sm font-medium leading-none">{item.title}</div>
+                                </Link>
+                              </NavigationMenuLink>
+                            </li>
+                          ))}
+                        </ul>
+                      </NavigationMenuContent>
+                    </>
+                  ) : (
+                    <Link to={category.href}>
+                      <NavigationMenuLink className={cn(navigationMenuTriggerStyle(), "bg-transparent hover:bg-white/10 text-[hsl(0,0%,85%)] hover:text-white font-medium text-sm")}>
+                        {category.title}
+                      </NavigationMenuLink>
+                    </Link>
+                  )}
+                </NavigationMenuItem>
+              ))}
+            </NavigationMenuList>
+          </NavigationMenu>
         </div>
       </div>
 
