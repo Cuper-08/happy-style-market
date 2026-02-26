@@ -28,12 +28,25 @@ const MEGA_MENU = [
     title: 'Tênis',
     href: '/categoria/tenis',
     items: [
-      { title: 'Linha Premium (High Quality)', href: '/produtos?q=Linha+Premium' },
-      { title: 'Grifes Importadas', href: '/produtos?q=Grifes+Importadas' },
       { title: 'Tênis Infantil', href: '/categoria/tenis-infantil' },
+      { title: 'Grifes Importadas', href: '/produtos?q=Grifes+Importadas' },
       { title: 'Air Jordan', href: '/produtos?q=Jordan' },
       { title: 'Nike', href: '/produtos?q=Nike' },
       { title: 'Adidas', href: '/produtos?q=Adidas' },
+    ]
+  },
+  {
+    title: 'Linha High Quality',
+    href: '/produtos?q=Linha+Premium',
+    items: [
+      { title: 'Air jordan 1 Mid', href: '/produtos?q=Air+jordan+1+Mid' },
+      { title: 'Air Jordan 4 Retro', href: '/produtos?q=Air+Jordan+4+Retro' },
+      { title: 'DUNK LOW', href: '/produtos?q=DUNK+LOW' },
+      { title: 'High Quality', href: '/produtos?q=Linha+Premium' },
+      { title: 'Jordan 1 Low', href: '/produtos?q=Jordan+1+Low' },
+      { title: 'Nike Air Force', href: '/produtos?q=Nike+Air+Force' },
+      { title: 'Nike Air Yeezy 2 SP', href: '/produtos?q=Nike+Air+Yeezy+2+SP' },
+      { title: 'Travis Scott', href: '/produtos?q=Travis+Scott' },
     ]
   },
   {
@@ -196,36 +209,38 @@ export function Header() {
                 <Menu className="h-5 w-5" />
               </Button>
             </SheetTrigger>
-            <SheetContent side="right" className="w-80 bg-[hsl(0,0%,8%)] border-[hsl(0,0%,18%)]">
-              <nav className="flex flex-col gap-4 mt-8">
+            <SheetContent side="right" className="w-80 bg-[hsl(0,0%,8%)] border-[hsl(0,0%,18%)] overflow-y-auto">
+              <nav className="flex flex-col gap-4 mt-8 pb-8">
                 <Link to="/" className="text-lg font-medium text-white hover:text-primary transition-colors link-underline inline-block">
                   Início
                 </Link>
-                <Link to="/produtos" className="text-lg font-medium text-white hover:text-primary transition-colors link-underline inline-block">
-                  Todos os Produtos
-                </Link>
-                <Link to="/categoria/tenis" className="text-lg font-medium text-white hover:text-primary transition-colors link-underline inline-block">
-                  Tênis
-                </Link>
-                <Link to="/categoria/roupas" className="text-lg font-medium text-white hover:text-primary transition-colors link-underline inline-block">
-                  Roupas
-                </Link>
-                <Link to="/categoria/acessorios" className="text-lg font-medium text-white hover:text-primary transition-colors link-underline inline-block">
-                  Acessórios
-                </Link>
-                <div className="border-t border-[hsl(0,0%,18%)] pt-4 mt-4">
+
+                {MEGA_MENU.map((item) => (
+                  <div key={item.title} className="flex flex-col gap-2">
+                    <Link to={item.href} className="text-lg font-medium text-white hover:text-primary transition-colors link-underline inline-block">
+                      {item.title}
+                    </Link>
+                    {item.items.length > 0 && (
+                      <div className="pl-4 flex flex-col gap-2 border-l border-[hsl(0,0%,18%)] ml-2">
+                        {item.items.map((subItem) => (
+                          <Link key={subItem.title} to={subItem.href} className="text-sm text-[hsl(0,0%,70%)] hover:text-primary transition-colors">
+                            {subItem.title}
+                          </Link>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+
+                <div className="border-t border-[hsl(0,0%,18%)] pt-4 mt-2">
                   {user ? (
-                    <>
-                      <Link to="/minha-conta" className="text-lg font-medium text-white hover:text-primary transition-colors link-underline inline-block">
-                        Minha Conta
-                      </Link>
-                    </>
+                    <Link to="/minha-conta" className="text-lg font-medium text-white hover:text-primary transition-colors link-underline inline-block">
+                      Minha Conta
+                    </Link>
                   ) : (
-                    <>
-                      <Link to="/login" className="text-lg font-medium text-white hover:text-primary transition-colors link-underline inline-block">
-                        Entrar
-                      </Link>
-                    </>
+                    <Link to="/login" className="text-lg font-medium text-white hover:text-primary transition-colors link-underline inline-block">
+                      Entrar
+                    </Link>
                   )}
                 </div>
               </nav>
