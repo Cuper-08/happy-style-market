@@ -1,75 +1,49 @@
 
 
-## Otimizacao de Performance e Correcao de Overflow de Imagens
+# Plano de Correções para Produção
 
-### Problemas Identificados
+## Correção 1: Bug do Redirect Admin (Crítico)
+**Arquivo:** `src/pages/admin/AdminLayout.tsx` (linha 44)
+- Alterar `<Navigate to="/login" replace />` para `<Navigate to="/login" state={{ from: window.location.pathname }} replace />`
+- Isso garante que ao fazer login vindo do `/admin`, o usuário volte para o painel admin
 
-**1. Imagem ultrapassando a margem do app (visivel no print)**
-O screenshot mostra a imagem do produto "Gucci X Disney Donald Duck Duffle" com zoom aplicado (105%) ultrapassando os limites do container. O `ProductViewer360` aplica `transform: scale()` na imagem, mas o container pai nao tem protecao contra o conteudo escalado vazar para fora. Alem disso, a fila de miniaturas (thumbnails) abaixo da imagem principal tambem pode vazar horizontalmente em telas pequenas.
+## Correção 2: Remover Payment Fallback Mock (Crítico)
+**Arquivo:** `src/services/paymentService.ts` (linhas 83-102)
+- Remover o bloco `catch` que retorna um pagamento fake "bem-sucedido"
+- Substituir por `throw` real do erro para que o checkout mostre o erro ao usuário
+- Em produção, se o ASAAS falhar, o pedido NÃO deve ser criado como pago
 
-**2. Carregamento lento de imagens**
-O app carrega ate 36 imagens por produto sem nenhum tipo de lazy loading progressivo. O `ProductViewer360` pre-carrega TODAS as imagens ao mesmo tempo no `useEffect`, o que bloqueia a rede. Os cards de produto na home carregam 28 produtos de uma vez, cada um com uma imagem.
+## Correção 3: Funções DB sem search_path (Segurança)
+- Executar SQL para adicionar `SET search_path = public` nas funções `handle_new_user` e `update_updated_at_column`
 
----
+## Correção 4: Acessibilidade dos Dialogs
+- Adicionar `DialogTitle` visualmente oculto nos componentes `Sheet` e `Dialog` que estão sem título (ex: `AdminLayout.tsx` mobile sidebar, `BulkImportModal`, etc.)
 
-### Correcoes
+## Correção 5: Code Splitting no App.tsx
+**Arquivo:** `src/App.tsx`
+- Converter imports de páginas para `React.lazy()` + `Suspense`
+- Separar rotas admin, institucional e loja em chunks distintos
+- Reduz o bundle inicial significativamente
 
-#### A. Corrigir overflow da imagem com zoom (ProductViewer360.tsx)
+## Resumo da Análise
 
-O problema principal e que `overflow-hidden` ja esta no container, mas `transform: scale()` com valores acima de 1 pode vazar visualmente dependendo do contexto de stacking. A correcao:
+### Pronto para produção:
+- Arquitetura bem organizada (hooks, components, pages, services)
+- TypeScript consistente
+- RLS correto nas tabelas principais (orders, profiles, addresses, favorites)
+- PWA configurado
+- Cart persistido no localStorage
+- Lazy loading de imagens
+- Compressão WebP automática no upload
 
-- Adicionar `will-change: transform` e `transform-origin: center` no container
-- Limitar o zoom maximo de 3x para 2x (mais que isso nao faz sentido em mobile)
-- Resetar o zoom automaticamente ao trocar de imagem (evita o estado confuso mostrado no print)
-- Garantir que o container da imagem com zoom tenha `isolation: isolate` para criar um novo stacking context
+### Bloqueadores (corrigidos neste plano):
+1. Bug do redirect admin (1 linha)
+2. Payment fallback mock (risco financeiro)
 
-**Arquivo:** `src/components/product/ProductViewer360.tsx`
-
-#### B. Corrigir overflow das miniaturas (ProductDetailPage.tsx)
-
-A fila de miniaturas ja tem `overflow-x-auto`, mas precisa de `max-w-full` no container pai para garantir que nao ultrapasse a margem do app em telas estreitas.
-
-**Arquivo:** `src/pages/ProductDetailPage.tsx`
-
-#### C. Otimizar carregamento de imagens no ProductViewer360
-
-Em vez de pre-carregar todas as 36 imagens de uma vez:
-- Carregar apenas a primeira imagem imediatamente
-- Pre-carregar as proximas 2-3 imagens adjacentes ao indice atual (lazy preload)
-- Carregar o restante sob demanda conforme o usuario arrasta
-
-**Arquivo:** `src/components/product/ProductViewer360.tsx`
-
-#### D. Otimizar renderizacao dos cards de produto
-
-- Adicionar `loading="lazy"` e `decoding="async"` nas miniaturas da pagina de detalhe (ja existe nos cards, mas nao nas thumbs)
-- Adicionar `will-change: auto` nos cards para evitar criacao excessiva de GPU layers
-
-**Arquivos:** `src/pages/ProductDetailPage.tsx`, `src/components/product/ProductCard.tsx`
-
-#### E. Otimizar a HomePage
-
-A home carrega 28 produtos de uma vez com `useProducts({ limit: 28 })`. Reduzir para 16 no carregamento inicial para diminuir o payload e o numero de imagens carregadas simultaneamente.
-
-**Arquivo:** `src/pages/HomePage.tsx`
-
----
-
-### Detalhes tecnicos
-
-**ProductViewer360.tsx -- mudancas principais:**
-- Container: adicionar `style={{ isolation: 'isolate' }}` para conter o zoom
-- Imagem: limitar `scale` maximo para 2 (`Math.min(2, ...)` em vez de `Math.min(3, ...)`)
-- Resetar zoom ao mudar `currentIndex`: `useEffect` que seta `scale(1)` quando o indice muda externamente
-- Preload inteligente: substituir o preload de todas as imagens por um preload de janela deslizante (current -2 a current +2)
-
-**ProductDetailPage.tsx -- mudancas:**
-- Container das miniaturas: adicionar `max-w-full` e `overflow-hidden` no wrapper
-- Miniaturas: adicionar `loading="lazy"` e `decoding="async"`
-
-**HomePage.tsx:**
-- Mudar `useProducts({ limit: 28 })` para `useProducts({ limit: 16 })`
-
-**ProductCard.tsx:**
-- Remover `will-change` implicito do hover (a animacao `group-hover:scale-110` cria GPU layers desnecessarias em 28+ cards). Trocar por uma transicao mais leve ou usar `will-change: auto`.
+### Melhorias recomendadas pós-lançamento:
+- Página de recuperação de senha (`/esqueci-senha`)
+- Meta tags dinâmicas para SEO
+- Sitemap.xml
+- Email transacional de confirmação de pedido
+- Error boundary global
 
