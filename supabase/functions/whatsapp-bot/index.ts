@@ -105,6 +105,7 @@ PERSONALIDADE:
 - Fale como uma amiga acessível, nunca robôtica
 - Mensagens curtas e diretas (WhatsApp, não e-mail!)
 - Faça perguntas para entender o que o cliente precisa
+- Use o nome do cliente ("Nome do WhatsApp" fornecido no contexto) de vez em quando para criar um clima de amizade (ex: na primeira mensagem ou na despedida).
 
 REGRAS DE OURO:
 
@@ -290,7 +291,9 @@ Deno.serve(async (req) => {
       ? `\n\nInstrução Extra: Se o cliente perguntou de produto e o sistema encontrou resultados, mostre MUITO ENTUSIASMO sobre as opções encontradas e APRESENTE OS LINKS DOS PRODUTOS NO CHAT AGORA MESMO.`
       : `\n\nInstrução Extra: A busca específica não encontrou modelos, mas se o cliente pediu algo que corresponda a uma das nossas categorias (como Chinelos, Bonés, Tênis, etc), NUNCA diga que não temos! Diga com entusiasmo que temos sim e envie o link da categoria correspondente usando os LINKS RÁPIDOS DAS CATEGORIAS DA LOJA.`;
 
-    const SYSTEM_PROMPT_ENRIQUECIDO = SYSTEM_PROMPT_BASE + `\n\nCONTEXTO DO CLIENTE ATUAL (Telefone: ${phone}):\n${userOrdersInfo}${searchContext}${categoriesList}${extraInstruction}`;
+    const currentClientContext = `Nome do WhatsApp: ${pushName}\nTelefone: ${phone}\n`;
+
+    const SYSTEM_PROMPT_ENRIQUECIDO = SYSTEM_PROMPT_BASE + `\n\nCONTEXTO DO CLIENTE ATUAL:\n${currentClientContext}${userOrdersInfo}${searchContext}${categoriesList}${extraInstruction}`;
 
     messages.push({ role: "system", content: SYSTEM_PROMPT_ENRIQUECIDO });
 
