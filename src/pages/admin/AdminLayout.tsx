@@ -7,6 +7,7 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { cn } from '@/lib/utils';
 import { Loader2 } from 'lucide-react';
+import { DialogTitle } from '@/components/ui/dialog';
 import {
   Sheet,
   SheetContent,
@@ -41,7 +42,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
   }
 
   if (!isAdminOrManager) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to="/login" state={{ from: window.location.pathname }} replace />;
   }
 
   return (
@@ -54,7 +55,8 @@ export function AdminLayout({ children }: AdminLayoutProps) {
       {/* Mobile Sidebar (Sheet) */}
       {isMobile && (
         <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
-          <SheetContent side="left" className="p-0 w-64">
+      <SheetContent side="left" className="p-0 w-64" aria-describedby={undefined}>
+            <DialogTitle className="sr-only">Menu de navegação admin</DialogTitle>
             <AdminSidebar
               collapsed={false}
               onToggle={() => {}}
