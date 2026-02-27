@@ -84,21 +84,10 @@ export async function createPayment(data: CreatePaymentRequest): Promise<Payment
 
         return result as PaymentResponse;
     } catch (error) {
-        console.warn('Payment service failed, falling back to SANDBOX MOCK:', error);
-
-        // Fallback for testing/sandbox when backend is not ready
-        // Mimics a successful ASAAS response
-        return {
-            paymentId: `pay_${Math.random().toString(36).substring(7)}`,
-            status: 'PENDING',
-            value: data.value,
-            invoiceUrl: 'https://sandbox.asaas.com/sandbox/invoice',
-            bankSlipUrl: 'https://sandbox.asaas.com/doc/boleto',
-            // Static QR Code for testing
-            pixQrCode: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKwftQAAAABJRU5ErkJggg==',
-            pixPayload: '00020126580014br.gov.bcb.pix0136123e4567-e12b-12d1-a456-426655440000520400005303986540510.005802BR5913Happy Style6008Sao Paulo62070503***6304E123',
-            pixExpirationDate: new Date(Date.now() + 3600 * 1000).toISOString(),
-        };
+        console.error('Payment service error:', error);
+        throw error instanceof Error
+            ? error
+            : new Error('Erro ao processar pagamento. Tente novamente.');
     }
 }
 
