@@ -1,44 +1,82 @@
 
 
-# Corrigir filtragem de produtos por categoria (incluir subcategorias)
+# Correcao do Fluxo de Login Admin
 
-## Problema
+## Problema Identificado
 
-Ao clicar em "Malas", a pagina filtra por `category = 'Malas'` (match exato). Porem os produtos estao cadastrados com a subcategoria `"Malas de Bordo"`, que e filha de "Malas" na tabela `categories`. Por isso, nenhum produto aparece.
+Ao acessar `/admin` sem estar logado, o usuario e redirecionado para `/login`. Apos o login, o redirect de volta para `/admin` pode falhar por dois motivos:
 
-Este problema afeta todas as categorias-pai que possuem subcategorias (Malas, Tenis, Bolsas e Acessorios, Grifes Importadas).
+1. **Race condition**: O `useAdminAuth` inicia com `isLoading: true`, mas ha um breve momento entre o redirect para `/admin` e a verificacao completa da role onde `isAdminOrManager` pode retornar `false` antes do carregamento terminar
+2. **Unico admin cadastrado**: Apenas `project_apk001@outlook.com` tem role `admin` na tabela `user_roles`
 
-## Solucao
+## Correcoes Planejadas
 
-Modificar o hook `useProducts` para que, quando uma categoria for informada, busque tambem os produtos das subcategorias.
+### 1. Melhorar o hook `useAdminAuth` para evitar race condition
 
-### Alteracoes
+**Arquivo:** `src/hooks/admin/useAdminAuth.ts`
 
-**Arquivo: `src/hooks/useProducts.ts`**
+- Garantir que `isLoading` permanece `true` ate que tanto o auth quanto o role fetch estejam completos
+- Adicionar dependencia no `user?.id` (nao apenas `user`) para evitar re-fetch desnecessario
+- Resetar `isLoading` para `true` quando o user mudar (evita flash de "nao autorizado" durante troca de sessao)
 
-Trocar o filtro `.eq('category', options.category)` por um filtro que inclua a categoria informada E todas as subcategorias dela. Para isso:
+### 2. Melhorar o LoginPage para aguardar a sessao antes de redirecionar
 
-1. Antes de buscar os produtos, consultar a tabela `categories` para encontrar o ID da categoria pelo nome
-2. Buscar todas as categorias cujo `parent_id` corresponda (filhas diretas e netas)
-3. Coletar os nomes de todas essas categorias
-4. Usar `.in('category', [...nomes])` em vez de `.eq('category', nome)`
+**Arquivo:** `src/pages/LoginPage.tsx`
 
-Logica simplificada:
+- Apos o `signIn()`, adicionar um pequeno delay ou aguardar o `onAuthStateChange` confirmar a sessao antes de navegar
+- Isso evita que o redirect chegue ao AdminLayout antes da sessao estar propagada
 
-```text
-// Dado categoryName = 'Malas'
-// 1. Buscar categorias: Malas (id: X), Malas de Bordo (parent_id: X)
-// 2. Nomes = ['Malas', 'Malas de Bordo']
-// 3. query.in('category', ['Malas', 'Malas de Bordo'])
+### 3. (Opcional) Adicionar outro usuario como admin
+
+Se necessario, executar uma migration SQL para inserir um novo registro na tabela `user_roles` com o `user_id` do email desejado e `role: 'admin'`.
+
+## Detalhes Tecnicos
+
+### Hook `useAdminAuth` corrigido:
+
+```typescript
+export function useAdminAuth(): UseAdminAuthReturn {
+  const { user, isLoading: authLoading } = useAuth();
+  const [role, setRole] = useState<AppRole | null>(null);
+  const [roleLoading, setRoleLoading] = useState(true);
+
+  useEffect(() => {
+    // Reset role loading when user changes
+    setRoleLoading(true);
+    
+    async function fetchRole() {
+      if (!user) {
+        setRole(null);
+        setRoleLoading(false);
+        return;
+      }
+      // ... fetch role from user_roles ...
+      setRoleLoading(false);
+    }
+
+    if (!authLoading) {
+      fetchRole();
+    }
+  }, [user?.id, authLoading]); // user?.id instead of user
+
+  return {
+    // ...
+    isLoading: authLoading || roleLoading,
+  };
+}
 ```
 
-Como a hierarquia tem no maximo 3 niveis, uma unica query buscando todas as categorias e filtrando no JS e suficiente (a tabela categories tem poucas dezenas de registros).
+### LoginPage - aguardar sessao:
 
-### Nenhuma alteracao no banco de dados
+No `handleSubmit`, apos o `signIn()`, usar o `onAuthStateChange` para confirmar que a sessao esta ativa antes de fazer o `navigate()`:
 
-Os dados ja estao corretos. A correcao e apenas no frontend.
+```typescript
+await signIn(email, password);
+// Aguardar a sessao ser confirmada pelo listener
+// antes de redirecionar
+```
 
-### Arquivos modificados
-
-- `src/hooks/useProducts.ts` - alterar filtro de categoria para incluir subcategorias
+## Arquivos que serao modificados:
+- `src/hooks/admin/useAdminAuth.ts` - corrigir race condition no loading
+- `src/pages/LoginPage.tsx` - aguardar sessao antes de redirecionar
 

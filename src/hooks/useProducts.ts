@@ -2,32 +2,6 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Product, Category, Brand } from '@/types';
 
-async function getCategoryNamesWithChildren(categoryName: string): Promise<string[]> {
-  const { data: allCategories } = await supabase
-    .from('categories')
-    .select('id, name, parent_id');
-
-  if (!allCategories) return [categoryName];
-
-  const target = allCategories.find(c => c.name === categoryName);
-  if (!target) return [categoryName];
-
-  const names = new Set<string>([categoryName]);
-
-  // Collect children (and grandchildren) recursively up to 3 levels
-  const collectChildren = (parentId: string) => {
-    for (const cat of allCategories) {
-      if (cat.parent_id === parentId) {
-        names.add(cat.name);
-        collectChildren(cat.id);
-      }
-    }
-  };
-
-  collectChildren(target.id);
-  return Array.from(names);
-}
-
 export function useProducts(options?: {
   searchQuery?: string;
   category?: string;
@@ -46,8 +20,7 @@ export function useProducts(options?: {
         .range(0, 4999);
 
       if (options?.category) {
-        const categoryNames = await getCategoryNamesWithChildren(options.category);
-        query = query.in('category', categoryNames);
+        query = query.eq('category', options.category);
       }
 
       if (options?.limit) {
