@@ -1,89 +1,25 @@
 
-# Trocar integração de Melhor Envio para SuperFrete
 
-## O que será feito
+## Fix: 360 Viewer Accidental Zoom on Scroll
 
-Substituir a chamada à API do Melhor Envio pela API do SuperFrete na Edge Function `calculate-shipping`, mantendo o mesmo formato de resposta para o frontend.
+### Problem
+The `ProductViewer360` component has an `onWheel` handler that captures **all** scroll wheel events over the image and converts them into zoom. When a user scrolls down the product page and their cursor passes over the 360 viewer, it:
+1. Prevents normal page scrolling (`e.preventDefault()`)
+2. Zooms the image in/out unintentionally
+3. Leaves the image stuck at a zoomed-in state (the "Reset" button is small and easy to miss)
 
-## Pré-requisitos do seu cliente
+This is especially bad on mobile/trackpad where scroll gestures are constant.
 
-1. Criar conta na SuperFrete (https://web.superfrete.com)
-2. Gerar um **token de API** em Integrações > Nova integração > Site próprio
-3. Fornecer o token para ser salvo como secret no Supabase
+### Solution
+**Remove the wheel-to-zoom feature entirely.** The zoom functionality via pinch (touch) is sufficient and intentional. Wheel/scroll should never hijack page scrolling.
 
-## Alterações
+### Technical Changes
 
-### 1. Secrets do Supabase
+**File: `src/components/product/ProductViewer360.tsx`**
 
-- **Renomear/substituir** o secret `MELHOR_ENVIO_TOKEN` por `SUPERFRETE_TOKEN` com o token do cliente
-- Manter `STORE_CEP` (CEP de origem da loja)
-- Adicionar `SUPERFRETE_ENV` (valor: `sandbox` ou `production`)
+1. Remove the `handleWheel` function (lines ~119-122)
+2. Remove the `onWheel={handleWheel}` prop from the container div (line ~140)
+3. Optionally: also remove the zoom `scale` feature entirely since pinch-to-zoom on desktop is uncommon and the feature causes more confusion than value. If kept, at minimum ensure wheel events pass through normally.
 
-### 2. Reescrever `supabase/functions/calculate-shipping/index.ts`
+This is a 2-line removal that fixes the scrolling/zoom issue completely.
 
-A Edge Function será atualizada para:
-
-- Usar a URL da SuperFrete:
-  - Sandbox: `https://sandbox.superfrete.com/api/v0/calculator`
-  - Produção: `https://api.superfrete.com/api/v0/calculator`
-- Enviar o body no formato da SuperFrete:
-
-```text
-{
-  "from": { "postal_code": "CEP_ORIGEM" },
-  "to": { "postal_code": "CEP_DESTINO" },
-  "services": "1,2,17",
-  "options": {
-    "own_hand": false,
-    "receipt": false,
-    "insurance_value": 0,
-    "use_insurance_value": false
-  },
-  "products": [
-    { "quantity": 1, "weight": 0.3, "height": 5, "width": 15, "length": 20 }
-  ]
-}
-```
-
-- Autenticação via header `Authorization: Bearer {token}` e `User-Agent` obrigatório
-- Mapear a resposta da SuperFrete para o mesmo formato `ShippingOption[]` que o frontend já consome (id, name, company, price, delivery_time)
-- Manter fallback e modo simulação quando o token não estiver configurado
-
-### 3. Nenhuma alteração no frontend
-
-O `paymentService.ts` e o checkout continuam funcionando sem mudanças, pois o formato de resposta da Edge Function será mantido idêntico.
-
-## Detalhes técnicos
-
-### Mapeamento de serviços SuperFrete
-
-| Código | Serviço |
-|--------|---------|
-| 1 | PAC |
-| 2 | SEDEX |
-| 17 | Mini Envios |
-| 3 | Jadlog.Package |
-
-### Headers obrigatórios da SuperFrete
-
-```text
-Authorization: Bearer {SUPERFRETE_TOKEN}
-User-Agent: HappyStyleMarket (contato@email.com)
-Content-Type: application/json
-Accept: application/json
-```
-
-### Resposta esperada da SuperFrete (exemplo)
-
-Cada item do array retornado contém campos como `name`, `price`, `delivery_time`, `error` (se houver), que serão mapeados para o formato existente.
-
-## Arquivos modificados
-
-- `supabase/functions/calculate-shipping/index.ts` - reescrever para usar API SuperFrete
-
-## Passos na ordem
-
-1. Solicitar o token SuperFrete do cliente e salvar como secret `SUPERFRETE_TOKEN`
-2. Reescrever a Edge Function com a integração SuperFrete
-3. Deploy automático da função
-4. Testar o cálculo de frete no checkout
