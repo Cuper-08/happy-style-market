@@ -137,10 +137,6 @@ export function ProductViewer360({ images, alt, currentIndex: externalIndex, onI
     lastTouchDistRef.current = 0;
   };
 
-  const handleWheel = (e: React.WheelEvent) => {
-    e.preventDefault();
-    setScale((prev) => Math.min(2, Math.max(1, prev - e.deltaY * 0.002)));
-  };
 
   function getTouchDistance(touches: React.TouchList) {
     const dx = touches[0].clientX - touches[1].clientX;
@@ -176,7 +172,7 @@ export function ProductViewer360({ images, alt, currentIndex: externalIndex, onI
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
-      onWheel={handleWheel}
+      
     >
       <img
         src={images[currentIndex] || '/placeholder.svg'}
