@@ -84,31 +84,47 @@ export default function LoginPage() {
     try {
       await signIn(email, password);
 
-      // Check user role after login
-      const { data: session } = await supabase.auth.getSession();
-      if (session?.session?.user) {
+      // Wait for the auth state to propagate before navigating
+      // This avoids a race condition where AdminLayout checks role before session is ready
+      await new Promise<void>((resolve) => {
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+          if (event === 'SIGNED_IN' && session?.user) {
+            subscription.unsubscribe();
+            resolve();
+          }
+        });
+        // Fallback timeout in case the event already fired
+        setTimeout(() => {
+          subscription.unsubscribe();
+          resolve();
+        }, 1000);
+      });
+
+      // Now fetch role for redirect
+      const { data: currentSession } = await supabase.auth.getSession();
+      const userId = currentSession?.session?.user?.id;
+
+      toast({ title: 'Login realizado com sucesso! 🎉' });
+
+      if (from) {
+        navigate(from);
+        return;
+      }
+
+      if (userId) {
         const { data: roleData } = await supabase
           .from('user_roles')
           .select('role')
-          .eq('user_id', session.session.user.id)
+          .eq('user_id', userId)
           .maybeSingle();
 
-        toast({ title: 'Login realizado com sucesso! 🎉' });
-
-        // If there's a return path (like /checkout), use it
-        if (from) {
-          navigate(from);
-          return;
-        }
-
-        // Redirect based on role
         if (roleData?.role === 'admin' || roleData?.role === 'manager') {
           navigate('/admin');
         } else {
           navigate('/minha-conta');
         }
       } else {
-        navigate(from || '/minha-conta');
+        navigate('/minha-conta');
       }
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Erro ao fazer login';
