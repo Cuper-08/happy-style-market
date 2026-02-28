@@ -15,13 +15,16 @@ interface UseAdminAuthReturn {
 export function useAdminAuth(): UseAdminAuthReturn {
   const { user, isLoading: authLoading } = useAuth();
   const [role, setRole] = useState<AppRole | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [roleLoading, setRoleLoading] = useState(true);
 
   useEffect(() => {
+    // Reset role loading when user changes to avoid flash of "not authorized"
+    setRoleLoading(true);
+
     async function fetchRole() {
       if (!user) {
         setRole(null);
-        setIsLoading(false);
+        setRoleLoading(false);
         return;
       }
 
@@ -42,20 +45,20 @@ export function useAdminAuth(): UseAdminAuthReturn {
         console.error('Error fetching user role:', err);
         setRole(null);
       } finally {
-        setIsLoading(false);
+        setRoleLoading(false);
       }
     }
 
     if (!authLoading) {
       fetchRole();
     }
-  }, [user, authLoading]);
+  }, [user?.id, authLoading]);
 
   return {
     isAdmin: role === 'admin',
     isManager: role === 'manager',
     isAdminOrManager: role === 'admin' || role === 'manager',
     role,
-    isLoading: authLoading || isLoading,
+    isLoading: authLoading || roleLoading,
   };
 }
