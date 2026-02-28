@@ -20,8 +20,9 @@ Execute os comandos abaixo no terminal para definir os segredos de produção:
 # Chave de API do ASAAS (Sandbox para testes, Produção para live)
 npx supabase secrets set ASAAS_API_KEY="sua_chave_api_asaas_aqui"
 
-# Token do Melhor Envio (Sandbox ou Produção)
-npx supabase secrets set MELHOR_ENVIO_TOKEN="seu_token_melhor_envio_aqui"
+# Token do SuperFrete (Sandbox ou Produção)
+npx supabase secrets set SUPERFRETE_TOKEN="seu_token_superfrete_aqui"
+npx supabase secrets set SUPERFRETE_ENV="production"
 
 # Token para validar o Webhook do ASAAS (opcional, mas recomendado)
 # Você define um valor aqui e configura o mesmo no painel do ASAAS
@@ -41,7 +42,7 @@ npx supabase functions deploy create-payment --no-verify-jwt
 # Função de Webhook (ASAAS -> Supabase)
 npx supabase functions deploy asaas-webhook --no-verify-jwt
 
-# Função de Cálculo de Frete (Melhor Envio)
+# Função de Cálculo de Frete (SuperFrete)
 npx supabase functions deploy calculate-shipping --no-verify-jwt
 ```
 
