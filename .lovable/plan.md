@@ -1,82 +1,89 @@
 
+# Trocar integração de Melhor Envio para SuperFrete
 
-# Correcao do Fluxo de Login Admin
+## O que será feito
 
-## Problema Identificado
+Substituir a chamada à API do Melhor Envio pela API do SuperFrete na Edge Function `calculate-shipping`, mantendo o mesmo formato de resposta para o frontend.
 
-Ao acessar `/admin` sem estar logado, o usuario e redirecionado para `/login`. Apos o login, o redirect de volta para `/admin` pode falhar por dois motivos:
+## Pré-requisitos do seu cliente
 
-1. **Race condition**: O `useAdminAuth` inicia com `isLoading: true`, mas ha um breve momento entre o redirect para `/admin` e a verificacao completa da role onde `isAdminOrManager` pode retornar `false` antes do carregamento terminar
-2. **Unico admin cadastrado**: Apenas `project_apk001@outlook.com` tem role `admin` na tabela `user_roles`
+1. Criar conta na SuperFrete (https://web.superfrete.com)
+2. Gerar um **token de API** em Integrações > Nova integração > Site próprio
+3. Fornecer o token para ser salvo como secret no Supabase
 
-## Correcoes Planejadas
+## Alterações
 
-### 1. Melhorar o hook `useAdminAuth` para evitar race condition
+### 1. Secrets do Supabase
 
-**Arquivo:** `src/hooks/admin/useAdminAuth.ts`
+- **Renomear/substituir** o secret `MELHOR_ENVIO_TOKEN` por `SUPERFRETE_TOKEN` com o token do cliente
+- Manter `STORE_CEP` (CEP de origem da loja)
+- Adicionar `SUPERFRETE_ENV` (valor: `sandbox` ou `production`)
 
-- Garantir que `isLoading` permanece `true` ate que tanto o auth quanto o role fetch estejam completos
-- Adicionar dependencia no `user?.id` (nao apenas `user`) para evitar re-fetch desnecessario
-- Resetar `isLoading` para `true` quando o user mudar (evita flash de "nao autorizado" durante troca de sessao)
+### 2. Reescrever `supabase/functions/calculate-shipping/index.ts`
 
-### 2. Melhorar o LoginPage para aguardar a sessao antes de redirecionar
+A Edge Function será atualizada para:
 
-**Arquivo:** `src/pages/LoginPage.tsx`
+- Usar a URL da SuperFrete:
+  - Sandbox: `https://sandbox.superfrete.com/api/v0/calculator`
+  - Produção: `https://api.superfrete.com/api/v0/calculator`
+- Enviar o body no formato da SuperFrete:
 
-- Apos o `signIn()`, adicionar um pequeno delay ou aguardar o `onAuthStateChange` confirmar a sessao antes de navegar
-- Isso evita que o redirect chegue ao AdminLayout antes da sessao estar propagada
-
-### 3. (Opcional) Adicionar outro usuario como admin
-
-Se necessario, executar uma migration SQL para inserir um novo registro na tabela `user_roles` com o `user_id` do email desejado e `role: 'admin'`.
-
-## Detalhes Tecnicos
-
-### Hook `useAdminAuth` corrigido:
-
-```typescript
-export function useAdminAuth(): UseAdminAuthReturn {
-  const { user, isLoading: authLoading } = useAuth();
-  const [role, setRole] = useState<AppRole | null>(null);
-  const [roleLoading, setRoleLoading] = useState(true);
-
-  useEffect(() => {
-    // Reset role loading when user changes
-    setRoleLoading(true);
-    
-    async function fetchRole() {
-      if (!user) {
-        setRole(null);
-        setRoleLoading(false);
-        return;
-      }
-      // ... fetch role from user_roles ...
-      setRoleLoading(false);
-    }
-
-    if (!authLoading) {
-      fetchRole();
-    }
-  }, [user?.id, authLoading]); // user?.id instead of user
-
-  return {
-    // ...
-    isLoading: authLoading || roleLoading,
-  };
+```text
+{
+  "from": { "postal_code": "CEP_ORIGEM" },
+  "to": { "postal_code": "CEP_DESTINO" },
+  "services": "1,2,17",
+  "options": {
+    "own_hand": false,
+    "receipt": false,
+    "insurance_value": 0,
+    "use_insurance_value": false
+  },
+  "products": [
+    { "quantity": 1, "weight": 0.3, "height": 5, "width": 15, "length": 20 }
+  ]
 }
 ```
 
-### LoginPage - aguardar sessao:
+- Autenticação via header `Authorization: Bearer {token}` e `User-Agent` obrigatório
+- Mapear a resposta da SuperFrete para o mesmo formato `ShippingOption[]` que o frontend já consome (id, name, company, price, delivery_time)
+- Manter fallback e modo simulação quando o token não estiver configurado
 
-No `handleSubmit`, apos o `signIn()`, usar o `onAuthStateChange` para confirmar que a sessao esta ativa antes de fazer o `navigate()`:
+### 3. Nenhuma alteração no frontend
 
-```typescript
-await signIn(email, password);
-// Aguardar a sessao ser confirmada pelo listener
-// antes de redirecionar
+O `paymentService.ts` e o checkout continuam funcionando sem mudanças, pois o formato de resposta da Edge Function será mantido idêntico.
+
+## Detalhes técnicos
+
+### Mapeamento de serviços SuperFrete
+
+| Código | Serviço |
+|--------|---------|
+| 1 | PAC |
+| 2 | SEDEX |
+| 17 | Mini Envios |
+| 3 | Jadlog.Package |
+
+### Headers obrigatórios da SuperFrete
+
+```text
+Authorization: Bearer {SUPERFRETE_TOKEN}
+User-Agent: HappyStyleMarket (contato@email.com)
+Content-Type: application/json
+Accept: application/json
 ```
 
-## Arquivos que serao modificados:
-- `src/hooks/admin/useAdminAuth.ts` - corrigir race condition no loading
-- `src/pages/LoginPage.tsx` - aguardar sessao antes de redirecionar
+### Resposta esperada da SuperFrete (exemplo)
 
+Cada item do array retornado contém campos como `name`, `price`, `delivery_time`, `error` (se houver), que serão mapeados para o formato existente.
+
+## Arquivos modificados
+
+- `supabase/functions/calculate-shipping/index.ts` - reescrever para usar API SuperFrete
+
+## Passos na ordem
+
+1. Solicitar o token SuperFrete do cliente e salvar como secret `SUPERFRETE_TOKEN`
+2. Reescrever a Edge Function com a integração SuperFrete
+3. Deploy automático da função
+4. Testar o cálculo de frete no checkout
