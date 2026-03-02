@@ -324,6 +324,7 @@ export default function CheckoutPage() {
           neighborhood: shippingData.neighborhood,
           city: shippingData.city,
           state: shippingData.state,
+          superfrete_service_id: selectedShippingId,
         },
       };
 
