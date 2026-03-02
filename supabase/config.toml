@@ -2,3 +2,6 @@ project_id = "zcoixlvbkssvuxamzwvs"
 
 [functions.whatsapp-bot]
 verify_jwt = false
+
+[functions.create-shipping-label]
+verify_jwt = false
