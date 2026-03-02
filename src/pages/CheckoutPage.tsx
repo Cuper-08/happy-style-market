@@ -97,9 +97,9 @@ export default function CheckoutPage() {
   const [completedOrderId, setCompletedOrderId] = useState<string>('');
 
   const paymentOptions = {
-    pix: { name: 'PIX', description: '10% de desconto', icon: QrCode, discount: 0.1 },
+    pix: { name: 'PIX', description: 'Aprovação instantânea', icon: QrCode, discount: 0 },
     card: { name: 'Cartão de Crédito', description: 'Em até 12x', icon: CreditCard, discount: 0 },
-    boleto: { name: 'Boleto Bancário', description: '5% de desconto', icon: FileText, discount: 0.05 },
+    boleto: { name: 'Boleto Bancário', description: 'Prazo de 1-3 dias úteis', icon: FileText, discount: 0 },
   };
 
   const formatPrice = (price: number) => {
