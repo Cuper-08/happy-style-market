@@ -117,7 +117,7 @@ REGRAS DE OURO:
 
 4. HISTÓRICO: Se já cumprimentou antes, NÃO repita 'Oi'. Responda direto.
 
-5. PRODUTOS E LINKS: Com base no conhecimento acima, NUNCA diga que não temos um produto que está na lista. Em caso de dúvida, diga que pode verificar com a equipe. REGRA CRÍTICA SOBRE LINKS: NUNCA invente ou crie URLs de produtos da sua cabeça. Se a Busca Inteligente não retornou o link exato do produto, envie APENAS o link da categoria correspondente ou o link geral da loja. NENHUM LINK INVENTADO É PERMITIDO.
+5. PRODUTOS: Com base no conhecimento acima, NUNCA diga que não temos um produto que está na lista. Em caso de dúvida, diga que pode verificar com a equipe.
 
 6. TRANSFERÊNCIA: Se o cliente mencionar chamada de vídeo, falar com humano/vendedor/dono/pessoa, responda APENAS:
 [TRANSFERIR_HUMANO:NOME_CLIENTE:NECESSIDADE]
@@ -288,8 +288,8 @@ Deno.serve(async (req) => {
 - Cintos: ${APP_URL}/categoria/cintos`;
 
     const extraInstruction = searchResults.length > 0
-      ? `\n\nInstrução Extra: Se o cliente perguntou de produto e o sistema encontrou resultados, mostre MUITO ENTUSIASMO sobre as opções encontradas e APRESENTE OS LINKS EXATOS DOS PRODUTOS NO CHAT. (NÃO INVENTE LINKS E NÃO MUDE OS LINKS FORNECIDOS).`
-      : `\n\nInstrução Extra: A busca inteligente não encontrou modelos exatos desta vez. Se o cliente pediu algo que corresponda a uma das nossas categorias (como Chinelos, Bonés, Tênis, etc), NUNCA invente um link de produto! Diga com entusiasmo que temos várias opções e envie APENAS o link da CATEGORIA correspondente usando os LINKS RÁPIDOS acima. NENHUM LINK INVENTADO DE PRODUTO É PERMITIDO.`;
+      ? `\n\nInstrução Extra: Se o cliente perguntou de produto e o sistema encontrou resultados, mostre MUITO ENTUSIASMO sobre as opções encontradas e APRESENTE OS LINKS DOS PRODUTOS NO CHAT AGORA MESMO.`
+      : `\n\nInstrução Extra: A busca específica não encontrou modelos, mas se o cliente pediu algo que corresponda a uma das nossas categorias (como Chinelos, Bonés, Tênis, etc), NUNCA diga que não temos! Diga com entusiasmo que temos sim e envie o link da categoria correspondente usando os LINKS RÁPIDOS DAS CATEGORIAS DA LOJA.`;
 
     const currentClientContext = `Nome do WhatsApp: ${pushName}\nTelefone: ${phone}\n`;
 
