@@ -62,6 +62,45 @@ export function useAdminOrders(filters?: OrderFilters) {
         .eq('id', orderId);
 
       if (error) throw error;
+
+      // When status changes to "paid", create shipping label on SuperFrete
+      if (status === 'paid') {
+        try {
+          const { data, error: fnError } = await supabase.functions.invoke('create-shipping-label', {
+            body: { orderId },
+          });
+
+          if (fnError) {
+            console.error('Erro ao gerar etiqueta SuperFrete:', fnError);
+            toast({
+              title: 'Aviso',
+              description: 'Pedido marcado como pago, mas houve erro ao gerar etiqueta no SuperFrete.',
+              variant: 'destructive',
+            });
+            return;
+          }
+
+          if (data?.success) {
+            toast({
+              title: 'Etiqueta gerada!',
+              description: `Etiqueta SuperFrete criada com sucesso. ID: ${data.label_id || 'N/A'}`,
+            });
+          } else {
+            toast({
+              title: 'Aviso',
+              description: `Erro SuperFrete: ${data?.error || 'Erro desconhecido'}`,
+              variant: 'destructive',
+            });
+          }
+        } catch (labelError) {
+          console.error('Erro ao chamar create-shipping-label:', labelError);
+          toast({
+            title: 'Aviso',
+            description: 'Pedido pago, mas não foi possível gerar a etiqueta automaticamente.',
+            variant: 'destructive',
+          });
+        }
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-orders'] });

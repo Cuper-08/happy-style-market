@@ -354,6 +354,7 @@ export type Database = {
           shipping_method: Database["public"]["Enums"]["shipping_method"] | null
           status: Database["public"]["Enums"]["order_status"]
           subtotal: number
+          superfrete_label_id: string | null
           total: number
           tracking_code: string | null
           updated_at: string
@@ -372,6 +373,7 @@ export type Database = {
             | null
           status?: Database["public"]["Enums"]["order_status"]
           subtotal: number
+          superfrete_label_id?: string | null
           total: number
           tracking_code?: string | null
           updated_at?: string
@@ -390,6 +392,7 @@ export type Database = {
             | null
           status?: Database["public"]["Enums"]["order_status"]
           subtotal?: number
+          superfrete_label_id?: string | null
           total?: number
           tracking_code?: string | null
           updated_at?: string
