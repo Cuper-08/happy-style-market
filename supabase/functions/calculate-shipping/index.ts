@@ -1,17 +1,18 @@
+// supabase/functions/calculate-shipping/index.ts
+// Edge Function para calcular frete via SuperFrete API
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const SUPERFRETE_TOKEN = Deno.env.get('SUPERFRETE_TOKEN') || '';
-const SUPERFRETE_ENV = Deno.env.get('SUPERFRETE_ENV') || 'sandbox';
-const SUPERFRETE_BASE_URL = SUPERFRETE_ENV === 'production'
-  ? 'https://api.superfrete.com'
-  : 'https://sandbox.superfrete.com';
+// Token recebido com permissão para Cotar.
+const SUPERFRETE_TOKEN = Deno.env.get('SUPERFRETE_TOKEN') || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpYXQiOjE3NzI0MTYyMjIsInN1YiI6Im4weEF6WjNjQkdjcWFzTnNrRkhYdlFqSnhjZjIifQ.P7HMmzHIF_WSSn1H9_Vnxi7teTNkDs-uYB40DGTo7qY';
+const SUPERFRETE_BASE_URL = 'https://api.superfrete.com/api/v0';
 
-const CEP_ORIGEM = Deno.env.get('STORE_CEP') || '01001000';
+// CEP de origem da loja 
+const CEP_ORIGEM = Deno.env.get('STORE_CEP') || '03010000'; // Origem fixa confome requerido
 
 interface ShippingRequest {
   cepDestino: string;
@@ -30,22 +31,19 @@ interface ShippingOption {
   name: string;
   company: string;
   price: number;
+  discount?: string | number;
   delivery_time: number;
   delivery_range?: { min: number; max: number };
 }
 
-const fallbackOptions: ShippingOption[] = [
-  { id: 1, name: 'PAC', company: 'Correios', price: 29.90, delivery_time: 10 },
-  { id: 2, name: 'SEDEX', company: 'Correios', price: 49.90, delivery_time: 5 },
-];
-
 serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return new Response('ok', { headers: corsHeaders });
   }
 
   const origin = req.headers.get('origin');
   const allowedExactOrigins = ['http://localhost:8080', 'http://localhost:5173'];
+
   if (origin && !allowedExactOrigins.includes(origin) && !origin.includes('lovable.app') && !origin.includes('brasc')) {
     console.warn(`[Shipping] Origem bloqueada: ${origin}`);
     return new Response('Forbidden', { status: 403 });
@@ -64,62 +62,71 @@ serve(async (req: Request) => {
       throw new Error('CEP inválido. Deve conter 8 dígitos.');
     }
 
-    // Aggregate package dimensions
+    // DIMENSÃO PADRÃO SUPERFRETE DA LOJA: 1Kg, 20cm x 32cm x 12cm
+    const defaultWeight = 1;
+    const defaultHeight = 12;
+    const defaultWidth = 20;
+    const defaultLength = 32;
+
     let totalWeight = 0;
     let totalInsurance = 0;
+
+    let packageHeight = 0;
+    let packageWidth = 0;
+    let packageLength = 0;
+
     for (const item of items) {
       const qty = item.quantity || 1;
-      totalWeight += (item.weight || 0.3) * qty;
+
+      // se nao mandar medidas, usa padrao x qtde
+      totalWeight += (item.weight || defaultWeight) * qty;
       totalInsurance += (item.insurance_value || 0) * qty;
+
+      // Empilha a altura baseada na qtde
+      packageHeight += (item.height || defaultHeight) * qty;
+      packageWidth = Math.max(packageWidth, item.width || defaultWidth);
+      packageLength = Math.max(packageLength, item.length || defaultLength);
     }
 
-    const packageWeight = Math.max(totalWeight, 0.1);
-    const packageHeight = Math.max(5, 2);
-    const packageWidth = Math.max(15, 11);
-    const packageLength = Math.max(20, 16);
+    // Minimos obrigatórios superfrete (caso caia alguma math errada).
+    // Mas as medidas padrãos do cliente serão SEMPRE respeitadas.
+    const packageData = {
+      height: Math.max(packageHeight, 1),
+      width: Math.max(packageWidth, 11),
+      length: Math.max(packageLength, 16),
+      weight: Math.max(totalWeight, 0.1),
+    };
 
-    // Simulation mode when no token
     if (!SUPERFRETE_TOKEN) {
-      console.log('[Shipping] No Token found. Using SIMULATION MODE.');
-      return new Response(JSON.stringify({
-        options: [
-          { id: 1, name: 'PAC (Simulado)', company: 'Correios', price: 25.50, delivery_time: 8, delivery_range: { min: 5, max: 10 } },
-          { id: 2, name: 'SEDEX (Simulado)', company: 'Correios', price: 45.90, delivery_time: 3, delivery_range: { min: 2, max: 4 } },
-          { id: 17, name: 'Mini Envios (Simulado)', company: 'Correios', price: 15.00, delivery_time: 12, delivery_range: { min: 8, max: 15 } },
-        ],
-        fallback: false,
-      }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      throw new Error('Token SuperFrete não configurado.');
     }
 
-    // Call SuperFrete calculator API
-    const response = await fetch(`${SUPERFRETE_BASE_URL}/api/v0/calculator`, {
+    // PAYLOAD EXATO DA SUPERFRETE 
+    const superFretePayload = {
+      from: { postal_code: CEP_ORIGEM },
+      to: { postal_code: cleanCep },
+      // services: "1,2,17", // 1(PAC), 2(SEDEX), 17(MINI) - pode mandar vazio pras padrão, de loggi tbm!
+      options: {
+        receipt: false,
+        own_hand: false,
+        insurance_value: totalInsurance || 0
+      },
+      package: {
+        height: packageData.height,
+        width: packageData.width,
+        length: packageData.length,
+        weight: packageData.weight
+      }
+    };
+
+    const response = await fetch(`${SUPERFRETE_BASE_URL}/calculator`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Accept': 'application/json',
         'Authorization': `Bearer ${SUPERFRETE_TOKEN}`,
-        'User-Agent': 'BrasConceito (contato@brasconceito.com.br)',
+        'User-Agent': 'Superfrete'
       },
-      body: JSON.stringify({
-        from: { postal_code: CEP_ORIGEM },
-        to: { postal_code: cleanCep },
-        services: '1,2,17',
-        options: {
-          own_hand: false,
-          receipt: false,
-          insurance_value: totalInsurance || 0,
-          use_insurance_value: totalInsurance > 0,
-        },
-        products: [{
-          quantity: 1,
-          weight: packageWeight,
-          height: packageHeight,
-          width: packageWidth,
-          length: packageLength,
-        }],
-      }),
+      body: JSON.stringify(superFretePayload),
     });
 
     if (!response.ok) {
@@ -130,26 +137,24 @@ serve(async (req: Request) => {
 
     const results = await response.json();
 
-    // Map SuperFrete response to our ShippingOption format
-    const validOptions: ShippingOption[] = (Array.isArray(results) ? results : [])
-      .filter((r: { error?: string; price?: number | string }) => !r.error && r.price && parseFloat(String(r.price)) > 0)
-      .map((r: {
-        id?: number;
-        name?: string;
-        company?: { name?: string };
-        price?: number | string;
-        discount?: number | string;
-        delivery_time?: number;
-        delivery_range?: { min: number; max: number };
-      }) => ({
+    // Map para o front-end
+    const validOptions: ShippingOption[] = results
+      .filter((r: any) => !r.has_error && r.price && parseFloat(String(r.price)) > 0)
+      .map((r: any) => ({
         id: r.id || 0,
         name: r.name || '',
         company: r.company?.name || 'Correios',
-        price: parseFloat(String(r.discount || r.price)),
+        price: parseFloat(String(r.price)),
+        discount: parseFloat(String(r.discount || 0)),
         delivery_time: r.delivery_time || 0,
         delivery_range: r.delivery_range,
       }))
       .sort((a: ShippingOption, b: ShippingOption) => a.price - b.price);
+
+    const fallbackOptions = [
+      { id: 1, name: 'PAC (Estimado)', company: 'Correios', price: 29.90, delivery_time: 10, delivery_range: { min: 8, max: 15 } },
+      { id: 2, name: 'SEDEX (Estimado)', company: 'Correios', price: 49.90, delivery_time: 5, delivery_range: { min: 3, max: 7 } },
+    ];
 
     if (validOptions.length === 0) {
       return new Response(JSON.stringify({ options: fallbackOptions, fallback: true }), {
@@ -164,8 +169,12 @@ serve(async (req: Request) => {
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Erro ao calcular frete';
     console.error('[Shipping] Error:', message);
+
     return new Response(JSON.stringify({
-      options: fallbackOptions,
+      options: [
+        { id: 1, name: 'PAC (Estimado)', company: 'Correios', price: 29.90, delivery_time: 10, delivery_range: { min: 8, max: 15 } },
+        { id: 2, name: 'SEDEX (Estimado)', company: 'Correios', price: 49.90, delivery_time: 5, delivery_range: { min: 3, max: 7 } },
+      ],
       fallback: true,
       error: message,
     }), {
