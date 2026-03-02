@@ -51,6 +51,9 @@ function translateAuthError(error: AuthError): string {
   if (message.includes('error sending confirmation email')) {
     return 'Erro ao enviar e-mail de confirmação. Isso geralmente ocorre por instabilidade no servidor de e-mail ou configuração incorreta do SMTP no Supabase Dashboard.';
   }
+  if (message.includes('error sending recovery email')) {
+    return 'Erro ao enviar e-mail de recuperação. O limite de envios pode ter sido atingido ou há problemas no provedor de e-mail.';
+  }
 
   // Fallback: retorna a mensagem original
   return error.message || 'Ocorreu um erro inesperado. Tente novamente.';
