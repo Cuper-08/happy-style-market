@@ -161,6 +161,11 @@ serve(async (req: Request) => {
         const body: PaymentRequest = await req.json();
         const { orderId, paymentMethod, customer, value, description, creditCard, creditCardHolderInfo, installmentCount } = body;
 
+        // Strip formatting from CPF/CNPJ (remove dots, dashes, slashes)
+        if (customer?.cpfCnpj) {
+            customer.cpfCnpj = customer.cpfCnpj.replace(/[.\-\/]/g, '');
+        }
+
         // Validate required fields
         if (!orderId || !paymentMethod || !customer?.cpfCnpj || !value) {
             throw new Error('Campos obrigatórios: orderId, paymentMethod, customer.cpfCnpj, value');
