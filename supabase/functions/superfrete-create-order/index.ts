@@ -110,6 +110,14 @@ serve(async (req: Request) => {
                     "non_commercial": true,
                     // declaration de valor e conteudo fica no formato simples p/ etiquetas nao-comerciais (como teste/MEI)
                 },
+                "external_id": `PedidoAPP_${orderId.substring(0, 8)}`, // Referência para origem/sistema
+                "description": `OrigemApp - Itens: ${items.map((i: any) => i.product_name).join(', ').substring(0, 50)}`, // Descrição origem/produto
+                // Passa a lista atual de produtos para NF/declaração
+                "products": items.map((i: any) => ({
+                    "name": i.product_name,
+                    "quantity": i.quantity || 1,
+                    "unitary_value": Number(i.unit_price || 0)
+                })),
                 "volumes": [
                     {
                         "format": "box",
