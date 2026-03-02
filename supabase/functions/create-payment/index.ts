@@ -163,7 +163,7 @@ serve(async (req: Request) => {
 
         // Strip formatting from CPF/CNPJ (remove dots, dashes, slashes)
         if (customer?.cpfCnpj) {
-            customer.cpfCnpj = customer.cpfCnpj.replace(/[.\-\/]/g, '');
+            customer.cpfCnpj = customer.cpfCnpj.replace(/\D/g, '');
         }
 
         // Validate required fields
