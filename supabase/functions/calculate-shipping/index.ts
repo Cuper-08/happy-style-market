@@ -1,5 +1,5 @@
 // supabase/functions/calculate-shipping/index.ts
-// Edge Function para calcular frete via Melhor Envio API
+// Edge Function para calcular frete via SuperFrete API
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 
 const corsHeaders = {
@@ -7,23 +7,20 @@ const corsHeaders = {
     'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const MELHOR_ENVIO_TOKEN = Deno.env.get('MELHOR_ENVIO_TOKEN') || '';
-const MELHOR_ENVIO_ENV = Deno.env.get('MELHOR_ENVIO_ENV') || 'sandbox';
-const MELHOR_ENVIO_BASE_URL = MELHOR_ENVIO_ENV === 'production'
-    ? 'https://melhorenvio.com.br/api/v2'
-    : 'https://sandbox.melhorenvio.com.br/api/v2';
+const SUPERFRETE_TOKEN = Deno.env.get('SUPERFRETE_TOKEN') || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpYXQiOjE3NzI0MTYyMjIsInN1YiI6Im4weEF6WjNjQkdjcWFzTnNrRkhYdlFqSnhjZjIifQ.P7HMmzHIF_WSSn1H9_Vnxi7teTNkDs-uYB40DGTo7qY';
+const SUPERFRETE_BASE_URL = 'https://api.superfrete.com/api/v0';
 
 // CEP de origem da loja (configurável)
-const CEP_ORIGEM = Deno.env.get('STORE_CEP') || '01001000';
+const CEP_ORIGEM = Deno.env.get('STORE_CEP') || '03010000'; // Brás Conceito
 
 interface ShippingRequest {
     cepDestino: string;
     items: Array<{
         quantity: number;
-        weight?: number;    // kg (default: 0.3)
-        height?: number;    // cm (default: 5)
-        width?: number;     // cm (default: 15)
-        length?: number;    // cm (default: 20)
+        weight?: number;    // kg
+        height?: number;    // cm
+        width?: number;     // cm
+        length?: number;    // cm
         insurance_value?: number; // valor declarado
     }>;
 }
@@ -34,6 +31,7 @@ interface ShippingOption {
     company: string;
     price: number;
     delivery_time: number; // days
+    delivery_range?: { min: number; max: number };
     error?: string;
 }
 
@@ -46,7 +44,7 @@ serve(async (req: Request) => {
     const origin = req.headers.get('origin');
     const allowedExactOrigins = ['http://localhost:8080', 'http://localhost:5173'];
 
-    // Se tiver origem e não for um dos permitidos e nem conter lovable/happy-style
+    // Se tiver origem e não for um dos permitidos e nem conter lovable/happy-style/brasc
     if (origin && !allowedExactOrigins.includes(origin) && !origin.includes('lovable.app') && !origin.includes('brasc')) {
         console.warn(`[Shipping] Origem bloqueada: ${origin}`);
         return new Response('Forbidden', { status: 403 });
@@ -66,102 +64,101 @@ serve(async (req: Request) => {
             throw new Error('CEP inválido. Deve conter 8 dígitos.');
         }
 
-        // Calculate total dimensions and weight
+        // Default constraints specified by the user
+        const defaultWeight = 1; // 1Kg
+        const defaultHeight = 12; // 12cm
+        const defaultWidth = 20; // 20cm
+        const defaultLength = 32; // 32cm
+
+        // Calculate total dimensions and weight based on passed items or defaults
         let totalWeight = 0;
         let totalInsurance = 0;
-        const maxHeight = 5;
-        const maxWidth = 15;
-        const maxLength = 20;
+
+        let packageHeight = 0;
+        let packageWidth = 0;
+        let packageLength = 0;
 
         for (const item of items) {
             const qty = item.quantity || 1;
-            totalWeight += (item.weight || 0.3) * qty;
+            totalWeight += (item.weight || defaultWeight) * qty;
             totalInsurance += (item.insurance_value || 0) * qty;
+
+            // Simple approach: max side as width/length, sum heights
+            packageHeight += (item.height || defaultHeight) * qty;
+            packageWidth = Math.max(packageWidth, item.width || defaultWidth);
+            packageLength = Math.max(packageLength, item.length || defaultLength);
         }
 
-        // Ensure minimum dimensions for Correios
+        // Ensure minimum dimensions just in case
         const packageData = {
-            height: Math.max(maxHeight, 2),
-            width: Math.max(maxWidth, 11),
-            length: Math.max(maxLength, 16),
+            height: Math.max(packageHeight, 1),
+            width: Math.max(packageWidth, 11), // SuperFrete/Correios mins
+            length: Math.max(packageLength, 16),
             weight: Math.max(totalWeight, 0.1),
         };
 
-        // Check if token exists, otherwise use Mock Mode
-        if (!MELHOR_ENVIO_TOKEN) {
-            console.log('[Shipping] No Token found. Using SIMULATION MODE.');
-            return new Response(JSON.stringify({
-                options: [
-                    { id: 1, name: 'PAC (Simulado)', company: 'Correios', price: 25.50, delivery_time: 8, delivery_range: { min: 5, max: 10 } },
-                    { id: 2, name: 'SEDEX (Simulado)', company: 'Correios', price: 45.90, delivery_time: 3, delivery_range: { min: 2, max: 4 } },
-                    { id: 3, name: 'JadLog (Simulado)', company: 'JadLog', price: 38.00, delivery_time: 4, delivery_range: { min: 3, max: 5 } }
-                ],
-                fallback: false
-            }), {
-                headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-                status: 200,
-            });
+        // Check if token exists
+        if (!SUPERFRETE_TOKEN) {
+            console.error('[Shipping] No SuperFrete Token found.');
+            throw new Error('Chave da API de Frete não configurada corretamente no servidor');
         }
 
-        // Calculate shipping via Melhor Envio API
-        const response = await fetch(`${MELHOR_ENVIO_BASE_URL}/me/shipment/calculate`, {
+        const superFretePayload = {
+            from: { postal_code: CEP_ORIGEM },
+            to: { postal_code: cleanCep },
+            services: "1,2", // 1=PAC, 2=SEDEX (and optionally others like mini envios)
+            options: {
+                receipt: false,
+                own_hand: false,
+                insurance_value: totalInsurance
+            },
+            package: {
+                height: packageData.height,
+                width: packageData.width,
+                length: packageData.length,
+                weight: packageData.weight
+            }
+        };
+
+        // Calculate shipping via SuperFrete API
+        const response = await fetch(`${SUPERFRETE_BASE_URL}/calculator`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${MELHOR_ENVIO_TOKEN}`,
-                'Accept': 'application/json',
-                'User-Agent': 'HappyStyleMarket contato@happystyle.com.br',
+                'Authorization': `Bearer ${SUPERFRETE_TOKEN}`,
+                'User-Agent': 'Superfrete',
             },
-            body: JSON.stringify({
-                from: { postal_code: CEP_ORIGEM },
-                to: { postal_code: cleanCep },
-                products: [{
-                    id: 'package',
-                    width: packageData.width,
-                    height: packageData.height,
-                    length: packageData.length,
-                    weight: packageData.weight,
-                    insurance_value: totalInsurance || 100,
-                    quantity: 1,
-                }],
-            }),
+            body: JSON.stringify(superFretePayload),
         });
 
         if (!response.ok) {
             const errorText = await response.text();
-            console.error('[Shipping] Melhor Envio Error:', errorText);
-            throw new Error('Erro ao consultar frete. Tente novamente.');
+            console.error('[Shipping] SuperFrete Error:', errorText);
+            throw new Error('Erro ao consultar frete na transportadora. Tente novamente.');
         }
 
         const results = await response.json();
 
-        // Filter and format valid shipping options
+        // Convert SuperFrete results to standard ShippingOption format
         const validOptions: ShippingOption[] = results
-            .filter((r: { error?: string; price: string }) => !r.error && parseFloat(r.price) > 0)
-            .map((r: {
-                id: number;
-                name: string;
-                company: { name: string };
-                price: string;
-                custom_price: string;
-                delivery_time: number;
-                delivery_range: { min: number; max: number };
-            }) => ({
+            .filter((r: any) => !r.has_error && parseFloat(r.price) > 0)
+            .map((r: any) => ({
                 id: r.id,
                 name: r.name,
-                company: r.company?.name || '',
-                price: parseFloat(r.custom_price || r.price),
+                company: r.company?.name || 'Correios',
+                price: parseFloat(r.price),
                 delivery_time: r.delivery_time,
                 delivery_range: r.delivery_range,
             }))
+            // Adicionalmente podemos puxar opções da tabela de fallback do próprio retorno caso sejam retornadas muitas..
             .sort((a: ShippingOption, b: ShippingOption) => a.price - b.price);
 
         // If no options from API, return fallback options
         if (validOptions.length === 0) {
             return new Response(JSON.stringify({
                 options: [
-                    { id: 1, name: 'PAC', company: 'Correios', price: 29.90, delivery_time: 10 },
-                    { id: 2, name: 'SEDEX', company: 'Correios', price: 49.90, delivery_time: 5 },
+                    { id: 1, name: 'PAC (Estimado)', company: 'Correios', price: 29.90, delivery_time: 10 },
+                    { id: 2, name: 'SEDEX (Estimado)', company: 'Correios', price: 49.90, delivery_time: 5 },
                 ],
                 fallback: true,
             }), {
@@ -182,14 +179,13 @@ serve(async (req: Request) => {
         // Return fallback shipping options on error
         return new Response(JSON.stringify({
             options: [
-                { id: 1, name: 'PAC', company: 'Correios', price: 29.90, delivery_time: 10 },
-                { id: 2, name: 'SEDEX', company: 'Correios', price: 49.90, delivery_time: 5 },
+                { id: 1, name: 'PAC (Indisponível)', company: 'Correios', price: 35.90, delivery_time: 15 },
             ],
             fallback: true,
             error: message,
         }), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-            status: 200, // Return 200 even on error so frontend gets fallback
+            status: 200,
         });
     }
 });
