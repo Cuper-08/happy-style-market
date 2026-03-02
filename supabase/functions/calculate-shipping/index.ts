@@ -110,7 +110,7 @@ serve(async (req: Request) => {
     const superFretePayload = {
       from: { postal_code: CEP_ORIGEM },
       to: { postal_code: cleanCep },
-      // services: "1,2,17", // 1(PAC), 2(SEDEX), 17(MINI) - pode mandar vazio pras padrão, de loggi tbm!
+      services: "1,2,3,4,17", // 1(PAC), 2(SEDEX), 3(Jadlog Normal), 4(Jadlog Expresso), 17(MINI)
       options: {
         receipt: false,
         own_hand: false,
