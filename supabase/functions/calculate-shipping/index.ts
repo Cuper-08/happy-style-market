@@ -88,13 +88,18 @@ serve(async (req: Request) => {
       packageLength = Math.max(packageLength, item.length || defaultLength);
     }
 
-    // Minimos obrigatórios superfrete (caso caia alguma math errada).
-    // Mas as medidas padrãos do cliente serão SEMPRE respeitadas.
+    // Minimos e Máximos obrigatórios superfrete limitados pra não quebrar cálculo (soma > 200 e peso > 30)
+    // Limitar dimensão total para tentar passar o payload com infos agrupadas
+    const clampedHeight = Math.min(Math.max(packageHeight, 1), 80);
+    const clampedWidth = Math.min(Math.max(packageWidth, 11), 80);
+    const clampedLength = Math.min(Math.max(packageLength, 16), 80);
+    const clampedWeight = Math.min(Math.max(totalWeight, 0.1), 30); // Correio maximo pac/sedex aprox = 30kg
+
     const packageData = {
-      height: Math.max(packageHeight, 1),
-      width: Math.max(packageWidth, 11),
-      length: Math.max(packageLength, 16),
-      weight: Math.max(totalWeight, 0.1),
+      height: clampedHeight,
+      width: clampedWidth,
+      length: clampedLength,
+      weight: clampedWeight,
     };
 
     if (!SUPERFRETE_TOKEN) {
@@ -132,19 +137,19 @@ serve(async (req: Request) => {
     if (!response.ok) {
       const errorText = await response.text();
       console.error('[Shipping] SuperFrete Error:', response.status, errorText);
-      throw new Error('Erro ao consultar frete. Tente novamente.');
+      throw new Error('Erro ao consultar frete. Tente novamente ou reduza a quantidade itens.');
     }
 
     const results = await response.json();
 
     // Map para o front-end
-    const validOptions: ShippingOption[] = results
+    const validOptions: ShippingOption[] = (Array.isArray(results) ? results : [results])
       .filter((r: any) => !r.has_error && r.price && parseFloat(String(r.price)) > 0)
       .map((r: any) => ({
         id: r.id || 0,
         name: r.name || '',
         company: r.company?.name || 'Correios',
-        price: parseFloat(String(r.price)),
+        price: parseFloat(String(r.price)) * Math.ceil(totalWeight / packageData.weight), // multiplica frete caso tenha diminuido peso.
         discount: parseFloat(String(r.discount || 0)),
         delivery_time: r.delivery_time || 0,
         delivery_range: r.delivery_range,
