@@ -13,6 +13,7 @@ interface AuthContextType {
   signOut: () => Promise<void>;
   updateProfile: (data: Partial<Profile>) => Promise<void>;
   resendConfirmation: (email: string) => Promise<void>;
+  resetPassword: (email: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -219,6 +220,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const resetPassword = async (email: string) => {
+    const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
+      redirectTo: getRedirectUrl('/atualizar-senha'),
+    });
+    if (error) {
+      throw new Error(translateAuthError(error));
+    }
+  };
+
   return (
     <AuthContext.Provider value={{
       user,
@@ -230,6 +240,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       signOut,
       updateProfile,
       resendConfirmation,
+      resetPassword,
     }}>
       {children}
     </AuthContext.Provider>

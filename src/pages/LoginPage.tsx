@@ -13,13 +13,15 @@ import { Eye, EyeOff, Loader2, AlertCircle } from 'lucide-react';
 export default function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { signIn, resendConfirmation, user, isLoading: authLoading } = useAuth();
+  const { signIn, resendConfirmation, resetPassword, user, isLoading: authLoading } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [showEmailNotConfirmed, setShowEmailNotConfirmed] = useState(false);
   const [isResending, setIsResending] = useState(false);
+  const [isForgotPassword, setIsForgotPassword] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
 
   // Get the return path from location state (e.g., from checkout)
   const from = (location.state as { from?: string })?.from;
@@ -67,6 +69,29 @@ export default function LoginPage() {
       toast({ title: 'Erro', description: message, variant: 'destructive' });
     } finally {
       setIsResending(false);
+    }
+  };
+
+  const handleResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email) {
+      toast({ title: 'Digite seu e-mail para recuperar a senha', variant: 'destructive' });
+      return;
+    }
+
+    setIsResetting(true);
+    try {
+      await resetPassword(email);
+      toast({
+        title: 'E-mail enviado! 📩',
+        description: 'Verifique sua caixa de entrada para criar uma nova senha.',
+      });
+      setIsForgotPassword(false); // Volta para a tela de login
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Erro ao enviar e-mail';
+      toast({ title: 'Erro', description: message, variant: 'destructive' });
+    } finally {
+      setIsResetting(false);
     }
   };
 
@@ -145,87 +170,137 @@ export default function LoginPage() {
       <div className="container py-8 flex items-center justify-center min-h-[60vh]">
         <Card className="w-full max-w-md">
           <CardHeader className="text-center">
-            <CardTitle className="text-2xl">Entrar</CardTitle>
+            <CardTitle className="text-2xl">
+              {isForgotPassword ? 'Recuperar Senha' : 'Entrar'}
+            </CardTitle>
             <CardDescription>
-              {from === '/checkout'
-                ? 'Faça login para finalizar sua compra'
-                : 'Entre na sua conta para continuar'}
+              {isForgotPassword
+                ? 'Digite seu e-mail para receber um link de redefinição de senha'
+                : from === '/checkout'
+                  ? 'Faça login para finalizar sua compra'
+                  : 'Entre na sua conta para continuar'}
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="email">E-mail</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="seu@email.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  disabled={isLoading}
-                  required
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="password">Senha</Label>
-                <div className="relative">
+            {isForgotPassword ? (
+              <form onSubmit={handleResetPassword} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="email">E-mail</Label>
                   <Input
-                    id="password"
-                    type={showPassword ? 'text' : 'password'}
-                    placeholder="••••••••"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    disabled={isLoading}
+                    id="email"
+                    type="email"
+                    placeholder="seu@email.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    disabled={isResetting}
                     required
                   />
+                </div>
+
+                <Button type="submit" className="w-full h-12" disabled={isResetting}>
+                  {isResetting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                  Pedir nova senha
+                </Button>
+
+                <div className="mt-4 text-center">
                   <Button
                     type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="absolute right-0 top-0 h-full px-3"
-                    onClick={() => setShowPassword(!showPassword)}
+                    variant="link"
+                    className="text-sm text-muted-foreground hover:text-primary"
+                    onClick={() => setIsForgotPassword(false)}
                   >
-                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    Voltar para o login
                   </Button>
                 </div>
-              </div>
-
-              {/* Aviso de email não confirmado */}
-              {showEmailNotConfirmed && (
-                <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg p-3 space-y-2">
-                  <div className="flex items-start gap-2 text-sm text-amber-800 dark:text-amber-200">
-                    <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
-                    <span>Seu e-mail ainda não foi confirmado. Verifique sua caixa de entrada e spam.</span>
+              </form>
+            ) : (
+              <>
+                <form onSubmit={handleSubmit} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="email">E-mail</Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      placeholder="seu@email.com"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      disabled={isLoading}
+                      required
+                    />
                   </div>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="w-full text-amber-700 border-amber-300 hover:bg-amber-100 dark:text-amber-300 dark:border-amber-700 dark:hover:bg-amber-900/50"
-                    onClick={handleResendEmail}
-                    disabled={isResending}
-                  >
-                    {isResending ? (
-                      <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                    ) : null}
-                    Reenviar E-mail de Confirmação
+
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="password">Senha</Label>
+                      <Button
+                        type="button"
+                        variant="link"
+                        className="px-0 py-0 h-auto text-xs text-muted-foreground hover:text-primary"
+                        onClick={() => setIsForgotPassword(true)}
+                        tabIndex={-1}
+                      >
+                        Esqueci minha senha
+                      </Button>
+                    </div>
+                    <div className="relative">
+                      <Input
+                        id="password"
+                        type={showPassword ? 'text' : 'password'}
+                        placeholder="••••••••"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        disabled={isLoading}
+                        required
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="absolute right-0 top-0 h-full px-3"
+                        onClick={() => setShowPassword(!showPassword)}
+                      >
+                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* Aviso de email não confirmado */}
+                  {showEmailNotConfirmed && (
+                    <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg p-3 space-y-2">
+                      <div className="flex items-start gap-2 text-sm text-amber-800 dark:text-amber-200">
+                        <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+                        <span>Seu e-mail ainda não foi confirmado. Verifique sua caixa de entrada e spam.</span>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="w-full text-amber-700 border-amber-300 hover:bg-amber-100 dark:text-amber-300 dark:border-amber-700 dark:hover:bg-amber-900/50"
+                        onClick={handleResendEmail}
+                        disabled={isResending}
+                      >
+                        {isResending ? (
+                          <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                        ) : null}
+                        Reenviar E-mail de Confirmação
+                      </Button>
+                    </div>
+                  )}
+
+                  <Button type="submit" className="w-full h-12" disabled={isLoading}>
+                    {isLoading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                    Entrar
                   </Button>
+                </form>
+
+                <div className="mt-6 text-center text-sm">
+                  <span className="text-muted-foreground">Não tem uma conta? </span>
+                  <Link to="/cadastro" className="text-primary hover:underline font-medium">
+                    Cadastre-se
+                  </Link>
                 </div>
-              )}
-
-              <Button type="submit" className="w-full h-12" disabled={isLoading}>
-                {isLoading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                Entrar
-              </Button>
-            </form>
-
-            <div className="mt-6 text-center text-sm">
-              <span className="text-muted-foreground">Não tem uma conta? </span>
-              <Link to="/cadastro" className="text-primary hover:underline font-medium">
-                Cadastre-se
-              </Link>
-            </div>
+              </>
+            )}
           </CardContent>
         </Card>
       </div>
