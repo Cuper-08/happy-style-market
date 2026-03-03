@@ -254,6 +254,22 @@ export default function OrderDetailPage() {
               </Card>
             )}
 
+            {/* System Notes / Logs */}
+            {order.notes && (
+              <Card>
+                <CardHeader className="pb-3 sm:pb-6">
+                  <CardTitle className="text-base sm:text-lg text-red-600">
+                    Observações / Logs
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-xs sm:text-sm whitespace-pre-wrap font-mono bg-red-50 p-2 rounded-md">
+                    {order.notes}
+                  </p>
+                </CardContent>
+              </Card>
+            )}
+
             {/* Payment Info */}
             <Card>
               <CardHeader className="pb-3 sm:pb-6">
