@@ -7,12 +7,12 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
-// Token recebido com permissão para Cotar.
-const SUPERFRETE_TOKEN = Deno.env.get('SUPERFRETE_TOKEN') || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpYXQiOjE3NzI0MTYyMjIsInN1YiI6Im4weEF6WjNjQkdjcWFzTnNrRkhYdlFqSnhjZjIifQ.P7HMmzHIF_WSSn1H9_Vnxi7teTNkDs-uYB40DGTo7qY';
+// Token via Secret do Supabase — NUNCA hardcoded aqui
+const SUPERFRETE_TOKEN = Deno.env.get('SUPERFRETE_TOKEN') || '';
 const SUPERFRETE_BASE_URL = 'https://api.superfrete.com/api/v0';
 
-// CEP de origem da loja 
-const CEP_ORIGEM = Deno.env.get('STORE_CEP') || '03010000'; // Origem fixa confome requerido
+// CEP de origem da loja (configuravel via Secret STORE_CEP)
+const CEP_ORIGEM = Deno.env.get('STORE_CEP') || '03010000';
 
 interface ShippingRequest {
   cepDestino: string;
