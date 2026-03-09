@@ -33,56 +33,22 @@ const TRANSFER_KEYWORDS = [
   'me passa', 'transferir atendimento', 'falar com a equipe'
 ];
 
-// Conhecimento base dos produtos (atualizado com dados reais do banco)
 const PRODUTOS_CONHECIMENTO = `
-📦 PRODUTOS QUE VENDEMOS (CONHECIMENTO COMPLETO):
+🏪 ESTRUTURA DE CATEGORIAS DA LOJA (Use essas URLs para direcionar o cliente):
+- 👟 Tênis: ${APP_URL}/categoria/tenis (Inclui: Linha Premium, Grifes Importadas, Infantil) 
+- 👜 Bolsas: ${APP_URL}/categoria/bolsas
+- 🧳 Malas de Viagem: ${APP_URL}/categoria/malas
+- 🧢 Bonés: ${APP_URL}/categoria/bone
+- 🧦 Meias: ${APP_URL}/categoria/meias
+- 👡 Chinelos: ${APP_URL}/categoria/chinelo
+- ⌚ Acessórios: ${APP_URL}/categoria/acessorios
 
-👟 TÊnis (867+ modelos | R$250 a R$2.500)
-  - Marcas: Amiri, Louis Vuitton, Nike, Adidas, Jordan, Mizuno, Asics, Fila, New Balance, Gucci, Prada e mais
-  - Exemplos de destaque:
-    * TêNis Amiri MA-1 → R$2.500
-    * TêNis Louis Vuitton → R$2.100
-    * Nike Air Jordan, Adidas, Mizuno, Asics, Fila, New Balance → R$250 em diante
-  - Temos têNis masculinos e femininos, diversos modelos e cores
-
-👟 TÊnis INFANTIL (81 modelos | R$600 a R$800)
-  - Modelos: Nike Air Jordan 1, Travis Scott x Air Jordan 1, Air Jordan 3 Retrô, Jordan Jumpman Jack, Nike Jordan Low
-  - Preco fixo: R$800 a maioria dos modelos
-
-👜 BOLSAS (32 modelos | R$1.100 a R$1.800)
-  - Marcas: Louis Vuitton, Gucci, Prada, Dior
-  - Exemplos:
-    * Pochete Prada → R$1.800
-    * Bolsa Gucci Messenger GG Canvas → R$1.800
-    * Gucci GG Supreme Belt Bag → R$1.800
-    * Bolsa Louis Vuitton Neverfull Monogram → R$1.700
-    * Bolsa Louis Vuitton Keepall → R$1.700
-    * Bolsa Dior → R$1.600
-    * Bolsa Prada Nylon Preta → R$1.600
-    * Bolsa Mini Gucci (várias cores) → R$1.500
-    * Bolsa Coussin PM Louis Vuitton → R$1.600
-👡 CHINELOS (10 modelos | R$900 a R$1.000)
-  - Louis Vuitton Chinelo Slide (branco, preto, colorido) → R$1.000
-  - Amiri Chinelo White → R$900 | Amiri Preto e Branco → R$900
-
-🌍 IMPORTADOS PREMIUM (29 modelos | R$1.000 a R$2.500)
-  - Mochila Prada Nylon → R$2.500
-  - Mochila Louis Vuitton Christopher → R$2.500
-  - Louis Vuitton x Air Force 1 (Virgil Abloh - diversas cores) → R$1.800
-  - Alexander McQueen Prata/Preto → R$1.800
-  - Louis Vuitton Runner Tatic → R$1.800
-  - Gucci x Disney Donald Duck Duffle → R$2.000
-  - New Gucci Off White / Bege → R$1.300
-
-🧢 BONÉS (45 modelos | R$250 fixo)
-  - New Era (azul, bege/preto, rosa, branco, verde, Mickey) → R$250
-  - Gucci → R$250 | Prada → R$250 | Louis Vuitton → R$250 | Miu Miu → R$250
-
-🧦 MEIAS (102 modelos | R$50 cada)
-  - Nike, Adidas, Jordan, Mizuno → R$50 | Canalé, tobinho, curta
-
-🧳 MALAS DE VIAGEM (| R$4.500)
-  - Mala de Bordo Louis Vuitton MD29
+REGRAS DE VENDAS E ESTOQUE:
+- TUDO DEPENDE DA BUSCA: Apenas afirme que temos em estoque se o produto aparecer em "Produtos encontrados na Busca Inteligente" no contexto abaixo.
+- SE NÃO TIVER EXATAMENTE: Sugira produtos semelhantes que vieram na busca.
+- SE A BUSCA VIER VAZIA E FOR SOBRE UMA DA CATEGORIAS ACIMA: Diga educadamente que não encontrou o modelo exato na busca imediata, mas ENVIE O LINK DA CATEGORIA correspondente para o cliente explorar. (Exemplo: "Não localizei aqui agora, mas dê uma olhadinha nos nossos modelos no site: URL_AQUI").
+- NÃO INVENTE PREÇOS: Preços ou produtos fora do Contexto gerado não devem ser precificados rigidamente.
+- SEMPRE envie o Link do produto retornado na busca para o cliente. O Link é fundamental para ele acessar o App e comprar.
 `;
 
 const SYSTEM_PROMPT_BASE = `Você é a Luna, vendedora simpática e atenciosa da Brás Conceito.
@@ -223,14 +189,28 @@ Deno.serve(async (req) => {
 
     let searchResults: any[] = [];
     if (keywords.length > 0) {
-      const orFilter = keywords
-        .map((k: string) => `title.ilike.%${k}%,category.ilike.%${k}%`)
-        .join(",");
-      const { data } = await supabase
+      // Tenta busca combinada (AND entre as palavras-chave na mesma query)
+      let queryReq = supabase
         .from("products")
-        .select("title, slug, price_retail_display, category")
-        .or(orFilter)
-        .limit(8);
+        .select("title, slug, price_retail_display, category");
+      
+      for (const k of keywords) {
+         queryReq = queryReq.or(`title.ilike.%${k}%,category.ilike.%${k}%,description.ilike.%${k}%`);
+      }
+      
+      let { data } = await queryReq.limit(5);
+
+      // Se a busca estrita não encontrou, faz um fallback mais solto (OR global em qualquer palavra-chave)
+      if (!data || data.length === 0) {
+        const orGlobal = keywords.map((k: string) => `title.ilike.%${k}%,category.ilike.%${k}%`).join(",");
+        const fallbackRes = await supabase
+          .from("products")
+          .select("title, slug, price_retail_display, category")
+          .or(orGlobal)
+          .limit(8);
+        data = fallbackRes.data;
+      }
+
       searchResults = data || [];
     }
 
