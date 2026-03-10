@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { AdminLayout } from './AdminLayout';
 import { useAdminProducts } from '@/hooks/admin/useAdminProducts';
@@ -7,6 +7,7 @@ import { AdminPageHeader } from '@/components/admin/AdminPageHeader';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
@@ -17,8 +18,15 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { Plus, Search, Loader2, Pencil, Trash2, Package, ChevronLeft, ChevronRight, Star } from 'lucide-react';
+import { Plus, Search, Loader2, Pencil, Trash2, Package, ChevronLeft, ChevronRight, Star, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
+import { useQueryClient } from '@tanstack/react-query';
+import { motion, AnimatePresence } from 'framer-motion';
+
+type SortColumn = 'title' | 'category' | 'price_retail' | 'price' | 'stock';
+type SortDirection = 'asc' | 'desc';
 
 export default function ProductsPage() {
   const [searchTerm, setSearchTerm] = useState('');
@@ -29,8 +37,15 @@ export default function ProductsPage() {
     const page = parseInt(searchParams.get('page') || '1', 10);
     return page > 0 ? page : 1;
   });
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [sortColumn, setSortColumn] = useState<SortColumn | null>(null);
+  const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
+  const [isBulkProcessing, setIsBulkProcessing] = useState(false);
+
   const pageSize = 20;
   const isMobile = useIsMobile();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   const { products, isLoading, deleteProduct, isDeleting } = useAdminProducts();
   const { data: categories } = useCategories();
@@ -38,8 +53,13 @@ export default function ProductsPage() {
   const formatCurrency = (value: number) =>
     new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
 
-  const filteredProducts = useMemo(() => {
-    return products.filter((product) => {
+  const getStockCount = (variants: { stock?: boolean }[]) => {
+    if (!variants || variants.length === 0) return 0;
+    return variants.filter((v) => v.stock !== false).length;
+  };
+
+  const filteredAndSortedProducts = useMemo(() => {
+    let result = products.filter((product) => {
       const matchesSearch = !searchTerm ||
         product.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
         product.slug.toLowerCase().includes(searchTerm.toLowerCase());
@@ -53,10 +73,36 @@ export default function ProductsPage() {
 
       return matchesSearch && matchesCategory && matchesStock;
     });
-  }, [products, searchTerm, categoryFilter, stockFilter]);
 
-  const totalPages = Math.ceil(filteredProducts.length / pageSize);
-  const paginatedProducts = filteredProducts.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+    if (sortColumn) {
+      result = [...result].sort((a, b) => {
+        let cmp = 0;
+        switch (sortColumn) {
+          case 'title':
+            cmp = a.title.localeCompare(b.title, 'pt-BR');
+            break;
+          case 'category':
+            cmp = (a.category || '').localeCompare(b.category || '', 'pt-BR');
+            break;
+          case 'price_retail':
+            cmp = (Number(a.price_retail) || 0) - (Number(b.price_retail) || 0);
+            break;
+          case 'price':
+            cmp = (Number(a.price) || 0) - (Number(b.price) || 0);
+            break;
+          case 'stock':
+            cmp = getStockCount(a.variants) - getStockCount(b.variants);
+            break;
+        }
+        return sortDirection === 'desc' ? -cmp : cmp;
+      });
+    }
+
+    return result;
+  }, [products, searchTerm, categoryFilter, stockFilter, sortColumn, sortDirection]);
+
+  const totalPages = Math.ceil(filteredAndSortedProducts.length / pageSize);
+  const paginatedProducts = filteredAndSortedProducts.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
   useEffect(() => {
     const params: Record<string, string> = {};
@@ -64,7 +110,23 @@ export default function ProductsPage() {
     setSearchParams(params, { replace: true });
   }, [currentPage, setSearchParams]);
 
-  const handleFilterChange = () => setCurrentPage(1);
+  const handleFilterChange = () => { setCurrentPage(1); setSelectedIds(new Set()); };
+
+  const handleSort = (column: SortColumn) => {
+    if (sortColumn === column) {
+      setSortDirection(d => d === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortColumn(column);
+      setSortDirection('asc');
+    }
+  };
+
+  const SortIcon = ({ column }: { column: SortColumn }) => {
+    if (sortColumn !== column) return <ArrowUpDown className="h-3 w-3 ml-1 opacity-40" />;
+    return sortDirection === 'asc'
+      ? <ArrowUp className="h-3 w-3 ml-1 text-primary" />
+      : <ArrowDown className="h-3 w-3 ml-1 text-primary" />;
+  };
 
   const getStockLabel = (variants: { stock?: boolean }[]) => {
     if (!variants || variants.length === 0) return '-';
@@ -72,11 +134,68 @@ export default function ProductsPage() {
     return `${inStock}/${variants.length}`;
   };
 
-  // Get unique categories from products
   const productCategories = useMemo(() => {
     const cats = new Set(products.map(p => p.category).filter(Boolean));
     return Array.from(cats).sort() as string[];
   }, [products]);
+
+  // Bulk selection
+  const allPageSelected = paginatedProducts.length > 0 && paginatedProducts.every(p => selectedIds.has(p.id));
+  const somePageSelected = paginatedProducts.some(p => selectedIds.has(p.id));
+
+  const toggleSelectAll = () => {
+    if (allPageSelected) {
+      const next = new Set(selectedIds);
+      paginatedProducts.forEach(p => next.delete(p.id));
+      setSelectedIds(next);
+    } else {
+      const next = new Set(selectedIds);
+      paginatedProducts.forEach(p => next.add(p.id));
+      setSelectedIds(next);
+    }
+  };
+
+  const toggleSelect = (id: string) => {
+    const next = new Set(selectedIds);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    setSelectedIds(next);
+  };
+
+  const handleBulkDelete = async () => {
+    setIsBulkProcessing(true);
+    try {
+      const { error } = await supabase
+        .from('products')
+        .delete()
+        .in('id', Array.from(selectedIds));
+      if (error) throw error;
+      toast({ title: 'Produtos excluídos', description: `${selectedIds.size} produto(s) excluído(s) com sucesso.` });
+      setSelectedIds(new Set());
+      queryClient.invalidateQueries({ queryKey: ['admin-products'] });
+    } catch {
+      toast({ title: 'Erro', description: 'Não foi possível excluir os produtos.', variant: 'destructive' });
+    } finally {
+      setIsBulkProcessing(false);
+    }
+  };
+
+  const handleBulkFeatured = async (featured: boolean) => {
+    setIsBulkProcessing(true);
+    try {
+      const { error } = await supabase
+        .from('products')
+        .update({ featured })
+        .in('id', Array.from(selectedIds));
+      if (error) throw error;
+      toast({ title: featured ? 'Marcados como destaque' : 'Removidos do destaque', description: `${selectedIds.size} produto(s) atualizado(s).` });
+      setSelectedIds(new Set());
+      queryClient.invalidateQueries({ queryKey: ['admin-products'] });
+    } catch {
+      toast({ title: 'Erro', description: 'Não foi possível atualizar os produtos.', variant: 'destructive' });
+    } finally {
+      setIsBulkProcessing(false);
+    }
+  };
 
   return (
     <AdminLayout>
@@ -129,11 +248,75 @@ export default function ProductsPage() {
           </CardContent>
         </Card>
 
+        {/* Bulk Actions Toolbar */}
+        <AnimatePresence>
+          {selectedIds.size > 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="flex flex-wrap items-center gap-2 p-3 rounded-xl border border-primary/30 bg-primary/5 backdrop-blur-sm"
+            >
+              <span className="text-sm font-medium text-primary">
+                {selectedIds.size} selecionado(s)
+              </span>
+              <div className="flex-1" />
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={isBulkProcessing}
+                onClick={() => handleBulkFeatured(true)}
+              >
+                <Star className="h-3.5 w-3.5 mr-1.5 text-yellow-500 fill-yellow-500" />
+                Destacar
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={isBulkProcessing}
+                onClick={() => handleBulkFeatured(false)}
+              >
+                <Star className="h-3.5 w-3.5 mr-1.5" />
+                Remover destaque
+              </Button>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button size="sm" variant="destructive" disabled={isBulkProcessing}>
+                    <Trash2 className="h-3.5 w-3.5 mr-1.5" />
+                    Excluir
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Excluir {selectedIds.size} produto(s)?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Esta ação não pode ser desfeita. Os produtos selecionados serão permanentemente excluídos.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleBulkDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                      Excluir {selectedIds.size} produto(s)
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => setSelectedIds(new Set())}
+              >
+                Limpar
+              </Button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         <Card>
           <CardHeader className="pb-3 sm:pb-6">
             <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
               <Package className="h-5 w-5" />
-              Lista de Produtos ({filteredProducts.length})
+              Lista de Produtos ({filteredAndSortedProducts.length})
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -141,7 +324,7 @@ export default function ProductsPage() {
               <div className="flex items-center justify-center py-12">
                 <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
               </div>
-            ) : filteredProducts.length === 0 ? (
+            ) : filteredAndSortedProducts.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-12 text-center">
                 <Package className="h-12 w-12 text-muted-foreground mb-4" />
                 <p className="text-muted-foreground mb-4">Nenhum produto encontrado</p>
@@ -157,6 +340,11 @@ export default function ProductsPage() {
                 {paginatedProducts.map((product) => (
                   <div key={product.id} className="p-4 rounded-lg border">
                     <div className="flex gap-3">
+                      <Checkbox
+                        checked={selectedIds.has(product.id)}
+                        onCheckedChange={() => toggleSelect(product.id)}
+                        className="mt-1"
+                      />
                       {product.images && product.images[0] ? (
                         <img src={product.images[0]} alt={product.title} className="h-16 w-16 rounded-lg object-cover shrink-0" />
                       ) : (
@@ -166,7 +354,7 @@ export default function ProductsPage() {
                       )}
                       <div className="min-w-0 flex-1">
                         <p className="font-medium truncate">
-                          {(product as any).featured && <Star className="inline h-3.5 w-3.5 text-yellow-500 fill-yellow-500 mr-1" />}
+                          {product.featured && <Star className="inline h-3.5 w-3.5 text-yellow-500 fill-yellow-500 mr-1" />}
                           {product.title}
                         </p>
                         <p className="text-sm font-semibold mt-1">
@@ -211,17 +399,50 @@ export default function ProductsPage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Produto</TableHead>
-                      <TableHead>Categoria</TableHead>
-                      <TableHead>Preço Varejo</TableHead>
-                      <TableHead>Preço Atacado</TableHead>
-                      <TableHead>Estoque</TableHead>
+                      <TableHead className="w-10">
+                        <Checkbox
+                          checked={allPageSelected}
+                          onCheckedChange={toggleSelectAll}
+                          aria-label="Selecionar todos"
+                        />
+                      </TableHead>
+                      <TableHead>
+                        <button onClick={() => handleSort('title')} className="flex items-center hover:text-foreground transition-colors">
+                          Produto <SortIcon column="title" />
+                        </button>
+                      </TableHead>
+                      <TableHead>
+                        <button onClick={() => handleSort('category')} className="flex items-center hover:text-foreground transition-colors">
+                          Categoria <SortIcon column="category" />
+                        </button>
+                      </TableHead>
+                      <TableHead>
+                        <button onClick={() => handleSort('price_retail')} className="flex items-center hover:text-foreground transition-colors">
+                          Preço Varejo <SortIcon column="price_retail" />
+                        </button>
+                      </TableHead>
+                      <TableHead>
+                        <button onClick={() => handleSort('price')} className="flex items-center hover:text-foreground transition-colors">
+                          Preço Atacado <SortIcon column="price" />
+                        </button>
+                      </TableHead>
+                      <TableHead>
+                        <button onClick={() => handleSort('stock')} className="flex items-center hover:text-foreground transition-colors">
+                          Estoque <SortIcon column="stock" />
+                        </button>
+                      </TableHead>
                       <TableHead className="text-right">Ações</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {paginatedProducts.map((product) => (
-                      <TableRow key={product.id}>
+                      <TableRow key={product.id} className={selectedIds.has(product.id) ? 'bg-primary/5' : ''}>
+                        <TableCell>
+                          <Checkbox
+                            checked={selectedIds.has(product.id)}
+                            onCheckedChange={() => toggleSelect(product.id)}
+                          />
+                        </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-3">
                             {product.images && product.images[0] ? (
@@ -233,7 +454,7 @@ export default function ProductsPage() {
                             )}
                             <div>
                               <p className="font-medium">
-                                {(product as any).featured && <Star className="inline h-3.5 w-3.5 text-yellow-500 fill-yellow-500 mr-1" />}
+                                {product.featured && <Star className="inline h-3.5 w-3.5 text-yellow-500 fill-yellow-500 mr-1" />}
                                 {product.title}
                               </p>
                               <p className="text-xs text-muted-foreground">/{product.slug}</p>
@@ -282,7 +503,7 @@ export default function ProductsPage() {
             {totalPages > 1 && (
               <div className="flex items-center justify-between pt-4 border-t mt-4">
                 <p className="text-sm text-muted-foreground">
-                  {(currentPage - 1) * pageSize + 1}–{Math.min(currentPage * pageSize, filteredProducts.length)} de {filteredProducts.length}
+                  {(currentPage - 1) * pageSize + 1}–{Math.min(currentPage * pageSize, filteredAndSortedProducts.length)} de {filteredAndSortedProducts.length}
                 </p>
                 <div className="flex items-center gap-2">
                   <Button variant="outline" size="icon" disabled={currentPage <= 1} onClick={() => setCurrentPage(p => p - 1)}>

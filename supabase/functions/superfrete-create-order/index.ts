@@ -21,7 +21,7 @@ function onlyDigits(value: string | null | undefined): string {
 }
 
 // Helper: salva mensagem de erro/sucesso no campo notes do pedido
-async function logToOrder(supabase: any, orderId: string, currentNotes: string | null, message: string) {
+async function logToOrder(supabase: ReturnType<typeof createClient>, orderId: string, currentNotes: string | null | undefined, message: string) {
     const timestamp = new Date().toISOString();
     const prefix = currentNotes ? currentNotes + '\n' : '';
     await supabase
@@ -89,7 +89,13 @@ serve(async (req: Request) => {
             });
         }
 
-        orderId = record.id;
+        orderId = record.id as string;
+        if (!orderId) {
+            return new Response(JSON.stringify({ error: 'ID do pedido ausente' }), {
+                headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+                status: 400,
+            });
+        }
         console.log(`[SuperFrete] Processando pedido ${orderId}`);
 
         // Buscar itens do pedido com dados completos
