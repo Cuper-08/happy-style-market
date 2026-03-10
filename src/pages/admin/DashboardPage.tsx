@@ -31,7 +31,7 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 
 export default function DashboardPage() {
   const [period, setPeriod] = useState<DashboardPeriod>('week');
-  const { stats, topProducts, salesChart, recentOrders, isLoading } = useDashboard(period);
+  const { stats, topProducts, salesChart, statusDistribution, recentOrders, isLoading } = useDashboard(period);
   const { profile } = useAuth();
   const isMobile = useIsMobile();
 
