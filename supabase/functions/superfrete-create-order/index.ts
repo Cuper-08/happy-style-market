@@ -89,7 +89,13 @@ serve(async (req: Request) => {
             });
         }
 
-        orderId = record.id;
+        orderId = record.id as string;
+        if (!orderId) {
+            return new Response(JSON.stringify({ error: 'ID do pedido ausente' }), {
+                headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+                status: 400,
+            });
+        }
         console.log(`[SuperFrete] Processando pedido ${orderId}`);
 
         // Buscar itens do pedido com dados completos
