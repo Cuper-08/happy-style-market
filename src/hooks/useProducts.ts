@@ -6,17 +6,21 @@ export function useProducts(options?: {
   searchQuery?: string;
   category?: string;
   limit?: number;
+  orderBy?: { column: string; ascending: boolean };
 }) {
   return useQuery({
     queryKey: ['products', options],
     queryFn: async () => {
+      const orderCol = options?.orderBy?.column ?? 'created_at';
+      const orderAsc = options?.orderBy?.ascending ?? false;
+
       let query = supabase
         .from('products')
         .select(`
           *,
           variants:product_variants(*)
         `)
-        .order('created_at', { ascending: false })
+        .order(orderCol, { ascending: orderAsc, nullsFirst: false })
         .range(0, 4999);
 
       if (options?.category) {
