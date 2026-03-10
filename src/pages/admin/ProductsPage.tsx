@@ -1,11 +1,15 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { AdminLayout } from './AdminLayout';
 import { useAdminProducts } from '@/hooks/admin/useAdminProducts';
+import { useCategories } from '@/hooks/useProducts';
+import { AdminPageHeader } from '@/components/admin/AdminPageHeader';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from '@/components/ui/select';
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
@@ -13,11 +17,13 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { Plus, Search, Loader2, Pencil, Trash2, Package, Download, ChevronLeft, ChevronRight, Star } from 'lucide-react';
+import { Plus, Search, Loader2, Pencil, Trash2, Package, ChevronLeft, ChevronRight, Star } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
 
 export default function ProductsPage() {
   const [searchTerm, setSearchTerm] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('all');
+  const [stockFilter, setStockFilter] = useState('all');
   const [searchParams, setSearchParams] = useSearchParams();
   const [currentPage, setCurrentPage] = useState(() => {
     const page = parseInt(searchParams.get('page') || '1', 10);
@@ -27,22 +33,30 @@ export default function ProductsPage() {
   const isMobile = useIsMobile();
 
   const { products, isLoading, deleteProduct, isDeleting } = useAdminProducts();
+  const { data: categories } = useCategories();
 
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
-  };
+  const formatCurrency = (value: number) =>
+    new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
 
-  const filteredProducts = products.filter((product) => {
-    return !searchTerm ||
-      product.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      product.slug.toLowerCase().includes(searchTerm.toLowerCase());
-  });
+  const filteredProducts = useMemo(() => {
+    return products.filter((product) => {
+      const matchesSearch = !searchTerm ||
+        product.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        product.slug.toLowerCase().includes(searchTerm.toLowerCase());
+
+      const matchesCategory = categoryFilter === 'all' || product.category === categoryFilter;
+
+      const hasStock = product.variants?.some(v => v.stock !== false);
+      const matchesStock = stockFilter === 'all' ||
+        (stockFilter === 'in_stock' && hasStock) ||
+        (stockFilter === 'out_of_stock' && !hasStock);
+
+      return matchesSearch && matchesCategory && matchesStock;
+    });
+  }, [products, searchTerm, categoryFilter, stockFilter]);
 
   const totalPages = Math.ceil(filteredProducts.length / pageSize);
-  const paginatedProducts = filteredProducts.slice(
-    (currentPage - 1) * pageSize,
-    currentPage * pageSize
-  );
+  const paginatedProducts = filteredProducts.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
   useEffect(() => {
     const params: Record<string, string> = {};
@@ -50,10 +64,7 @@ export default function ProductsPage() {
     setSearchParams(params, { replace: true });
   }, [currentPage, setSearchParams]);
 
-  const handleSearch = (value: string) => {
-    setSearchTerm(value);
-    setCurrentPage(1);
-  };
+  const handleFilterChange = () => setCurrentPage(1);
 
   const getStockLabel = (variants: { stock?: boolean }[]) => {
     if (!variants || variants.length === 0) return '-';
@@ -61,14 +72,17 @@ export default function ProductsPage() {
     return `${inStock}/${variants.length}`;
   };
 
+  // Get unique categories from products
+  const productCategories = useMemo(() => {
+    const cats = new Set(products.map(p => p.category).filter(Boolean));
+    return Array.from(cats).sort() as string[];
+  }, [products]);
+
   return (
     <AdminLayout>
       <div className="space-y-4 sm:space-y-6">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h1 className="text-xl sm:text-2xl font-bold">Produtos</h1>
-            <p className="text-sm text-muted-foreground">Gerencie o catálogo de produtos</p>
-          </div>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+          <AdminPageHeader title="Produtos" description="Gerencie o catálogo de produtos da loja." />
           <Button asChild className="w-full sm:w-auto">
             <Link to={`/admin/produtos/novo${currentPage > 1 ? `?page=${currentPage}` : ''}`}>
               <Plus className="h-4 w-4 mr-2" />
@@ -77,16 +91,40 @@ export default function ProductsPage() {
           </Button>
         </div>
 
+        {/* Filters */}
         <Card>
           <CardContent className="pt-4 sm:pt-6">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                placeholder="Buscar por nome ou slug..."
-                value={searchTerm}
-                onChange={(e) => handleSearch(e.target.value)}
-                className="pl-10"
-              />
+            <div className="flex flex-col sm:flex-row gap-3">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  placeholder="Buscar por nome ou slug..."
+                  value={searchTerm}
+                  onChange={(e) => { setSearchTerm(e.target.value); handleFilterChange(); }}
+                  className="pl-10"
+                />
+              </div>
+              <Select value={categoryFilter} onValueChange={(v) => { setCategoryFilter(v); handleFilterChange(); }}>
+                <SelectTrigger className="w-full sm:w-[180px]">
+                  <SelectValue placeholder="Categoria" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todas categorias</SelectItem>
+                  {productCategories.map(cat => (
+                    <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={stockFilter} onValueChange={(v) => { setStockFilter(v); handleFilterChange(); }}>
+                <SelectTrigger className="w-full sm:w-[160px]">
+                  <SelectValue placeholder="Estoque" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todo estoque</SelectItem>
+                  <SelectItem value="in_stock">Com estoque</SelectItem>
+                  <SelectItem value="out_of_stock">Sem estoque</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </CardContent>
         </Card>
@@ -160,9 +198,7 @@ export default function ProductsPage() {
                           </AlertDialogHeader>
                           <AlertDialogFooter>
                             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                            <AlertDialogAction onClick={() => deleteProduct(product.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                              Excluir
-                            </AlertDialogAction>
+                            <AlertDialogAction onClick={() => deleteProduct(product.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Excluir</AlertDialogAction>
                           </AlertDialogFooter>
                         </AlertDialogContent>
                       </AlertDialog>
@@ -176,6 +212,7 @@ export default function ProductsPage() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Produto</TableHead>
+                      <TableHead>Categoria</TableHead>
                       <TableHead>Preço Varejo</TableHead>
                       <TableHead>Preço Atacado</TableHead>
                       <TableHead>Estoque</TableHead>
@@ -203,6 +240,7 @@ export default function ProductsPage() {
                             </div>
                           </div>
                         </TableCell>
+                        <TableCell className="text-muted-foreground text-sm">{product.category || '-'}</TableCell>
                         <TableCell>{product.price_retail ? formatCurrency(Number(product.price_retail)) : '-'}</TableCell>
                         <TableCell>{product.price ? formatCurrency(Number(product.price)) : '-'}</TableCell>
                         <TableCell>{getStockLabel(product.variants)}</TableCell>
@@ -228,9 +266,7 @@ export default function ProductsPage() {
                                 </AlertDialogHeader>
                                 <AlertDialogFooter>
                                   <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                  <AlertDialogAction onClick={() => deleteProduct(product.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                                    Excluir
-                                  </AlertDialogAction>
+                                  <AlertDialogAction onClick={() => deleteProduct(product.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Excluir</AlertDialogAction>
                                 </AlertDialogFooter>
                               </AlertDialogContent>
                             </AlertDialog>

@@ -1,23 +1,16 @@
 import { useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import { AdminLayout } from './AdminLayout';
 import { useAdminOrder, useAdminOrders } from '@/hooks/admin/useAdminOrders';
 import { OrderStatusBadge } from '@/components/admin/OrderStatusBadge';
 import { OrderStatusSelect } from '@/components/admin/OrderStatusSelect';
+import { OrderStatusTimeline } from '@/components/admin/OrderStatusTimeline';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import {
-  ArrowLeft,
-  Package,
-  MapPin,
-  CreditCard,
-  Truck,
-  User,
-  Phone,
-  Loader2,
-  Save,
+  ArrowLeft, Package, MapPin, CreditCard, Truck, User, Phone, Loader2, Save, Pencil,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -32,12 +25,8 @@ export default function OrderDetailPage() {
   const { updateStatus, updateTracking, isUpdating } = useAdminOrders();
   const [trackingCode, setTrackingCode] = useState('');
 
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('pt-BR', {
-      style: 'currency',
-      currency: 'BRL',
-    }).format(value);
-  };
+  const formatCurrency = (value: number) =>
+    new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
 
   if (isLoading) {
     return (
@@ -54,9 +43,7 @@ export default function OrderDetailPage() {
       <AdminLayout>
         <div className="flex flex-col items-center justify-center py-12">
           <p className="text-muted-foreground mb-4">Pedido não encontrado</p>
-          <Button onClick={() => navigate('/admin/pedidos')}>
-            Voltar para pedidos
-          </Button>
+          <Button onClick={() => navigate('/admin/pedidos')}>Voltar para pedidos</Button>
         </div>
       </AdminLayout>
     );
@@ -77,13 +64,21 @@ export default function OrderDetailPage() {
               Pedido #{order.id.slice(0, 8).toUpperCase()}
             </h1>
             <p className="text-xs sm:text-sm text-muted-foreground">
-              {format(new Date(order.created_at), isMobile ? "dd/MM/yy HH:mm" : "dd 'de' MMMM 'de' yyyy 'às' HH:mm", {
-                locale: ptBR,
-              })}
+              {format(new Date(order.created_at), isMobile ? "dd/MM/yy HH:mm" : "dd 'de' MMMM 'de' yyyy 'às' HH:mm", { locale: ptBR })}
             </p>
           </div>
           <OrderStatusBadge status={order.status as OrderStatus} className="text-xs sm:text-base px-2 sm:px-4 py-0.5 sm:py-1 shrink-0" />
         </div>
+
+        {/* Status Timeline */}
+        <Card>
+          <CardHeader className="pb-3 sm:pb-4">
+            <CardTitle className="text-base sm:text-lg">Progresso do Pedido</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <OrderStatusTimeline status={order.status as OrderStatus} />
+          </CardContent>
+        </Card>
 
         <div className="grid gap-4 sm:gap-6 grid-cols-1 lg:grid-cols-3">
           {/* Main Content */}
@@ -98,22 +93,34 @@ export default function OrderDetailPage() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-3 sm:space-y-4">
-                  {order.order_items?.map((item: { id: string; product_name: string; variant_info?: string; quantity: number; unit_price: number }) => (
-                    <div
-                      key={item.id}
-                      className="flex items-center justify-between py-2 sm:py-3 border-b last:border-0"
-                    >
+                  {order.order_items?.map((item: { id: string; product_id?: string; product_name: string; variant_info?: string; quantity: number; unit_price: number; image_url?: string | null }) => (
+                    <div key={item.id} className="flex items-center gap-3 py-2 sm:py-3 border-b last:border-0">
+                      {/* Product image */}
+                      {item.image_url ? (
+                        <img src={item.image_url} alt={item.product_name} className="h-12 w-12 rounded-lg object-cover shrink-0" />
+                      ) : (
+                        <div className="h-12 w-12 rounded-lg bg-muted flex items-center justify-center shrink-0">
+                          <Package className="h-5 w-5 text-muted-foreground" />
+                        </div>
+                      )}
                       <div className="min-w-0 flex-1">
-                        <p className="font-medium text-sm sm:text-base truncate">{item.product_name}</p>
+                        <div className="flex items-center gap-2">
+                          <p className="font-medium text-sm sm:text-base truncate">{item.product_name}</p>
+                          {item.product_id && (
+                            <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0" asChild>
+                              <Link to={`/admin/produtos/${item.product_id}`}>
+                                <Pencil className="h-3 w-3" />
+                              </Link>
+                            </Button>
+                          )}
+                        </div>
                         {item.variant_info && (
                           <p className="text-xs sm:text-sm text-muted-foreground">{item.variant_info}</p>
                         )}
                       </div>
                       <div className="text-right shrink-0 ml-3">
                         <p className="font-medium text-sm sm:text-base">{formatCurrency(Number(item.unit_price))}</p>
-                        <p className="text-xs sm:text-sm text-muted-foreground">
-                          Qtd: {item.quantity}
-                        </p>
+                        <p className="text-xs sm:text-sm text-muted-foreground">Qtd: {item.quantity}</p>
                       </div>
                     </div>
                   ))}
@@ -177,9 +184,7 @@ export default function OrderDetailPage() {
               <CardContent>
                 <OrderStatusSelect
                   value={order.status}
-                  onValueChange={(status) =>
-                    updateStatus({ orderId: order.id, status })
-                  }
+                  onValueChange={(status) => updateStatus({ orderId: order.id, status })}
                   disabled={isUpdating}
                 />
               </CardContent>
@@ -201,11 +206,7 @@ export default function OrderDetailPage() {
                   </div>
                 ) : (
                   <div className="space-y-2">
-                    <Input
-                      placeholder="Código de rastreio"
-                      value={trackingCode}
-                      onChange={(e) => setTrackingCode(e.target.value)}
-                    />
+                    <Input placeholder="Código de rastreio" value={trackingCode} onChange={(e) => setTrackingCode(e.target.value)} />
                     <Button
                       className="w-full"
                       onClick={() => {
@@ -254,18 +255,14 @@ export default function OrderDetailPage() {
               </Card>
             )}
 
-            {/* System Notes / Logs */}
+            {/* System Notes */}
             {order.notes && (
               <Card>
                 <CardHeader className="pb-3 sm:pb-6">
-                  <CardTitle className="text-base sm:text-lg text-red-600">
-                    Observações / Logs
-                  </CardTitle>
+                  <CardTitle className="text-base sm:text-lg text-destructive">Observações / Logs</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-xs sm:text-sm whitespace-pre-wrap font-mono bg-red-50 p-2 rounded-md">
-                    {order.notes}
-                  </p>
+                  <p className="text-xs sm:text-sm whitespace-pre-wrap font-mono bg-destructive/5 p-2 rounded-md">{order.notes}</p>
                 </CardContent>
               </Card>
             )}
@@ -280,13 +277,7 @@ export default function OrderDetailPage() {
               </CardHeader>
               <CardContent>
                 <p className="font-medium text-sm sm:text-base capitalize">
-                  {order.payment_method === 'pix'
-                    ? 'PIX'
-                    : order.payment_method === 'card'
-                      ? 'Cartão de Crédito'
-                      : order.payment_method === 'boleto'
-                        ? 'Boleto'
-                        : 'Não informado'}
+                  {order.payment_method === 'pix' ? 'PIX' : order.payment_method === 'card' ? 'Cartão de Crédito' : order.payment_method === 'boleto' ? 'Boleto' : 'Não informado'}
                 </p>
               </CardContent>
             </Card>
