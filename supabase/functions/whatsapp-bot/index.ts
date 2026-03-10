@@ -189,27 +189,31 @@ Deno.serve(async (req) => {
 
     let searchResults: any[] = [];
     if (keywords.length > 0) {
-      // Como o Supabase-js sobrescreve múltiplos .or(), fazemos um OR global e ordenamos na memória
-      const orGlobal = keywords.map((k: string) => `title.ilike.%${k}%,category.ilike.%${k}%`).join(",");
+      // Fallback global: traz um pool maior de produtos que batem com QUALQUER palavra-chave (OR)
+      // e depois pontua no JavaScript (garante que Bolsa Gucci venha ao topo em vez de apenas Tênis Gucci)
+      const orGlobal = keywords.map((k: string) => `title.ilike.%${k}%,category.ilike.%${k}%,description.ilike.%${k}%`).join(",");
       
-      let { data } = await supabase
+      const { data } = await supabase
         .from("products")
-        .select("title, slug, price_retail_display, category")
+        .select("title, slug, price_retail_display, category, description")
         .or(orGlobal)
-        .limit(30);
+        .limit(40);
 
       if (data && data.length > 0) {
-        // Ordena resultados: produtos que dão match em MAIS keywords vêm primeiro
-        const scoredData = data.map((p: any) => {
-          const str = `${p.title} ${p.category}`.toLowerCase();
-          const score = keywords.reduce((acc: number, k: string) => acc + (str.includes(k) ? 1 : 0), 0);
-          return { ...p, score };
+        // Pontua e ordena os resultados no JS
+        const scoredData = data.map((item: any) => {
+          let score = 0;
+          const searchString = `${item.title} ${item.category} ${item.description || ''}`.toLowerCase();
+          
+          keywords.forEach((k: string) => {
+            if (searchString.includes(k)) score += 1;
+          });
+          
+          return { ...item, score };
         });
-        
-        // Ordena por pontuação (maior primeiro)
+
+        // Ordena por pontuação (maior primeiro) e pega os top 6
         scoredData.sort((a: any, b: any) => b.score - a.score);
-        
-        // Recorta os top 6 mais relevantes
         searchResults = scoredData.slice(0, 6);
       }
     }
