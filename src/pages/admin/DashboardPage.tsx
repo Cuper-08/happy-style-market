@@ -153,6 +153,45 @@ export default function DashboardPage() {
             <AlertsPanel />
           </div>
 
+          {/* Status Distribution Donut */}
+          {statusDistribution && statusDistribution.length > 0 && (
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}>
+              <Card>
+                <CardHeader className="pb-3 sm:pb-6">
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <PieChartIcon className="h-5 w-5 text-primary" />
+                    Distribuição por Status
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex flex-col sm:flex-row items-center gap-6">
+                    <div className="w-48 h-48">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie data={statusDistribution} dataKey="count" nameKey="status" cx="50%" cy="50%" innerRadius={50} outerRadius={80} strokeWidth={2}>
+                            {statusDistribution.map((entry) => (
+                              <Cell key={entry.status} fill={STATUS_COLORS[entry.status] || '#94a3b8'} />
+                            ))}
+                          </Pie>
+                          <Tooltip formatter={(value: number, name: string) => [value, STATUS_LABELS[name] || name]} contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.1)' }} />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    </div>
+                    <div className="flex flex-wrap gap-3">
+                      {statusDistribution.map((entry) => (
+                        <div key={entry.status} className="flex items-center gap-2">
+                          <div className="w-3 h-3 rounded-full" style={{ backgroundColor: STATUS_COLORS[entry.status] || '#94a3b8' }} />
+                          <span className="text-sm text-muted-foreground">{STATUS_LABELS[entry.status] || entry.status}</span>
+                          <span className="text-sm font-bold">{entry.count}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
+          )}
+
           {/* Top Products & Recent Orders */}
           <div className="grid gap-4 sm:gap-6 grid-cols-1 lg:grid-cols-3">
             {/* Top Products */}
