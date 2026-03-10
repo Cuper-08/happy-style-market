@@ -28,6 +28,7 @@ const productSchema = z.object({
   description: z.string().optional(),
   price_retail: z.number().positive('Preço de varejo deve ser maior que zero'),
   price: z.number().optional(),
+  featured: z.boolean().optional(),
   images: z.array(z.string()).optional(),
   variants: z.array(variantSchema).optional(),
 });
