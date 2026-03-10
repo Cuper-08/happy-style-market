@@ -20,12 +20,14 @@ import {
   Package,
   AlertTriangle,
   Sparkles,
+  PieChart as PieChartIcon,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { OrderStatus } from '@/types';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 
 export default function DashboardPage() {
   const [period, setPeriod] = useState<DashboardPeriod>('week');
