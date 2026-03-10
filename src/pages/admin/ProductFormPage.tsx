@@ -58,6 +58,7 @@ export default function ProductFormPage() {
       description: '',
       price_retail: 0,
       price: undefined,
+      featured: false,
       images: [],
       variants: [{ size: '', stock: true }],
     },
