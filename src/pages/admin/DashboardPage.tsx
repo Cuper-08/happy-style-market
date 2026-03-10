@@ -29,6 +29,15 @@ import { OrderStatus } from '@/types';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 
+const STATUS_COLORS: Record<string, string> = {
+  pending: '#eab308', paid: '#22c55e', processing: '#3b82f6',
+  shipped: '#a855f7', delivered: '#10b981', cancelled: '#ef4444',
+};
+const STATUS_LABELS: Record<string, string> = {
+  pending: 'Pendente', paid: 'Pago', processing: 'Preparando',
+  shipped: 'Enviado', delivered: 'Entregue', cancelled: 'Cancelado',
+};
+
 export default function DashboardPage() {
   const [period, setPeriod] = useState<DashboardPeriod>('week');
   const { stats, topProducts, salesChart, statusDistribution, recentOrders, isLoading } = useDashboard(period);
