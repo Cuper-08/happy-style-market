@@ -189,29 +189,29 @@ Deno.serve(async (req) => {
 
     let searchResults: any[] = [];
     if (keywords.length > 0) {
-      // Tenta busca combinada (AND entre as palavras-chave na mesma query)
-      let queryReq = supabase
+      // Como o Supabase-js sobrescreve múltiplos .or(), fazemos um OR global e ordenamos na memória
+      const orGlobal = keywords.map((k: string) => `title.ilike.%${k}%,category.ilike.%${k}%`).join(",");
+      
+      let { data } = await supabase
         .from("products")
-        .select("title, slug, price_retail_display, category");
-      
-      for (const k of keywords) {
-         queryReq = queryReq.or(`title.ilike.%${k}%,category.ilike.%${k}%,description.ilike.%${k}%`);
-      }
-      
-      let { data } = await queryReq.limit(5);
+        .select("title, slug, price_retail_display, category")
+        .or(orGlobal)
+        .limit(30);
 
-      // Se a busca estrita não encontrou, faz um fallback mais solto (OR global em qualquer palavra-chave)
-      if (!data || data.length === 0) {
-        const orGlobal = keywords.map((k: string) => `title.ilike.%${k}%,category.ilike.%${k}%`).join(",");
-        const fallbackRes = await supabase
-          .from("products")
-          .select("title, slug, price_retail_display, category")
-          .or(orGlobal)
-          .limit(8);
-        data = fallbackRes.data;
+      if (data && data.length > 0) {
+        // Ordena resultados: produtos que dão match em MAIS keywords vêm primeiro
+        const scoredData = data.map((p: any) => {
+          const str = `${p.title} ${p.category}`.toLowerCase();
+          const score = keywords.reduce((acc: number, k: string) => acc + (str.includes(k) ? 1 : 0), 0);
+          return { ...p, score };
+        });
+        
+        // Ordena por pontuação (maior primeiro)
+        scoredData.sort((a: any, b: any) => b.score - a.score);
+        
+        // Recorta os top 6 mais relevantes
+        searchResults = scoredData.slice(0, 6);
       }
-
-      searchResults = data || [];
     }
 
     // B. Contexto de Pedidos do Usuário Ativo

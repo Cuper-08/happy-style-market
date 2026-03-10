@@ -101,6 +101,34 @@ serve(async (req: Request) => {
 
                 console.log(`[Webhook] Order ${orderId} updated to status: ${newStatus}`);
 
+                // 🚀 MOMENTO DA EMOÇÃO: Se o pagamento foi confirmado, gera a etiqueta no SuperFrete automaticamente
+                if (newStatus === 'paid') {
+                    console.log(`[Webhook] Iniciando geração automática de etiqueta para o pedido ${orderId}...`);
+                    try {
+                        const baseUrl = Deno.env.get('SUPABASE_URL');
+                        const anonKey = Deno.env.get('SUPABASE_ANON_KEY');
+                        
+                        // Chamando a Edge Function de etiqueta internamente
+                        const shippingResponse = await fetch(`${baseUrl}/functions/v1/create-shipping-label`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${anonKey}`,
+                            },
+                            body: JSON.stringify({ orderId }),
+                        });
+
+                        const shippingResult = await shippingResponse.json();
+                        if (shippingResponse.ok) {
+                            console.log(`[Webhook] ✅ Etiqueta SuperFrete gerada com sucesso: ${shippingResult.label_id}`);
+                        } else {
+                            console.error(`[Webhook] ❌ Erro ao gerar etiqueta SuperFrete: ${shippingResult.error}`);
+                        }
+                    } catch (shippingErr) {
+                        console.error('[Webhook] ❌ Falha crítica ao tentar chamar create-shipping-label:', shippingErr);
+                    }
+                }
+
                 // If payment confirmed, you could trigger additional actions here:
                 // - Send confirmation email
                 // - Update stock
