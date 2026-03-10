@@ -115,6 +115,7 @@ export default function ProductFormPage() {
       title: data.title,
       slug: data.slug,
       description: data.description,
+      featured: data.featured ?? false,
       price_retail: priceRetail,
       price_retail_display: formatPrice(priceRetail),
       price: priceWholesale || null,
