@@ -14,7 +14,11 @@ const DESIRED_CATEGORY_SLUGS = [
 ];
 
 export default function HomePage() {
-  const { data: allProducts = [], isLoading: loadingAll } = useProducts({ category: 'Tênis', limit: 16, orderBy: { column: 'price_retail', ascending: false } });
+  const { data: featuredProducts = [], isLoading: loadingFeatured } = useProducts({ featured: true, limit: 16, orderBy: { column: 'price_retail', ascending: false } });
+  const { data: fallbackProducts = [], isLoading: loadingFallback } = useProducts({ category: 'Tênis', limit: 16, orderBy: { column: 'price_retail', ascending: false } });
+
+  const allProducts = featuredProducts.length > 0 ? featuredProducts : fallbackProducts;
+  const loadingAll = loadingFeatured || (featuredProducts.length === 0 && loadingFallback);
   const { data: allCategories = [] } = useCategories();
 
   const categories = useMemo(() => {

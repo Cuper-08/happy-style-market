@@ -206,6 +206,18 @@ export default function ProductFormPage() {
                     </FormItem>
                   )} />
 
+                  <FormField control={form.control} name="featured" render={({ field }) => (
+                    <FormItem className="flex items-center justify-between rounded-lg border p-4">
+                      <div className="space-y-0.5">
+                        <FormLabel className="text-base">⭐ Produto em Destaque</FormLabel>
+                        <FormDescription>Produtos em destaque aparecem no topo da página inicial</FormDescription>
+                      </div>
+                      <FormControl>
+                        <Switch checked={field.value ?? false} onCheckedChange={field.onChange} />
+                      </FormControl>
+                    </FormItem>
+                  )} />
+
                   <div className="grid grid-cols-2 gap-4">
                     <FormField control={form.control} name="price_retail" render={({ field }) => (
                       <FormItem>

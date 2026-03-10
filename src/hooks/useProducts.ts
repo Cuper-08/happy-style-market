@@ -5,6 +5,7 @@ import { Product, Category, Brand } from '@/types';
 export function useProducts(options?: {
   searchQuery?: string;
   category?: string;
+  featured?: boolean;
   limit?: number;
   orderBy?: { column: string; ascending: boolean };
 }) {
@@ -25,6 +26,10 @@ export function useProducts(options?: {
 
       if (options?.category) {
         query = query.eq('category', options.category);
+      }
+
+      if (options?.featured !== undefined) {
+        query = query.eq('featured', options.featured);
       }
 
       if (options?.limit) {

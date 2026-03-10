@@ -195,7 +195,10 @@ export default function ProductsPage() {
                               </div>
                             )}
                             <div>
-                              <p className="font-medium">{product.title}</p>
+                              <p className="font-medium">
+                                {(product as any).featured && <Star className="inline h-3.5 w-3.5 text-yellow-500 fill-yellow-500 mr-1" />}
+                                {product.title}
+                              </p>
                               <p className="text-xs text-muted-foreground">/{product.slug}</p>
                             </div>
                           </div>
