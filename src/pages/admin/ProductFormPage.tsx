@@ -77,6 +77,7 @@ export default function ProductFormPage() {
         description: existingProduct.description || '',
         price_retail: Number(existingProduct.price_retail) || 0,
         price: existingProduct.price ? Number(existingProduct.price) : undefined,
+        featured: (existingProduct as any).featured ?? false,
         variants:
           existingProduct.variants.length > 0
             ? existingProduct.variants.map((v) => ({
