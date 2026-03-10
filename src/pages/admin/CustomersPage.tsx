@@ -56,10 +56,7 @@ export default function CustomersPage() {
     <AdminLayout>
       <div className="space-y-4 sm:space-y-6">
         {/* Header */}
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold">Clientes</h1>
-          <p className="text-sm text-muted-foreground">Gerencie os clientes cadastrados</p>
-        </div>
+        <AdminPageHeader title="Clientes" description="Gerencie os clientes cadastrados na loja." />
 
         {/* Filters */}
         <Card>
