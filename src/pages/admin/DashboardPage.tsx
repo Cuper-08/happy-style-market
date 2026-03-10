@@ -20,16 +20,27 @@ import {
   Package,
   AlertTriangle,
   Sparkles,
+  PieChart as PieChartIcon,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { OrderStatus } from '@/types';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
+
+const STATUS_COLORS: Record<string, string> = {
+  pending: '#eab308', paid: '#22c55e', processing: '#3b82f6',
+  shipped: '#a855f7', delivered: '#10b981', cancelled: '#ef4444',
+};
+const STATUS_LABELS: Record<string, string> = {
+  pending: 'Pendente', paid: 'Pago', processing: 'Preparando',
+  shipped: 'Enviado', delivered: 'Entregue', cancelled: 'Cancelado',
+};
 
 export default function DashboardPage() {
   const [period, setPeriod] = useState<DashboardPeriod>('week');
-  const { stats, topProducts, salesChart, recentOrders, isLoading } = useDashboard(period);
+  const { stats, topProducts, salesChart, statusDistribution, recentOrders, isLoading } = useDashboard(period);
   const { profile } = useAuth();
   const isMobile = useIsMobile();
 
@@ -141,6 +152,45 @@ export default function DashboardPage() {
             {/* Alerts Panel */}
             <AlertsPanel />
           </div>
+
+          {/* Status Distribution Donut */}
+          {statusDistribution && statusDistribution.length > 0 && (
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}>
+              <Card>
+                <CardHeader className="pb-3 sm:pb-6">
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <PieChartIcon className="h-5 w-5 text-primary" />
+                    Distribuição por Status
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex flex-col sm:flex-row items-center gap-6">
+                    <div className="w-48 h-48">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie data={statusDistribution} dataKey="count" nameKey="status" cx="50%" cy="50%" innerRadius={50} outerRadius={80} strokeWidth={2}>
+                            {statusDistribution.map((entry) => (
+                              <Cell key={entry.status} fill={STATUS_COLORS[entry.status] || '#94a3b8'} />
+                            ))}
+                          </Pie>
+                          <Tooltip formatter={(value: number, name: string) => [value, STATUS_LABELS[name] || name]} contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.1)' }} />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    </div>
+                    <div className="flex flex-wrap gap-3">
+                      {statusDistribution.map((entry) => (
+                        <div key={entry.status} className="flex items-center gap-2">
+                          <div className="w-3 h-3 rounded-full" style={{ backgroundColor: STATUS_COLORS[entry.status] || '#94a3b8' }} />
+                          <span className="text-sm text-muted-foreground">{STATUS_LABELS[entry.status] || entry.status}</span>
+                          <span className="text-sm font-bold">{entry.count}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
+          )}
 
           {/* Top Products & Recent Orders */}
           <div className="grid gap-4 sm:gap-6 grid-cols-1 lg:grid-cols-3">

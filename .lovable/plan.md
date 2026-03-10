@@ -1,84 +1,102 @@
 
 
-# Analise do Painel Administrativo -- Pontos de Melhoria
+# Integração SuperFrete - Etiqueta ao Marcar como Pago no Painel Admin
 
-Revisei todas as telas do painel admin (Dashboard, Pedidos, Detalhe do Pedido, Produtos, Clientes, Relatorios, Configuracoes, Banners). O painel ja esta bem construido -- responsivo, com animacoes, filtros e boa organizacao. Mas ha oportunidades claras de melhoria para chegar ao nivel "premium" que o projeto busca:
+## Resumo
+Quando o admin mudar o status de um pedido para **"pago"** no painel administrativo, o sistema automaticamente cria uma etiqueta de envio completa no SuperFrete com todos os dados do comprador, endereço, produtos e dimensões.
 
----
+## Fluxo
 
-## 1. Tela de Pedidos (`OrdersPage`)
+```text
+Admin muda status para "Pago" (painel)
+        |
+        v
+Frontend detecta status = "paid"
+        |
+        v
+Chama Edge Function "create-shipping-label"
+        |
+        v
+Lê dados completos do pedido (Supabase service role)
+  - order_items (nomes, quantidades, valores)
+  - shipping_address (endereço do comprador)
+  - profile (nome, CPF do comprador)
+  - store_settings (remetente: Brás Conceito, CNPJ, endereço)
+        |
+        v
+POST SuperFrete /api/v0/cart (cria etiqueta)
+        |
+        v
+Salva superfrete_label_id no pedido
+```
 
-**O que falta:**
-- **Busca por nome do cliente** -- hoje so busca por ID e codigo de rastreio. O cliente deveria poder buscar pelo nome de quem comprou.
-- **Filtro por data** -- o hook ja suporta `startDate`/`endDate` mas a UI nao expoe isso. Um date range picker faria muita diferenca.
-- **Paginacao** -- se houver muitos pedidos, carrega tudo de uma vez. Precisa de paginacao (como ja existe na tela de Produtos).
-- **Contadores por status** -- mostrar mini-badges no topo com a quantidade de pedidos por status (ex: 3 pendentes, 5 pagos, 2 enviados) para visao rapida.
-- **Exportar pedidos** -- botao para exportar CSV/Excel dos pedidos filtrados.
+## Mudanças
 
-## 2. Detalhe do Pedido (`OrderDetailPage`)
+### 1. Migração no Banco de Dados
+Adicionar coluna `superfrete_label_id` (text, nullable) na tabela `orders` para armazenar o ID da etiqueta gerada.
 
-**O que falta:**
-- **Timeline/historico de status** -- hoje so mostra o status atual. Deveria ter uma timeline visual mostrando a progressao (Pendente > Pago > Preparando > Enviado > Entregue).
-- **Imagem do produto** nos itens do pedido -- hoje so mostra nome e preco.
-- **Botao de imprimir/PDF** -- para imprimir comprovante do pedido.
-- **Link direto para o produto** no admin -- clicar no item deveria levar ao produto.
-- **Notas internas** -- campo para o admin adicionar observacoes sobre o pedido (hoje so mostra `order.notes` que vem do sistema).
+### 2. Nova Edge Function: `create-shipping-label`
+Recebe o `orderId`, busca todos os dados necessários do banco (pedido, itens, perfil do comprador, configurações da loja) e envia para a API SuperFrete `POST /api/v0/cart` com:
 
-## 3. Dashboard
+- **Remetente (from):** Brás Conceito, R. Conselheiro Belisário 41, Brás, São Paulo/SP, CEP 03012-000, CNPJ 59520505000120
+- **Destinatário (to):** Nome, endereço, CPF vindos do pedido
+- **Produtos:** Nome, quantidade, valor unitário de cada item
+- **Volume:** Dimensões padrão (12x20x32cm, 1kg por item)
+- **Serviço:** Baseado no `shipping_method` do pedido (pac=1, sedex=2, etc.)
+- **Opções:** insurance_value = subtotal do pedido
 
-**O que falta:**
-- **Stat de conversao** -- taxa de conversao (visitantes vs pedidos).
-- **Grafico de pedidos por status** -- um donut chart mostrando distribuicao dos status.
+Após sucesso, salva o `superfrete_label_id` na tabela `orders`.
 
-## 4. Tela de Produtos
+### 3. Modificar `useAdminOrders.ts`
+Na mutation `updateStatus`, quando o novo status for `"paid"`, chamar a edge function `create-shipping-label` logo após atualizar o status no banco. Mostrar toast de sucesso/erro da geração da etiqueta.
 
-**O que falta:**
-- **Filtro por categoria** -- hoje so tem busca por texto.
-- **Filtro por status de estoque** (com estoque / sem estoque).
-- **Acoes em massa** -- selecionar multiplos produtos e excluir/ativar/desativar de uma vez.
-- **Ordenacao por colunas** (clicar no cabecalho da tabela para ordenar por preco, nome, estoque).
+### 4. Atualizar `supabase/config.toml`
+Registrar a nova função com `verify_jwt = false`.
 
-## 5. Tela de Clientes
+## Detalhes Técnicos
 
-**O que falta:**
-- **Paginacao** -- carrega todos os clientes de uma vez.
-- **Historico de compras inline** -- clicar no cliente nao leva a nenhuma pagina de detalhe util.
+### Payload SuperFrete `/cart`
+```text
+{
+  from: {
+    name: "Brás Conceito",
+    address: "R. Conselheiro Belisário",
+    number: "41",
+    district: "Brás",
+    city: "São Paulo",
+    state_abbr: "SP",
+    postal_code: "03012000",
+    document: "59520505000120"
+  },
+  to: {
+    name: "Nome do Comprador",
+    address: "Rua do cliente",
+    number: "123",
+    district: "Bairro",
+    city: "Cidade",
+    state_abbr: "UF",
+    postal_code: "01001000",
+    document: "12345678900"
+  },
+  service: 1,
+  products: [
+    { name: "Produto X", quantity: 2, unitary_value: 150.00 }
+  ],
+  volumes: { height: 12, width: 20, length: 32, weight: 1 },
+  options: { insurance_value: 300.00, non_commercial: true },
+  platform: "Brás Conceito",
+  tag: "order-id"
+}
+```
 
-## 6. Consistencia Visual
+### Segurança
+- Edge function usa `SUPABASE_SERVICE_ROLE_KEY` para ler dados do pedido (sem contexto de usuário)
+- Valida que o pedido existe e está com status "paid" antes de gerar etiqueta
+- Secrets necessários já configurados: `SUPERFRETE_TOKEN`, `SUPERFRETE_ENV`
 
-- A tela de **Pedidos** tem um estilo "premium" (glassmorphism toolbar, glow effects, gradients) que as outras telas (Produtos, Clientes, Categorias) nao tem. Deveria padronizar o header e a toolbar em todas as telas.
-
----
-
-## Plano de Implementacao (priorizado)
-
-### Fase 1 -- Impacto imediato na operacao
-1. **Pedidos: busca por nome do cliente + filtro por data** -- adicionar campo `customer_name` na query de orders e date range picker na toolbar
-2. **Pedidos: paginacao** -- limitar a 20 por pagina com controles
-3. **Pedidos: contadores por status** -- cards/chips no topo com contagem rapida
-4. **Detalhe do Pedido: timeline de status** -- componente visual de progressao
-
-### Fase 2 -- Polimento
-5. **Produtos: filtro por categoria + status de estoque**
-6. **Padronizar headers** de todas as telas admin com o mesmo estilo premium da tela de Pedidos
-7. **Detalhe do Pedido: imagens dos produtos + link para editar produto**
-8. **Pedidos e Clientes: exportar CSV**
-
-### Fase 3 -- Recursos avancados
-9. **Produtos: acoes em massa**
-10. **Produtos: ordenacao por colunas**
-11. **Dashboard: grafico de distribuicao por status**
-
----
-
-### Detalhes tecnicos
-
-- **Busca por cliente nos pedidos**: fazer join com `profiles` na query do `useAdminOrders` para trazer `full_name` e filtrar no campo de busca.
-- **Date range picker**: usar `react-day-picker` (ja instalado) dentro de um Popover.
-- **Paginacao de pedidos**: adicionar `range()` no Supabase query + state de pagina.
-- **Contadores por status**: uma query separada com `group by status` ou contar do array carregado.
-- **Timeline de status**: componente visual com steps (Pendente > Pago > Preparando > Enviado > Entregue), destacando o passo atual.
-- **Headers padronizados**: extrair o header premium da OrdersPage em um componente reutilizavel `AdminPageHeader`.
-
-Posso implementar todas as fases ou comecar pela Fase 1 se preferir ir por partes.
+### Arquivos
+1. **Criar** `supabase/functions/create-shipping-label/index.ts`
+2. **Modificar** `src/hooks/admin/useAdminOrders.ts` - chamar a edge function quando status = paid
+3. **Modificar** `supabase/config.toml` - registrar nova função
+4. **Migração SQL** - adicionar coluna `superfrete_label_id`
 

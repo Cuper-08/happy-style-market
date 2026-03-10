@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { AdminLayout } from './AdminLayout';
 import { useAdminCustomers } from '@/hooks/admin/useAdminCustomers';
+import { AdminPageHeader } from '@/components/admin/AdminPageHeader';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -55,10 +56,7 @@ export default function CustomersPage() {
     <AdminLayout>
       <div className="space-y-4 sm:space-y-6">
         {/* Header */}
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold">Clientes</h1>
-          <p className="text-sm text-muted-foreground">Gerencie os clientes cadastrados</p>
-        </div>
+        <AdminPageHeader title="Clientes" description="Gerencie os clientes cadastrados na loja." />
 
         {/* Filters */}
         <Card>

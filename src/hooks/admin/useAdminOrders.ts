@@ -12,11 +12,25 @@ interface OrderFilters {
   startDate?: Date;
   endDate?: Date;
   search?: string;
+  page?: number;
+  pageSize?: number;
 }
 
 export function useAdminOrders(filters?: OrderFilters) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
+
+  // Separate query for all orders (for status counters)
+  const allOrdersCountQuery = useQuery({
+    queryKey: ['admin-orders-counts'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('orders')
+        .select('status');
+      if (error) throw error;
+      return data as { status: string }[];
+    },
+  });
 
   const ordersQuery = useQuery({
     queryKey: ['admin-orders', filters],
@@ -50,7 +64,26 @@ export function useAdminOrders(filters?: OrderFilters) {
       const { data, error } = await query;
 
       if (error) throw error;
-      return data as (OrderRow & { order_items: OrderItemRow[] })[];
+
+      // Fetch profile names for all user_ids
+      const userIds = [...new Set((data || []).map(o => o.user_id).filter(Boolean))] as string[];
+      let profileMap = new Map<string, string>();
+
+      if (userIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('user_id, full_name')
+          .in('user_id', userIds);
+
+        profiles?.forEach(p => {
+          if (p.full_name) profileMap.set(p.user_id, p.full_name);
+        });
+      }
+
+      return (data || []).map(order => ({
+        ...order,
+        customer_name: order.user_id ? (profileMap.get(order.user_id) || null) : null,
+      })) as (OrderRow & { order_items: OrderItemRow[]; customer_name: string | null })[];
     },
   });
 
@@ -63,7 +96,6 @@ export function useAdminOrders(filters?: OrderFilters) {
 
       if (error) throw error;
 
-      // When status changes to "paid", create shipping label on SuperFrete
       if (status === 'paid') {
         try {
           const { data, error: fnError } = await supabase.functions.invoke('create-shipping-label', {
@@ -104,6 +136,7 @@ export function useAdminOrders(filters?: OrderFilters) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-orders'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-orders-counts'] });
       queryClient.invalidateQueries({ queryKey: ['admin-dashboard-stats'] });
       toast({
         title: 'Status atualizado',
@@ -148,6 +181,7 @@ export function useAdminOrders(filters?: OrderFilters) {
 
   return {
     orders: ordersQuery.data || [],
+    allOrders: allOrdersCountQuery.data || [],
     isLoading: ordersQuery.isLoading,
     error: ordersQuery.error,
     updateStatus: updateStatusMutation.mutate,
@@ -189,7 +223,31 @@ export function useAdminOrder(orderId: string) {
         profile = profileData;
       }
 
-      return { ...data, profile };
+      // Fetch product images for each order item
+      const productIds = (data.order_items || [])
+        .map((item: { product_id: string | null }) => item.product_id)
+        .filter(Boolean) as string[];
+
+      let productImages = new Map<string, string>();
+      if (productIds.length > 0) {
+        const { data: products } = await supabase
+          .from('products')
+          .select('id, images')
+          .in('id', productIds);
+
+        products?.forEach(p => {
+          if (p.images && p.images.length > 0) {
+            productImages.set(p.id, p.images[0]);
+          }
+        });
+      }
+
+      const enrichedItems = (data.order_items || []).map((item: { product_id: string | null; [key: string]: unknown }) => ({
+        ...item,
+        image_url: item.product_id ? (productImages.get(item.product_id) || null) : null,
+      }));
+
+      return { ...data, order_items: enrichedItems, profile };
     },
     enabled: !!orderId,
   });
