@@ -511,6 +511,7 @@ export type Database = {
           category: string | null
           created_at: string
           description: string | null
+          featured: boolean
           id: string
           images: string[] | null
           original_url: string | null
@@ -525,6 +526,7 @@ export type Database = {
           category?: string | null
           created_at?: string
           description?: string | null
+          featured?: boolean
           id?: string
           images?: string[] | null
           original_url?: string | null
@@ -539,6 +541,7 @@ export type Database = {
           category?: string | null
           created_at?: string
           description?: string | null
+          featured?: boolean
           id?: string
           images?: string[] | null
           original_url?: string | null

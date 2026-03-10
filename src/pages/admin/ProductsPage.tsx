@@ -13,7 +13,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { Plus, Search, Loader2, Pencil, Trash2, Package, Download, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Plus, Search, Loader2, Pencil, Trash2, Package, Download, ChevronLeft, ChevronRight, Star } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
 
 export default function ProductsPage() {
@@ -127,7 +127,10 @@ export default function ProductsPage() {
                         </div>
                       )}
                       <div className="min-w-0 flex-1">
-                        <p className="font-medium truncate">{product.title}</p>
+                        <p className="font-medium truncate">
+                          {(product as any).featured && <Star className="inline h-3.5 w-3.5 text-yellow-500 fill-yellow-500 mr-1" />}
+                          {product.title}
+                        </p>
                         <p className="text-sm font-semibold mt-1">
                           {product.price_retail ? formatCurrency(Number(product.price_retail)) : '-'}
                         </p>
@@ -192,7 +195,10 @@ export default function ProductsPage() {
                               </div>
                             )}
                             <div>
-                              <p className="font-medium">{product.title}</p>
+                              <p className="font-medium">
+                                {(product as any).featured && <Star className="inline h-3.5 w-3.5 text-yellow-500 fill-yellow-500 mr-1" />}
+                                {product.title}
+                              </p>
                               <p className="text-xs text-muted-foreground">/{product.slug}</p>
                             </div>
                           </div>

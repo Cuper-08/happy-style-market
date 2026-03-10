@@ -28,6 +28,7 @@ const productSchema = z.object({
   description: z.string().optional(),
   price_retail: z.number().positive('Preço de varejo deve ser maior que zero'),
   price: z.number().optional(),
+  featured: z.boolean().optional(),
   images: z.array(z.string()).optional(),
   variants: z.array(variantSchema).optional(),
 });
@@ -57,6 +58,7 @@ export default function ProductFormPage() {
       description: '',
       price_retail: 0,
       price: undefined,
+      featured: false,
       images: [],
       variants: [{ size: '', stock: true }],
     },
@@ -75,6 +77,7 @@ export default function ProductFormPage() {
         description: existingProduct.description || '',
         price_retail: Number(existingProduct.price_retail) || 0,
         price: existingProduct.price ? Number(existingProduct.price) : undefined,
+        featured: (existingProduct as any).featured ?? false,
         variants:
           existingProduct.variants.length > 0
             ? existingProduct.variants.map((v) => ({
@@ -112,6 +115,7 @@ export default function ProductFormPage() {
       title: data.title,
       slug: data.slug,
       description: data.description,
+      featured: data.featured ?? false,
       price_retail: priceRetail,
       price_retail_display: formatPrice(priceRetail),
       price: priceWholesale || null,
@@ -199,6 +203,18 @@ export default function ProductFormPage() {
                       <FormLabel>Descrição</FormLabel>
                       <FormControl><Textarea placeholder="Descreva o produto..." rows={4} {...field} /></FormControl>
                       <FormMessage />
+                    </FormItem>
+                  )} />
+
+                  <FormField control={form.control} name="featured" render={({ field }) => (
+                    <FormItem className="flex items-center justify-between rounded-lg border p-4">
+                      <div className="space-y-0.5">
+                        <FormLabel className="text-base">⭐ Produto em Destaque</FormLabel>
+                        <FormDescription>Produtos em destaque aparecem no topo da página inicial</FormDescription>
+                      </div>
+                      <FormControl>
+                        <Switch checked={field.value ?? false} onCheckedChange={field.onChange} />
+                      </FormControl>
                     </FormItem>
                   )} />
 
