@@ -13,7 +13,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { Plus, Search, Loader2, Pencil, Trash2, Package, Download, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Plus, Search, Loader2, Pencil, Trash2, Package, Download, ChevronLeft, ChevronRight, Star } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
 
 export default function ProductsPage() {
