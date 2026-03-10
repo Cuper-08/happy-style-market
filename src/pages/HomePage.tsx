@@ -14,7 +14,7 @@ const DESIRED_CATEGORY_SLUGS = [
 ];
 
 export default function HomePage() {
-  const { data: allProducts = [], isLoading: loadingAll } = useProducts({ limit: 16 });
+  const { data: allProducts = [], isLoading: loadingAll } = useProducts({ limit: 16, orderBy: { column: 'price_retail', ascending: false } });
   const { data: allCategories = [] } = useCategories();
 
   const categories = useMemo(() => {
