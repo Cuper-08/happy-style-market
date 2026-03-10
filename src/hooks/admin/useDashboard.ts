@@ -161,6 +161,25 @@ export function useDashboard(period: DashboardPeriod = 'week') {
     },
   });
 
+  const statusDistributionQuery = useQuery({
+    queryKey: ['admin-status-distribution', period],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('orders')
+        .select('status')
+        .gte('created_at', start.toISOString());
+
+      if (error) throw error;
+
+      const counts: Record<string, number> = {};
+      data?.forEach(o => {
+        counts[o.status] = (counts[o.status] || 0) + 1;
+      });
+
+      return Object.entries(counts).map(([status, count]) => ({ status, count }));
+    },
+  });
+
   const recentOrdersQuery = useQuery({
     queryKey: ['admin-recent-orders'],
     queryFn: async () => {
@@ -185,6 +204,7 @@ export function useDashboard(period: DashboardPeriod = 'week') {
     stats: statsQuery.data,
     topProducts: topProductsQuery.data,
     salesChart: salesChartQuery.data,
+    statusDistribution: statusDistributionQuery.data,
     recentOrders: recentOrdersQuery.data,
     isLoading: statsQuery.isLoading || topProductsQuery.isLoading || salesChartQuery.isLoading,
     error: statsQuery.error || topProductsQuery.error || salesChartQuery.error,
