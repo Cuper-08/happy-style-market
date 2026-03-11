@@ -19,6 +19,7 @@ interface ProductFormData {
   price_retail?: number | null;
   price_retail_display?: string | null;
   images?: string[];
+  featured?: boolean;
 }
 
 interface VariantFormData {
